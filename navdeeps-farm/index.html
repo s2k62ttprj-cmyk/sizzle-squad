@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Navdeep's Farm">
+<title>Navdeep's Farm</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="stage">
+  <canvas id="view" width="960" height="540"></canvas>
+  <div id="bubbles"></div>
+  <div id="hud" class="hidden">
+    <div id="hud-time" class="panel">
+      <img id="golu-icon" class="icon lg" alt="">
+      <div><div><span class="name">BAMBI</span> <span id="hud-day"></span></div><div id="hud-clock" class="muted"></div></div>
+      <img id="wx-icon" class="icon lg" alt="">
+    </div>
+    <div id="hud-goal" class="panel"><img class="icon sm" id="goal-icon" alt=""><span id="goal-text"></span></div>
+    <div id="hud-gold" class="panel"><img id="gold-icon" class="icon" alt=""><span id="gold"></span></div>
+    <div id="hud-bars" class="panel">
+      <div class="bar-row"><img id="energy-icon" class="icon sm" alt=""><div class="bar"><div id="energy-fill" class="fill energy"></div></div><span id="energy-text" class="num"></span></div>
+      <div class="bar-row"><img id="water-icon" class="icon sm" alt=""><div class="bar"><div id="water-fill" class="fill water"></div></div><span id="water-text" class="num"></span></div>
+    </div>
+    <div id="hud-hand" class="panel">
+      <img id="hand-icon" class="icon lg" alt="">
+      <div><div id="hand-name"></div><div id="hand-sub" class="muted"></div></div>
+    </div>
+    <div id="hud-hint" class="panel"><b class="key">OK</b><span id="hint-text"></span></div>
+  </div>
+  <div id="toasts"></div>
+  <div id="fade"></div>
+  <div id="menu" class="hidden"></div>
+</div>
+<script src="art.js"></script>
+<script src="sprites.js"></script>
+<script src="sprites2.js"></script>
+<script src="audio.js"></script>
+<script src="world.js"></script>
+<script src="content.js"></script>
+<script src="npc.js"></script>
+<script src="animals.js"></script>
+<script src="ui.js"></script>
+<script src="touch.js"></script>
+<script src="main.js"></script>
+<script>
+  // static HUD icons
+  document.getElementById('golu-icon').src = icon('golu');
+  document.getElementById('goal-icon').src = icon('star');
+  document.getElementById('gold-icon').src = icon('coin');
+  document.getElementById('energy-icon').src = icon('bolt');
+  document.getElementById('water-icon').src = icon('drop');
+</script>
+</body>
+</html>
