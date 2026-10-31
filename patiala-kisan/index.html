@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Patiala Kisan">
+<meta name="theme-color" content="#2f7d32">
+<meta name="description" content="A 3D Punjabi farming game set in Patiala. Grow kanak and sarson, sell at the mandi, drive a tractor and visit Gurdwara Sri Dukh Niwaran Sahib every day.">
+<title>Patiala Kisan</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Baloo+Paaji+2:wght@700;800&display=swap">
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js">
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="app">
+  <canvas id="gl"></canvas>
+  <div id="touch"></div>
+  <div id="labels"></div>
+  <div id="floats"></div>
+  <div id="joy"><div id="knob"></div></div>
+
+  <div id="hud" hidden>
+    <div class="top">
+      <button id="lvl" class="lvl" aria-label="Level">
+        <svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="19" class="track"/><circle id="lvlRing" cx="22" cy="22" r="19" class="ring"/></svg>
+        <span id="lvlNum">1</span>
+      </button>
+      <div class="who"><b id="pname">Guri</b><small id="dayInfo"></small></div>
+      <div class="chipbar">
+        <div class="cash"><span class="ico">₹</span><b id="money">0</b></div>
+        <button class="soul" id="soulBox" aria-label="Soul points"><span class="ico">🙏</span><b id="soul">0</b></button>
+      </div>
+      <button id="btnMenu" class="round" aria-label="Settings">⚙️</button>
+    </div>
+    <button id="quest" class="quest"></button>
+    <div id="blessBadge" class="bless" hidden>✨ Blessed today</div>
+    <div class="pills">
+      <div id="carryPill" class="pill"></div>
+      <div id="waterPill" class="pill"></div>
+    </div>
+    <div class="side">
+      <button id="btnShop"><i>🛒</i><span>Shop</span></button>
+      <button id="btnFarm"><i>🏡</i><span>Farm</span></button>
+      <button id="btnMissions"><i>📜</i><span>Goals</span></button>
+      <button id="btnBag"><i>🎒</i><span>Bag</span></button>
+      <button id="btnMap"><i>🗺️</i><span>Map</span></button>
+    </div>
+    <div id="vehBar" class="vehbar" hidden>
+      <button id="attBtn" class="att"></button>
+      <div id="tankInfo" class="pill"></div>
+      <button id="hornBtn" class="round" aria-label="Horn">📯</button>
+    </div>
+    <div class="actions">
+      <button id="seedPill" class="seed" aria-label="Seeds"></button>
+      <button id="action" class="action" hidden></button>
+    </div>
+    <div id="toasts"></div>
+  </div>
+
+  <div id="scrim" hidden></div>
+  <section id="panel" class="sheet" hidden>
+    <div class="sheet-head"><h2></h2><button class="x" aria-label="Close">✕</button></div>
+    <div class="tabs scroll"></div>
+    <div class="sheet-body scroll"></div>
+  </section>
+  <div id="modal" hidden></div>
+
+  <div id="start" class="screen" hidden>
+    <div class="title">
+      <div class="gur">ਪਟਿਆਲਾ ਕਿਸਾਨ</div>
+      <h1>Patiala Kisan</h1>
+      <p>Kheti, Mandi te Dukh Niwaran Sahib di Hazri</p>
+    </div>
+    <div class="startcard">
+      <label>Your name <input id="nameIn" maxlength="14" autocomplete="off"></label>
+      <div class="lab">Pagg colour</div>
+      <div id="swatches" class="swatches"></div>
+      <button id="playBtn" class="btn big">Play ▶</button>
+      <small id="saveInfo"></small>
+      <button id="newBtn" class="btn ghost" hidden>New farm</button>
+    </div>
+    <p class="foot">Best in portrait · Drag anywhere to walk · Walk over your khet to farm</p>
+  </div>
+
+  <div id="loading" class="screen">
+    <div class="spinner">🌾</div>
+    <p id="loadmsg">Loading Patiala…</p>
+  </div>
+</div>
+<script>
+  window.addEventListener('error', function (e) {
+    var m = document.getElementById('loadmsg');
+    if (m && !document.getElementById('loading').hidden) m.textContent = 'Could not load the game (' + (e.message || 'network error') + '). Check your connection and reload.';
+  });
+  setTimeout(function () {
+    var m = document.getElementById('loadmsg');
+    if (!document.getElementById('loading').hidden && document.getElementById('start').hidden && m.textContent === 'Loading Patiala…') m.textContent = 'Still loading… this needs Safari 16.4 or newer and an internet connection.';
+  }, 12000);
+</script>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>

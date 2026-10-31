@@ -1,0 +1,11 @@
+{
+  "name": "Patiala Kisan",
+  "short_name": "Patiala Kisan",
+  "description": "A 3D Punjabi farming game set in Patiala.",
+  "start_url": "./",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#8fd14f",
+  "theme_color": "#2f7d32",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}
