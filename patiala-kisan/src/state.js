@@ -1,6 +1,6 @@
 // Save data: creation, versioned load/migrate, autosave and inventory helpers.
 // Pure module (no three.js) so it can be unit tested in tests/index.html.
-import { SAVE_KEY, SAVE_VERSION, START_MONEY, FIELDS, PENS, BUILDINGS, VEHICLES, BAGS, STORAGE, TANKER_CAP } from './config.js';
+import { SAVE_KEY, SAVE_VERSION, START_MONEY, FIELDS, PENS, BUILDINGS, VEHICLES, BAGS, STORAGE, TANKER_CAP, MANAGERS } from './config.js';
 
 export function todayKey(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -18,6 +18,8 @@ export function newState(name = 'Guri', turban = '#e8590c') {
   for (const id in BUILDINGS) buildings[id] = { owned: false, paid: 0, lvl: 0, queue: [], t: 0, out: {}, inp: {}, recipe: BUILDINGS[id].recipes[0] };
   const vehicles = {};
   for (const id in VEHICLES) vehicles[id] = { owned: false, x: 0, z: 0, rot: 0, cargo: [], att: 'cultivator', atts: { cultivator: true }, hp: 0, tank: TANKER_CAP };
+  const managers = {};
+  for (const id in MANAGERS) managers[id] = { on: false, rank: 0, paid: 0 };
   return {
     v: SAVE_VERSION, created: Date.now(), saved: 0,
     name, turban,
@@ -25,7 +27,7 @@ export function newState(name = 'Guri', turban = '#e8590c') {
     carry: [], storage: {}, seeds: { wheat: 8 }, seed: 'wheat', water: 8,
     up: { bag: 0, can: 0, storage: 0, stall: 0 },
     fields, plots, pens, buildings, vehicles,
-    staff: { pali: false, mistri: false, munshi: false },
+    managers, seeriRank: 0,
     stall: {}, pile: 0,
     orders: [], orderSeq: 0, orderCooldown: 0,
     quest: 0, questProg: 0,
@@ -52,7 +54,15 @@ const structuredCloneSafe = (o) => (o === null || typeof o !== 'object') ? o : J
 
 // Version migrations run in order; each takes the save at version n and returns version n+1.
 const MIGRATIONS = {
-  // 1: (s) => { ...; s.v = 2; return s; },
+  // v1 → v2: staff booleans become managers with ranks; a new mission was inserted at index 17
+  1: (s) => {
+    s.managers = {};
+    for (const k of ['pali', 'mistri', 'munshi']) s.managers[k] = { on: !!(s.staff && s.staff[k]), rank: 0, paid: 0 };
+    delete s.staff;
+    if (typeof s.quest === 'number' && s.quest >= 17) s.quest++;
+    s.v = 2;
+    return s;
+  },
 };
 
 export function migrate(s) {

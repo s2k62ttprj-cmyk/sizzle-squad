@@ -20,6 +20,12 @@ export class Labels {
     this.list.push(l);
     return l;
   }
+  remove(l) {
+    if (!l) return;
+    l.el.remove();
+    const i = this.list.indexOf(l);
+    if (i >= 0) this.list.splice(i, 1);
+  }
   update() {
     const { camera, player } = this.game;
     const w = innerWidth, h = innerHeight;
@@ -68,6 +74,7 @@ export class Pads {
       pad.mesh.visible = vis;
       if (!vis) continue;
       pad.mesh.userData.ring.material.opacity = 0.6 + Math.sin(t * 4) * 0.3;
+      pad.mesh.userData.dash.rotation.y = t * 0.5;
       if (riding && !pad.vehicleOk) continue;
       const d = Math.hypot(pl.pos.x - pad.x, pl.pos.z - pad.z);
       if (d < pad.r * (riding ? 1.8 : 1)) on = pad;

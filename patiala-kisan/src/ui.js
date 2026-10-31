@@ -3,11 +3,12 @@
 import * as THREE from 'three';
 import {
   CROPS, ITEMS, BAGS, CANS, STORAGE, STALL, FIELDS, PENS, BUILDINGS, RECIPES, VEHICLES, ATTACHMENTS, TRACTOR_HP,
-  STAFF, SOUL_PERKS, QUESTS, ACHIEVEMENTS, BUILDING_UPGRADES, PEN_PIPE_COST, PEN_WATER_CAP, TANKER_CAP, xpNeed, TURBAN_COLORS, PLOT,
+  STAFF, MANAGERS, SEERI, MANAGER_RANKS, wage, OFFLINE_HOURS, SOUL_PERKS, QUESTS, ACHIEVEMENTS, BUILDING_UPGRADES, PEN_PIPE_COST, PEN_WATER_CAP, TANKER_CAP, xpNeed, TURBAN_COLORS, PLOT,
 } from './config.js';
-import { carryCap, storageCap, storageUsed, have, carryCount, saveWorks } from './state.js';
+import { carryCap, storageCap, storageUsed, have, saveWorks } from './state.js';
 import { POS } from './world.js';
 import { fmt } from './pads.js';
+import { portrait } from './portrait.js';
 
 const $ = (id) => document.getElementById(id);
 const _v = new THREE.Vector3();
@@ -31,6 +32,7 @@ export class UI {
     bind('btnMissions', () => this.open('missions'));
     bind('btnBag', () => this.openBag());
     bind('btnMap', () => this.open('map'));
+    bind('btnStaff', () => this.openStaff());
     bind('btnMenu', () => this.open('settings'));
     bind('lvl', () => this.open('missions'));
     bind('quest', () => { const q = QUESTS[game.state.quest]; if (q?.target) { game.guide.set(q.target, true); this.toast('Follow the yellow arrow ➜'); } else this.open('missions'); });
@@ -217,6 +219,7 @@ export class UI {
   }
   close() { this.panel.hidden = true; $('scrim').hidden = true; this.view = null; }
   openOrders() { this.open('orders'); }
+  openStaff(role = null) { this.focusRole = role; this.open('staff'); }
   openPen(id) { this.penId = id; this.open('pen'); }
   openWorkshop(id) { this.shopId = id; this.open('workshop'); }
   openBag(tab) { this.open('bag', tab); }
@@ -243,7 +246,7 @@ export class UI {
       case 'seeds': title = '🌱 Choose seeds'; html = this.seedsHTML(true); break;
       case 'farm':
         title = '🏡 Farm';
-        tabs = [['fields', '🟫 Fields'], ['staff', '👳 Staff'], ['animals', '🐾 Animals'], ['work', '🏭 Workshops'], ['blessings', '🙏 Blessings'], ['stats', '📊 Stats']];
+        tabs = [['fields', '🟫 Fields'], ['animals', '🐾 Animals'], ['work', '🏭 Workshops'], ['blessings', '🙏 Blessings'], ['stats', '📊 Stats']];
         html = this.farmHTML();
         this.live = this.tab === 'animals' || this.tab === 'work' || this.tab === 'fields';
         break;
@@ -252,6 +255,7 @@ export class UI {
       case 'map': title = '🗺️ Map'; html = this.mapHTML(); break;
       case 'settings': title = '⚙️ Settings'; html = this.settingsHTML(); break;
       case 'orders': title = '📋 Customer orders'; html = this.ordersHTML(); this.live = true; break;
+      case 'staff': title = '👔 Managers'; html = this.staffHTML(); this.live = true; break;
       case 'pen': title = `🐾 ${PENS[this.penId].name}`; html = this.penHTML(); this.live = true; break;
       case 'workshop': title = `🏭 ${BUILDINGS[this.shopId].name}`; html = this.workshopHTML(); this.live = true; break;
     }
@@ -354,7 +358,7 @@ export class UI {
     const g = this.game, st = g.state;
     switch (this.tab) {
       case 'fields': {
-        let h = `<p class="hint">A Seeri (field manager) farms a field on their own, buying seeds as needed. Wages ₹${STAFF.seeri.salary}/day.</p>`;
+        let h = `<p class="hint">A Seeri (field manager) farms a field on their own, buying seeds as needed. Wages ₹${wage(SEERI.salary, st.seeriRank)}/day. ${this.btn('👔 Managers', 'openStaff')}</p>`;
         for (const f of FIELDS) {
           const fd = st.fields[f.id];
           if (!fd.owned) continue;
@@ -366,16 +370,6 @@ export class UI {
             <small>${r} ripe · ${gr} growing · ${t} tilled · ${u} empty</small>
             <div class="ctrl">${fd.seeri ? `Crop: ${sel}` : ''}${b}${this.btn('📍', 'guide', { t: f.id })}</div></div>`;
         }
-        return h;
-      }
-      case 'staff': {
-        let h = `<p class="hint">Managers automate whole departments. Wages are paid every in-game day (${Math.round(360 / 60)} min). Total: ₹${g.staff.salaries()}/day.</p>`;
-        for (const role of ['pali', 'mistri', 'munshi']) {
-          const s = STAFF[role], on = st.staff[role];
-          const b = on ? this.btn('Dismiss', 'fire', { role }, false, 'ghost') : st.level < s.level ? `<span class="tag">🔒 L${s.level}</span>` : this.btn(`Hire ${money(s.hire)}`, 'hire', { role }, st.money < s.hire);
-          h += this.row('👳', `${s.name} <span class="pa">${s.role}</span>`, `${s.desc} ₹${s.salary}/day`, b);
-        }
-        h += this.row('🧑‍🌾', `Seeris: ${Object.values(st.fields).filter((f) => f.seeri).length}`, 'Hire per field in the Fields tab', this.btn('Fields', 'tab', { tab: 'fields' }));
         return h;
       }
       case 'animals': {
@@ -542,6 +536,62 @@ export class UI {
     return h;
   }
 
+  // ---------------------------------------------------------------- managers
+  staffCard(role, cfg, data) {
+    const g = this.game, st = g.state;
+    const rank = role === 'seeri' ? st.seeriRank : data.rank;
+    const img = portrait(g.renderer, role, cfg.look, cfg.tool);
+    const r = MANAGER_RANKS[rank], next = MANAGER_RANKS[rank + 1];
+    const hired = role === 'seeri' ? Object.values(st.fields).some((f) => f.owned && f.seeri) : data.on;
+    const locked = st.level < cfg.level;
+    const starsHtml = MANAGER_RANKS.map((_, i) => `<span class="${i <= rank ? 'on' : ''}">★</span>`).join('');
+    let ctrl = '';
+    if (locked) ctrl = `<span class="tag">🔒 Level ${cfg.level}</span>`;
+    else if (role !== 'seeri' && !data.on) ctrl = this.btn(`Hire ${money(cfg.hire - (data.paid || 0))}`, 'hire', { role }, st.money < cfg.hire - (data.paid || 0), 'go') + this.btn('📍 Desk', 'guide', { t: role }, false, 'ghost');
+    else {
+      const cost = g.staff.trainCost(role);
+      ctrl = next ? this.btn(`⬆️ Train to ${next.name} · ${money(cost)}`, 'train', { role }, st.money < cost) : '<span class="tag gold">🏅 Top rank</span>';
+      if (role !== 'seeri') ctrl += this.btn('📍', 'guide', { t: role }, false, 'ghost') + this.btn('Dismiss', 'fire', { role }, false, 'ghost');
+    }
+    const status = role === 'seeri' ? `${Object.values(st.fields).filter((f) => f.owned && f.seeri).length} working · ₹${wage(cfg.salary, rank)}/day each`
+      : data.on ? `${esc(g.staff.status(role))} · ₹${wage(cfg.salary, rank)}/day` : `Wages ₹${wage(cfg.salary, rank)}/day once hired`;
+    return `<div class="mgr ${hired ? 'on' : ''} ${locked ? 'locked' : ''} ${this.focusRole === role ? 'focus' : ''}">
+      <div class="pt" style="--c:#${new THREE.Color(cfg.look.turban).getHexString()}">${img ? `<img src="${img}" alt="">` : cfg.icon}</div>
+      <div class="mi"><div class="mn"><b>${cfg.icon} ${cfg.name}</b><span class="pa">${cfg.role}</span></div>
+        <div class="stars">${starsHtml}<em>${r.name} · speed ×${r.speed}</em></div>
+        <small>${cfg.desc}</small>
+        <small class="st">${hired ? '🟢 ' : ''}${status}</small>
+        <div class="ctrl">${ctrl}</div></div></div>`;
+  }
+
+  staffHTML() {
+    const g = this.game, st = g.state;
+    let h = `<p class="hint">Managers run a part of your farm on their own — even while the game is closed (up to ${OFFLINE_HOURS} hours). Hire them here or stand on the white ring at their desk. Training makes them faster. Wages: ₹${fmt(g.staff.salaries())} per day.</p>`;
+    for (const [role, cfg] of Object.entries(MANAGERS)) h += this.staffCard(role, cfg, st.managers[role]);
+    h += '<h3>🧑‍🌾 Seeris (one per field)</h3>' + this.staffCard('seeri', SEERI, null);
+    for (const f of FIELDS) {
+      const fd = st.fields[f.id];
+      if (!fd.owned) continue;
+      const crops = Object.entries(CROPS).filter(([, c]) => c.level <= st.level);
+      const sel = `<select data-act="noop" onchange="window.__game.ui.setFieldCrop('${f.id}', this.value)">${crops.map(([id, c]) => `<option value="${id}" ${fd.crop === id ? 'selected' : ''}>${c.icon} ${c.name}</option>`).join('')}</select>`;
+      const b = fd.seeri ? this.btn('Dismiss', 'fire', { role: 'seeri', id: f.id }, false, 'ghost') : st.level < SEERI.level ? `<span class="tag">🔒 L${SEERI.level}</span>` : this.btn(`Hire ${money(SEERI.hire)}`, 'hire', { role: 'seeri', id: f.id }, st.money < SEERI.hire);
+      h += this.row(fd.seeri ? '🧑‍🌾' : '🟫', f.name, fd.seeri ? `Growing ${CROPS[fd.crop].icon} ${sel}` : `${f.cols * f.rows} plots · no Seeri`, b);
+    }
+    return h;
+  }
+
+  awayReport(r) {
+    const h = Math.floor(r.minutes / 60), m = r.minutes % 60;
+    const lines = [];
+    if (r.stallItems) lines.push(`🧺 Dukaandar sold ${r.stallItems} items · ${money(r.stall)}`);
+    if (r.harvested) lines.push(`🧑‍🌾 Seeris harvested ${r.harvested} crops`);
+    if (r.products) lines.push(`🐄 Pali collected ${r.products} eggs, milk and wool`);
+    if (r.made) lines.push(`🔧 Workshops finished ${r.made} batches`);
+    if (r.munshi) lines.push(`📒 Munshi earned ${money(r.munshi)}`);
+    if (!lines.length) lines.push('Your managers kept everything tidy.');
+    this.modal(`<div class="big">🌙</div><h2>While you were away</h2><p>${h ? `${h} h ` : ''}${m} min</p><ul class="unl">${lines.map((l) => `<li>${l}</li>`).join('')}</ul>${r.money > 0 ? `<p class="gain">+${money(r.money)} earned</p>` : ''}`, 'Shabaash! 👏');
+  }
+
   setFieldCrop(fid, crop) { this.game.state.fields[fid].crop = crop; }
 
   // ---------------------------------------------------------------- actions
@@ -622,11 +672,27 @@ export class UI {
         g.audio.play('buy');
         break;
       }
-      case 'hire':
-        if (!g.staff.hire(d.role, d.id)) return fail('Cannot hire yet');
+      case 'hire': {
+        const m = st.managers[d.role], cfg = STAFF[d.role];
+        if (st.level < cfg.level) return fail(`Unlocks at level ${cfg.level}`);
+        if (m) {
+          // the desk pad may already hold part of the fee
+          const due = cfg.hire - (m.paid || 0);
+          if (m.on || st.money < due) return fail('Not enough money');
+          st.money -= due;
+          g.staff.hire(d.role, null, true);
+        } else if (!g.staff.hire('seeri', d.id)) return fail('Cannot hire yet');
         g.audio.play('buy');
-        this.toast(`👳 ${STAFF[d.role].name} hired!`);
         break;
+      }
+      case 'train': {
+        if (!g.staff.train(d.role)) return fail('Not enough money');
+        const r = MANAGER_RANKS[g.staff.rankOf(d.role)];
+        g.audio.play('level');
+        this.toast(`⬆️ ${STAFF[d.role].name} is now ${r.name} — ${r.speed}× faster!`, 3);
+        break;
+      }
+      case 'openStaff': this.openStaff(); return;
       case 'fire':
         if (!(await this.confirm(`<h2>Dismiss ${STAFF[d.role].name}?</h2><p>The hiring fee is not refunded.</p>`, 'Dismiss'))) return;
         g.staff.fire(d.role, d.id);

@@ -21,23 +21,29 @@ export class Walker {
     this.rot = 0;
     this.speed = 0;
     this.target = null;
+    this.path = [];
+    this.maxSpeed = 3.2;
     this.t = Math.random() * 10;
     game.scene.add(this.group);
-    this.group.traverse((m) => { if (m.isMesh) m.castShadow = true; });
+    this.group.traverse((m) => { if (m.isMesh && m !== this.h.blob) m.castShadow = true; });
   }
-  goto(x, z) { this.target = [x, z]; }
+  goto(x, z) { this.target = [x, z]; this.path = []; }
+  // walk a list of waypoints in order
+  go(points) { this.path = points.slice(1); this.target = points[0]; }
   update(dt, work = 0) {
     this.t += dt;
     let moving = false;
     if (this.target) {
       const dx = this.target[0] - this.pos.x, dz = this.target[1] - this.pos.z, d = Math.hypot(dx, dz);
       if (d > 0.08) {
-        const sp = Math.min(3.2, d * 4);
-        this.pos.x += dx / d * sp * dt; this.pos.z += dz / d * sp * dt;
+        const sp = Math.min(this.maxSpeed, this.path.length ? this.maxSpeed : d * 4);
+        const step = Math.min(d, sp * dt);
+        this.pos.x += dx / d * step; this.pos.z += dz / d * step;
         let dr = Math.atan2(dx, dz) - this.rot; dr = Math.atan2(Math.sin(dr), Math.cos(dr));
         this.rot += dr * Math.min(1, dt * 10);
         this.speed = sp; moving = true;
-      } else { this.target = null; }
+      } else if (this.path.length) { this.target = this.path.shift(); moving = true; }
+      else { this.target = null; }
     }
     if (!moving) this.speed = 0;
     this.group.rotation.y = this.rot;

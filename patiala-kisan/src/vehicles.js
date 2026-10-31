@@ -139,6 +139,22 @@ class Vehicle {
     if (this.kind === 'tractor' && this.data.att === 'reaper') this.attMeshes.reaper.userData.spin.rotation.x += dt * (Math.abs(this.speed) > 0.1 ? 6 : 0);
     if (g.player.vehicle === this && Math.abs(this.speed) > 0.3) this.work();
     if (this.cargoView) this.cargoView.update(dt);
+    // dust behind the wheels and diesel puffs from the exhaust
+    this.fxT = (this.fxT || 0) - dt;
+    if (this.fxT <= 0) {
+      this.fxT = 0.07;
+      const sp = Math.abs(this.speed);
+      if (sp > 1.8) {
+        const back = this.kind === 'bike' ? 0.7 : this.kind === 'combine' ? 1.8 : 0.6, side = this.kind === 'bike' ? 0 : this.kind === 'combine' ? 1.2 : 0.85;
+        const s = Math.sign(Math.random() - 0.5);
+        const cx = this.pos.x - Math.sin(this.rot) * back + Math.cos(this.rot) * side * s, cz = this.pos.z - Math.cos(this.rot) * back - Math.sin(this.rot) * side * s;
+        g.fx.dust(cx, cz, this.kind === 'combine' ? 1.6 : this.kind === 'tractor' ? 1.2 : 0.8);
+      }
+      if (this.exhaust && g.player.vehicle === this && Math.random() < 0.35 + sp * 0.05) {
+        this.exhaust.getWorldPosition(_w);
+        g.fx.smoke(_w.x, _w.y, _w.z, 0x6b6b6b);
+      }
+    }
   }
 
   updateTrolley(dt) {

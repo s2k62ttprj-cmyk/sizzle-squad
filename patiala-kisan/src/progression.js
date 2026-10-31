@@ -79,7 +79,7 @@ export class Progression {
         if (next.type === 'upgrade' && st.up[next.key] > 0) st.questProg = next.n;
         if (next.type === 'buySeed' && (st.seeds[next.key] || 0) > 0) st.questProg = next.n;
         if (next.type === 'buyField' && st.fields.f2.owned) st.questProg = next.n;
-        if (next.type === 'hire' && (next.key === 'seeri' ? Object.values(st.fields).some((f) => f.seeri) : st.staff[next.key])) st.questProg = next.n;
+        if (next.type === 'hire' && (next.key === 'seeri' ? Object.values(st.fields).some((f) => f.seeri) : st.managers[next.key]?.on)) st.questProg = next.n;
         if (next.target) g.guide.set(next.target);
       }
       g.ui.questBar();

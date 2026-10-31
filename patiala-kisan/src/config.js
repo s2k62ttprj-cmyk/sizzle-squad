@@ -2,7 +2,7 @@
 // balancing never requires touching gameplay code. Times are in seconds, money in rupees.
 
 export const SAVE_KEY = 'patiala-kisan-save';
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 export const DAY_SECONDS = 360;          // one in-game day (salaries, weather)
 export const PLOT = 2;                   // plot pitch in metres
 export const START_MONEY = 40;
@@ -153,14 +153,35 @@ export const TRACTOR_HP = [
 export const COMBINE_RADIUS = 3.4;
 export const TANKER_CAP = 120;
 
-export const STAFF = {
-  seeri:  { name: 'Seeri', role: 'Field manager', level: 10, hire: 2500, salary: 120, desc: 'Tills, plants, waters and harvests one field. Buys seeds and sends crops to the godown.' },
-  pali:   { name: 'Pali', role: 'Animal caretaker', level: 12, hire: 4000, salary: 180, desc: 'Feeds and waters every animal and collects eggs, milk and wool.' },
-  mistri: { name: 'Mistri', role: 'Production manager', level: 15, hire: 7000, salary: 260, desc: 'Keeps every workshop busy using godown stock and collects the goods.' },
-  munshi: { name: 'Munshi', role: 'Sales manager', level: 14, hire: 6000, salary: 220, desc: 'Fills customer orders and sells surplus godown stock (keeps 15 of each).' },
+// Managers run a whole department on their own. Hire them at their desk in the world (stand on
+// the white ring) or from the 👔 Staff menu, then train them through five ranks.
+// look: how they are dressed; tool: what they carry around.
+export const MANAGERS = {
+  dukaandar: { name: 'Dukaandar', role: 'Shop manager', icon: '🧺', level: 5, hire: 1200, salary: 80, tool: 'book',
+    look: { turban: 0xf76707, shirt: 0xfff3bf, pants: 0xf2eee2, apron: 0x2b8a3e }, desc: 'Carries goods from the godown to your Mandi stall, keeps it stocked and banks the cash pile.' },
+  pali: { name: 'Pali', role: 'Animal manager', icon: '🐄', level: 12, hire: 4000, salary: 180, tool: 'bucket',
+    look: { turban: 0x2b8a3e, shirt: 0xffec99, pants: 0x495057, sash: 0x2b8a3e }, desc: 'Feeds and waters every animal and moves eggs, milk and wool to the godown.' },
+  munshi: { name: 'Munshi', role: 'Sales manager', icon: '📒', level: 14, hire: 6000, salary: 220, tool: 'book',
+    look: { turban: 0xffffff, shirt: 0xf8f9fa, pants: 0xf8f9fa, vest: 0x343a40, glasses: true }, desc: 'Fills customer orders from the godown and sells surplus at the Arhtiya (keeps 15 of each).' },
+  mistri: { name: 'Mistri', role: 'Workshop manager', icon: '🔧', level: 15, hire: 7000, salary: 260, tool: 'wrench',
+    look: { turban: 0x1c4fd1, shirt: 0xadb5bd, pants: 0x343a40, apron: 0x5c4033 }, desc: 'Keeps every workshop busy from godown stock and stores the finished goods.' },
 };
+export const SEERI = { name: 'Seeri', role: 'Field manager', icon: '🧑‍🌾', level: 10, hire: 2500, salary: 120, tool: 'hoe',
+  look: { turban: 0xf2c400, shirt: 0xe9ecef, pants: 0x495057 }, desc: 'Tills, plants, waters and harvests one field. Buys seeds and sends crops to the godown.' };
+export const STAFF = { seeri: SEERI, ...MANAGERS };
+// Ranks: speed multiplies walking and working; training costs hire × costMul; wages grow 30% a rank
+export const MANAGER_RANKS = [
+  { name: 'Naya', speed: 1.0 },
+  { name: 'Tajurbekar', speed: 1.3, costMul: 1.2 },
+  { name: 'Mahir', speed: 1.65, costMul: 3 },
+  { name: 'Ustad', speed: 2.1, costMul: 7 },
+  { name: 'Sardar', speed: 2.7, costMul: 15 },
+];
+export const wage = (base, rank) => Math.round(base * (1 + rank * 0.3));
 export const MUNSHI_KEEP = 15;
 export const MUNSHI_RATE = 0.9;
+export const DUKAANDAR_KEEP = 5;      // the Dukaandar leaves this many of each item in the godown
+export const OFFLINE_HOURS = 3;       // managers keep working this long while the game is closed
 
 // Gurdwara Dukh Niwaran Sahib
 export const GURU = {
@@ -196,6 +217,7 @@ export const QUESTS = [
   { type: 'product', n: 6, key: 'egg', text: 'Collect 6 eggs', target: 'coop', reward: 60 },
   { type: 'build',   n: 1, key: 'chakki', text: 'Build the Atta Chakki', target: 'chakki', reward: 80 },
   { type: 'make',    n: 4, key: 'atta', text: 'Grind 4 atta at the chakki', target: 'chakki', reward: 80 },
+  { type: 'hire',    n: 1, key: 'dukaandar', text: 'Hire a Dukaandar to run your Mandi stall', target: 'dukaandar', reward: 150 },
   { type: 'build',   n: 1, key: 'tabela', text: 'Build the buffalo Tabela', target: 'tabela', reward: 120 },
   { type: 'vehicle', n: 1, key: 'tractor', text: 'Buy your first tractor (level 9)', target: 'garage', reward: 200 },
   { type: 'tractor', n: 12, text: 'Work 12 plots with the tractor', reward: 200 },
@@ -220,6 +242,7 @@ export const ACHIEVEMENTS = [
   { id: 'trac',   text: 'Buy a tractor',                stat: 'tractor', n: 1 },
   { id: 'prod1',  text: 'Open a workshop',              stat: 'buildings', n: 1 },
   { id: 'staff1', text: 'Hire your first worker',       stat: 'staff', n: 1 },
+  { id: 'rank5',  text: 'Train a manager to Sardar rank', stat: 'topRank', n: 4 },
   { id: 'auto',   text: 'Fully automate a field',       stat: 'seeris', n: 1 },
   { id: 'darshan7', text: '7-day Gurdwara streak',      stat: 'streak', n: 7 },
   { id: 'soul100', text: 'Earn 100 soul points',        stat: 'soul', n: 100 },

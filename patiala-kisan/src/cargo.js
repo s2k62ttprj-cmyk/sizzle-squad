@@ -4,10 +4,11 @@ import * as THREE from 'three';
 import { crateGeometries } from './models.js';
 import { Builder } from './geo.js';
 import { ITEMS } from './config.js';
+import { enhance } from './shading.js';
 
 let GEO = null;
-const crateMat = new THREE.MeshLambertMaterial({ vertexColors: true });
-const topMat = new THREE.MeshLambertMaterial({ vertexColors: true });
+const crateMat = enhance(new THREE.MeshLambertMaterial({ vertexColors: true }), { detail: 0.25, clouds: false });
+const topMat = enhance(new THREE.MeshLambertMaterial({ vertexColors: true }), { detail: 0.1, clouds: false });
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _p = new THREE.Vector3(), _c = new THREE.Color();
 const colorCache = {};
 export const itemColor = (id) => colorCache[id] || (colorCache[id] = new THREE.Color(ITEMS[id]?.color ?? 0xffffff));

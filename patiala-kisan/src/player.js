@@ -107,7 +107,11 @@ export class Player {
       collide(g.colliders, this.pos, 0.38);
       const moved = Math.hypot(this.pos.x - ox, this.pos.z - oz);
       this.stepDist += moved;
-      if (this.stepDist > 1.25) { this.stepDist = 0; g.audio.play('step'); }
+      if (this.stepDist > 1.25) {
+        this.stepDist = 0;
+        g.audio.play('step');
+        if (this.speed > 3.5 && g.surface('dirt', this.pos.x, this.pos.z) > 0.4) g.fx.dust(this.pos.x - Math.sin(this.rot) * 0.3, this.pos.z - Math.cos(this.rot) * 0.3, 0.6);
+      }
     }
     this.group.rotation.y = this.rot;
 

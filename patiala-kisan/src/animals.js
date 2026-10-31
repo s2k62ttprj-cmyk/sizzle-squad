@@ -1,15 +1,16 @@
 // Animal pens: chickens, Murrah buffaloes, goats and sheep. Feed them crops and water and
 // they produce eggs, milk and wool over real time (paused, never punished, when unfed).
 import * as THREE from 'three';
-import { Builder } from './geo.js';
-import { props, animalGeometry } from './models.js';
+import { Builder, vcMaterial } from './geo.js';
+import { props, animalGeometry, shade } from './models.js';
 import { PENS, PEN_WATER_CAP, PEN_PIPE_COST, CANS, ITEMS } from './config.js';
 import { POS } from './world.js';
-import { carryCap, addStorage } from './state.js';
+import { addStorage } from './state.js';
 import { StackView } from './cargo.js';
+import { enhance, waterMaterial, blobGeo, blobMaterial } from './shading.js';
 
 const SIZE = { coop: [6, 5], tabela: [8, 6], bakri: [6, 5], bhed: [7, 5] };
-const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(1, 1, 1), _p = new THREE.Vector3(), _e = new THREE.Euler();
+const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(1, 1, 1), _p = new THREE.Vector3(), _e = new THREE.Euler(), _bs = new THREE.Vector3();
 
 class Pen {
   constructor(game, id) {
@@ -64,33 +65,61 @@ class Pen {
     props.fence(b, x0, front, x1, front);
     const hz = back + face * 1.2;
     if (this.id === 'coop') {
-      b.box(0xc0874f, { x: cx - 1.4, y: 0.9, z: hz, sx: 2.4, sy: 1.4, sz: 1.6 });
-      b.box(0xb5392f, { x: cx - 1.4, y: 1.75, z: hz, sx: 2.7, sy: 0.12, sz: 1.9, rx: 0.15 * face });
-      b.box(0x4a2e1a, { x: cx - 1.4, y: 0.6, z: hz + face * 0.81, sx: 0.5, sy: 0.6, sz: 0.04 });
-      for (let i = 0; i < 3; i++) b.box(0xd9b45a, { x: cx + 1 + i * 0.7, y: 0.15, z: hz, sx: 0.55, sy: 0.25, sz: 0.55 });
+      // raised wooden murgi-khana: plank walls, shingled gable roof, ramp, perch and nest boxes
+      b.push(cx - 1.4, 0, hz);
+      for (const [px, pz] of [[-1.1, -0.7], [1.1, -0.7], [-1.1, 0.7], [1.1, 0.7]]) b.box(0x6b4226, { x: px, y: 0.25, z: pz, sx: 0.12, sy: 0.5, sz: 0.12 });
+      b.rbox(0xc0874f, { y: 1.0, sx: 2.4, sy: 1.0, sz: 1.6 }, 0.04);
+      for (let i = 0; i < 6; i++) b.box(0xa8723f, { y: 0.55 + i * 0.18, z: face * 0.81, sx: 2.38, sy: 0.02, sz: 0.01, ao: false });
+      b.prism(0xc0874f, { y: 1.5, sx: 2.4, sy: 0.6, sz: 1.6 });
+      for (const s of [-1, 1]) for (let k = 0; k < 4; k++) {
+        const d = 0.12 + k * 0.23;
+        b.rbox(k % 2 ? 0xb5392f : 0xa02e25, { y: 2.12 - d * 0.75, z: s * d, sx: 2.7, sy: 0.05, sz: 0.3, rx: s * 0.64 }, 0.02);
+      }
+      b.rbox(0x4a2e1a, { x: 0.5, y: 0.85, z: face * 0.82, sx: 0.45, sy: 0.5, sz: 0.04 }, 0.02);
+      b.rbox(0xa8723f, { x: 0.5, y: 0.3, z: face * 1.35, sx: 0.4, sy: 0.04, sz: 1.2, rx: face * 0.5 }, 0.02);
+      for (let k = 0; k < 4; k++) b.box(0x6b4226, { x: 0.5, y: 0.2 + k * 0.12, z: face * (1.75 - k * 0.22), sx: 0.38, sy: 0.02, sz: 0.04, ao: false });
+      b.pop();
+      for (let i = 0; i < 3; i++) {
+        b.rbox(0xd9b45a, { x: cx + 1 + i * 0.7, y: 0.18, z: hz, sx: 0.58, sy: 0.32, sz: 0.58 }, 0.04);
+        b.sph(0xe9cf8a, { x: cx + 1 + i * 0.7, y: 0.36, z: hz, sx: 0.45, sy: 0.12, sz: 0.45 }, 8, 4);
+      }
+      b.cyl(0x6b4226, { x: cx + 1.7, y: 0.5, z: hz - face * 1.0, rz: Math.PI / 2, sy: 2.0 }, 0.04, 0.04, 6);
     } else {
-      const wall = this.id === 'tabela' ? 0xa4553a : 0xb98e5e;
-      b.box(wall, { x: cx, y: 1.1, z: back + face * 0.3, sx: w - 0.6, sy: 2.2, sz: 0.3 });
-      for (const px of [-w / 2 + 0.5, w / 2 - 0.5]) b.box(0x7a4a24, { x: cx + px, y: 1.2, z: back + face * 2.2, sx: 0.15, sy: 2.4, sz: 0.15 });
-      b.box(0xd9b45a, { x: cx, y: 2.45, z: back + face * 1.25, sx: w - 0.2, sy: 0.25, sz: 2.6 });
-      b.box(0xcfa84e, { x: cx, y: 2.6, z: back + face * 1.25, sx: w - 0.6, sy: 0.15, sz: 2.2 });
+      // shed: brick back wall, posts, and a straw-thatched roof; khurli (feeding trough) inside
+      const wall = this.id === 'tabela' ? 0xb4583a : 0xb98e5e;
+      b.rbox(wall, { x: cx, y: 1.1, z: back + face * 0.3, sx: w - 0.6, sy: 2.2, sz: 0.3 }, 0.04);
+      for (let i = 0; i < 7; i++) b.box(shade(wall, -0.07), { x: cx, y: 0.2 + i * 0.3, z: back + face * 0.46, sx: w - 0.62, sy: 0.025, sz: 0.01, ao: false });
+      for (const px of [-w / 2 + 0.5, w / 2 - 0.5, 0]) b.cyl(0x7a4a24, { x: cx + px, y: 1.2, z: back + face * 2.3, sy: 2.4 }, 0.08, 0.09, 8);
+      b.rbox(0xd9b45a, { x: cx, y: 2.45, z: back + face * 1.25, sx: w - 0.1, sy: 0.25, sz: 2.8, rx: face * 0.12 }, 0.1);
+      b.rbox(0xcfa84e, { x: cx, y: 2.62, z: back + face * 1.15, sx: w - 0.5, sy: 0.18, sz: 2.3, rx: face * 0.12 }, 0.08);
+      for (let i = 0; i < 10; i++) b.box(0xb8923f, { x: cx - (w - 0.2) / 2 + 0.3 + i * (w - 0.8) / 9, y: 2.3, z: back + face * 2.62, sx: 0.04, sy: 0.18, sz: 0.06, ao: false });
+      b.rbox(0x9aa0a6, { x: cx, y: 0.3, z: back + face * 0.85, sx: w - 1.4, sy: 0.45, sz: 0.55 }, 0.06);
+      b.box(0xd9b45a, { x: cx, y: 0.52, z: back + face * 0.85, sx: w - 1.6, sy: 0.04, sz: 0.4 });
+      // straw heaps
+      for (const px of [-w / 2 + 1.0, w / 2 - 1.2]) b.sph(0xe0bf6a, { x: cx + px, y: 0.1, z: back + face * 1.7, sx: 1.0, sy: 0.4, sz: 0.8 }, 8, 5);
     }
-    // troughs at the front fence
-    b.box(0x8a8f96, { x: cx - 1.9, y: 0.25, z: front - face * 0.5, sx: 1.4, sy: 0.4, sz: 0.5 });
-    b.box(0x8a8f96, { x: cx, y: 0.25, z: front - face * 0.5, sx: 1.4, sy: 0.4, sz: 0.5 });
+    // troughs at the front fence (feed and water)
+    for (const tx of [cx - 1.9, cx]) b.rbox(0x8a8f96, { x: tx, y: 0.25, z: front - face * 0.5, sx: 1.4, sy: 0.4, sz: 0.5 }, 0.06);
     this.pen = b.mesh();
-    this.feedFill = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.08, 0.36), new THREE.MeshLambertMaterial({ color: 0xd9b45a }));
+    this.feedFill = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.08, 0.36), enhance(new THREE.MeshLambertMaterial({ color: 0xd9b45a }), { detail: 0.4, rim: 0 }));
     this.feedFill.position.set(cx - 1.9, 0.42, front - face * 0.5);
-    this.waterFill = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.06, 0.36), g.waterMat);
-    this.waterFill.position.set(cx, 0.42, front - face * 0.5);
+    this.waterFill = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.36), waterMaterial(1.2, 0.36, { foam: 0.05 }));
+    this.waterFill.rotation.x = -Math.PI / 2;
+    this.waterFill.position.set(cx, 0.43, front - face * 0.5);
     g.scene.add(this.site, this.pen, this.feedFill, this.waterFill);
     g.colliders.push({ x0: x0 - 0.1, x1: x1 + 0.1, z0: z0 - 0.1, z1: z1 + 0.1 });
-    // animals
-    this.inst = new THREE.InstancedMesh(animalGeometry(this.cfg.animal), new THREE.MeshLambertMaterial({ vertexColors: true }), 16);
+    // animals with soft contact shadows
+    this.inst = new THREE.InstancedMesh(animalGeometry(this.cfg.animal), vcMaterial, 16);
     this.inst.castShadow = true;
     this.inst.count = 0;
     this.inst.frustumCulled = false;
     g.scene.add(this.inst);
+    this.blobs = new THREE.InstancedMesh(blobGeo, blobMaterial, 16);
+    this.blobs.count = 0;
+    this.blobs.frustumCulled = false;
+    this.blobs.renderOrder = -1;
+    g.scene.add(this.blobs);
+    this.blobSize = { chicken: [0.55, 0.7], buffalo: [1.5, 2.8], goat: [0.8, 1.3], sheep: [1.0, 1.4] }[this.cfg.animal];
     // product pile next to the collect pad
     const holder = new THREE.Group();
     holder.position.set(cx + 1.9, 0.5, front - face * 0.5);
@@ -237,7 +266,7 @@ class Pen {
     if (guard <= 0) d.t = now;
     if (changed) {
       this.updateFills();
-      if (Math.hypot(this.game.player.pos.x - this.cx, this.game.player.pos.z - this.cz) < 14) this.game.audio.play(this.cfg.animal === 'chicken' ? 'cluck' : this.cfg.animal === 'sheep' || this.cfg.animal === 'goat' ? 'baa' : 'moo');
+      if (!this.game.simulating && Math.hypot(this.game.player.pos.x - this.cx, this.game.player.pos.z - this.cz) < 14) this.game.audio.play(this.cfg.animal === 'chicken' ? 'cluck' : this.cfg.animal === 'sheep' || this.cfg.animal === 'goat' ? 'baa' : 'moo');
     }
   }
 
@@ -278,9 +307,13 @@ class Pen {
       _q.setFromEuler(_e.set(peck, a.rot, moving ? Math.sin(a.ph) * 0.06 : 0));
       _m.compose(_p.set(a.x, bob, a.z), _q, _s);
       this.inst.setMatrixAt(i, _m);
+      _q.setFromEuler(_e.set(0, a.rot, 0));
+      _m.compose(_p.set(a.x, 0.03, a.z), _q, _bs.set(this.blobSize[0], 1, this.blobSize[1]));
+      this.blobs.setMatrixAt(i, _m);
     }
-    this.inst.count = n;
+    this.inst.count = this.blobs.count = n;
     this.inst.instanceMatrix.needsUpdate = true;
+    this.blobs.instanceMatrix.needsUpdate = true;
   }
 }
 const _bp = new THREE.Vector3();

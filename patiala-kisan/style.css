@@ -14,6 +14,7 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 #app { position: fixed; inset: 0; overflow: hidden; }
 #gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 #touch { position: absolute; inset: 0; z-index: 1; }
+#vignette { position: absolute; inset: 0; pointer-events: none; z-index: 1; background: radial-gradient(130% 95% at 50% 46%, transparent 58%, rgba(25, 35, 15, .26) 100%); }
 #labels, #floats { position: absolute; inset: 0; pointer-events: none; z-index: 2; overflow: hidden; }
 
 /* ---------- world labels */
@@ -24,6 +25,10 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 .lbl.veh { background: rgba(214, 40, 40, .9); color: #fff; }
 .lbl.quest { background: var(--sun); box-shadow: 0 2px 0 var(--sun-d); animation: bob 1.4s ease-in-out infinite; }
 .lbl.bubble { background: #fff; border-radius: 12px 12px 12px 3px; font-size: 13px; }
+.lbl.mgr { background: rgba(26, 58, 38, .88); color: #fff; font-size: 12px; border-radius: 12px; }
+.lbl.mgr .stars { color: var(--sun); letter-spacing: -1px; font-size: 11px; }
+.lbl.mgr .stars i { color: rgba(255, 255, 255, .28); font-style: normal; }
+.lbl.mgr small { font-weight: 700; font-size: 11px; opacity: .92; }
 .lbl:empty { display: none; }
 @keyframes bob { 50% { margin-top: -5px; } }
 
@@ -63,8 +68,8 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 .pills { position: absolute; right: calc(var(--sar) + 10px); top: calc(var(--sat) + 140px); display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
 .pill { padding: 3px 10px; border-radius: 12px; background: rgba(59, 36, 20, .62); color: #fff; font-size: 13px; font-weight: 700; }
 .pill.full { background: #e03131; animation: pulse 1s infinite; }
-.side { position: absolute; left: calc(var(--sal) + 10px); top: calc(var(--sat) + 140px); display: flex; flex-direction: column; gap: 9px; }
-.side button { width: 56px; height: 56px; border-radius: 16px; background: linear-gradient(#fffdf6, #ffeec8); box-shadow: 0 4px 0 #c99b5a, 0 6px 10px rgba(0, 0, 0, .15); display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; }
+.side { position: absolute; left: calc(var(--sal) + 10px); top: calc(var(--sat) + 136px); display: flex; flex-direction: column; gap: 8px; }
+.side button { width: 54px; height: 54px; border-radius: 16px; background: linear-gradient(#fffdf6, #ffeec8); box-shadow: 0 4px 0 #c99b5a, 0 6px 10px rgba(0, 0, 0, .15); display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; }
 .side button i { font-style: normal; font-size: 24px; }
 .side button span { font-size: 11px; font-weight: 800; margin-top: 2px; }
 .side button:active, .action:active, .seed:active, .btn:active, .mini:active { transform: translateY(3px); box-shadow: none; }
@@ -126,6 +131,20 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 .need .ok { color: #2b8a3e; }
 .bar { height: 10px; border-radius: 6px; background: #eadfcb; overflow: hidden; }
 .bar i { display: block; height: 100%; background: var(--leaf); border-radius: 6px; }
+.mgr { display: flex; gap: 10px; padding: 10px; margin-bottom: 8px; background: var(--paper); border-radius: 16px; box-shadow: 0 2px 0 var(--line); }
+.mgr.on { background: linear-gradient(#f6fff3, #e3f7dd); }
+.mgr.locked { opacity: .6; }
+.mgr.focus { box-shadow: 0 0 0 3px var(--sun), 0 2px 0 var(--line); }
+.mgr .pt { flex: none; width: 76px; height: 76px; border-radius: 50%; border: 3px solid var(--c, var(--sun)); background: radial-gradient(circle at 50% 30%, #fffaf0 0 35%, #ffe3a8 100%); overflow: hidden; display: grid; place-items: center; font-size: 34px; box-shadow: 0 3px 0 rgba(59, 36, 20, .2); }
+.mgr .pt img { width: 100%; height: 100%; object-fit: cover; }
+.mgr .mi { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.mgr .mn { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.mgr .mn b { font-size: 16px; }
+.mgr .stars span { color: #dccfb6; font-size: 15px; }
+.mgr .stars span.on { color: #f59f00; }
+.mgr .stars em { font-style: normal; font-size: 12px; font-weight: 700; color: var(--ink2); margin-left: 6px; }
+.mgr small { font-size: 12px; color: var(--ink2); line-height: 1.25; }
+.mgr small.st { color: #2b8a3e; font-weight: 700; }
 .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px; }
 .stats div { background: var(--paper); border-radius: 12px; padding: 6px 10px; display: flex; flex-direction: column; box-shadow: 0 2px 0 var(--line); }
 .stats span { font-size: 12px; color: var(--ink2); }

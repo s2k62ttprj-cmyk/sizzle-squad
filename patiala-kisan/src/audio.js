@@ -72,7 +72,7 @@ export class Audio {
 
   // ---------- game sounds
   play(name) {
-    if (!this.ctx) return;
+    if (!this.ctx || this.game.simulating) return;
     switch (name) {
       case 'step': this.burst(0.06, { freq: 700, q: 0.8, vol: 0.06 }); break;
       case 'till': this.burst(0.14, { freq: 300, q: 1.2, vol: 0.35 }); this.tone(90, 0.12, { type: 'triangle', vol: 0.25, slide: 0.6 }); break;
