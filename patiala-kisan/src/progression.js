@@ -38,6 +38,7 @@ export class Progression {
 
   onEvent(ev, d) {
     const g = this.game, st = g.state, q = this.quest;
+    if (g.visit) return;
     if (q && EVENT_FOR[q.type] === ev && (!q.key || q.key === d.key)) {
       st.questProg += d.n && (ev === 'make' || ev === 'product') ? d.n : 1;
       g.ui.questBar();

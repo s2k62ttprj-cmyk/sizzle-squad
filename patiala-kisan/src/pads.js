@@ -38,9 +38,13 @@ export class Labels {
         if (_v.z > 1 || _v.x < -1.2 || _v.x > 1.2 || _v.y < -1.2 || _v.y > 1.2) show = false;
         else {
           const t = typeof l.text === 'function' ? l.text() : l.text;
-          if (t !== l.last) { l.el.innerHTML = t; l.last = t; }
+          if (t !== l.last) { l.el.innerHTML = t; l.last = t; l.w = 0; }
           if (!t) show = false;
-          l.el.style.transform = `translate(-50%, -100%) translate(${(_v.x * 0.5 + 0.5) * w}px, ${(-_v.y * 0.5 + 0.5) * h}px)`;
+          // keep wide bubbles (reviews) on screen: measure once per new text
+          if (show && !l.w) { if (!l.shown) l.el.style.display = ''; l.w = l.el.offsetWidth; }
+          const half = (l.w || 0) / 2 + 4;
+          const sx = Math.max(half, Math.min(w - half, (_v.x * 0.5 + 0.5) * w));
+          l.el.style.transform = `translate(-50%, -100%) translate(${sx}px, ${(-_v.y * 0.5 + 0.5) * h}px)`;
         }
       }
       if (show !== l.shown) { l.el.style.display = show ? '' : 'none'; l.shown = show; }
@@ -75,7 +79,7 @@ export class Pads {
       if (!vis) continue;
       pad.mesh.userData.ring.material.opacity = 0.6 + Math.sin(t * 4) * 0.3;
       pad.mesh.userData.dash.rotation.y = t * 0.5;
-      if (riding && !pad.vehicleOk) continue;
+      if ((riding && !pad.vehicleOk) || g.visit) continue;     // a friend's farm is look-only
       const d = Math.hypot(pl.pos.x - pad.x, pl.pos.z - pad.z);
       if (d < pad.r * (riding ? 1.8 : 1)) on = pad;
     }
@@ -136,6 +140,7 @@ export class Actions {
   update() {
     const pl = this.game.player;
     let best = null, bd = 1e9;
+    if (this.game.visit) { this.best = null; return null; }
     for (const a of this.list) {
       if (!a.visible()) continue;
       if (pl.vehicle && !a.vehicleOk) continue;

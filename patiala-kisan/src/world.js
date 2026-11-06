@@ -21,7 +21,32 @@ export const POS = {
   buildings: { chakki: [-11, 18.5], kohlu: [-4.5, 18.5], dairy: [5.5, 18.5], belna: [14.5, 18.5], dhaba: [21.5, 18.5], halwai: [28.5, 18.5], khaddi: [35.5, 18.5] },
   // manager desks (hire spot, and where each manager waits when idle)
   desks: { dukaandar: [14.6, -5.6], pali: [21.2, -14.9], munshi: [17.8, 3.4], mistri: [-15.8, 22.9] },
+  // Gopal's Sweets (shop front faces south), where travelling vendors park, the 22 No. flyover
+  gopal: [23, 0.5], gopalAct: [23, 3.7], vendor: [5.2, 3.4], canalX: -43.6, flyZ: -23.5,
 };
+export const FLY_Z = POS.flyZ, FLY_Y = 5.6;
+
+// Which part of the village a spot belongs to (music and place names follow it)
+export function areaAt(x, z) {
+  if (z < -28.5 && x > -23 && x < 17) return 'gurdwara';
+  if (x < -35) return 'canal';
+  if (Math.abs(z - FLY_Z) < 4.5) return 'flyover';
+  if (Math.hypot(x - POS.gopal[0], z - POS.gopal[1] - 1.5) < 6.5) return 'sweets';
+  if (x > 2 && x < 18.5 && z > -11 && z < 7) return 'mandi';
+  if (x > 11 && x < 36 && z > -25 && z < -3) return 'animals';
+  if (z > 14 && z < 27 && x > -16) return 'workshops';
+  return 'farm';
+}
+// 0..1 loudness of each ambience bed at a spot
+export function ambienceAt(x, z) {
+  const near = (d, r) => Math.max(0, Math.min(1, 1 - d / r));
+  return {
+    water: Math.max(near(Math.abs(x - POS.canalX) - 2, 13), near(Math.hypot(x - POS.sarovar[0], z - POS.sarovar[1]) - 7, 7) * 0.45),
+    crowd: near(Math.hypot(x - 10, z + 1), 15),
+    traffic: near(Math.abs(z - FLY_Z) - 1, 16),
+    sizzle: near(Math.hypot(x - POS.gopal[0], z - POS.gopal[1] - 2), 9),
+  };
+}
 
 const MARBLE = 0xfbf8f1, GOLD = 0xf2bd3a, BRICK = 0xb4583a, PLASTER = 0xf3e2c4;
 const WORLD = 220, HALF = WORLD / 2;
@@ -121,6 +146,9 @@ export function buildWorld(game) {
   for (const [x, z] of Object.values(POS.buildings)) sp.rect(0, x - 3.2, z + 2.0, x + 3.2, z + 3.6, 0.6, 0.9);
   for (const [x, z] of Object.values(POS.pens)) sp.rect(0, x - 3.4, z - 2.8, x + 3.4, z + 2.8, 0.5, 0.75);
   for (const [x, z] of Object.values(POS.desks)) sp.circle(0, x, z, 1.1, 0.8, 0.8);
+  sp.rect(0, POS.gopal[0] - 4, POS.gopal[1] + 1.4, POS.gopal[0] + 4.2, POS.gopal[1] + 5.2, 0.8);   // Gopal's forecourt
+  sp.rect(0, 16.5, 2.6, 19.5, 4.6, 0.7, 0.8);
+  sp.circle(2, POS.gopalAct[0], POS.gopalAct[1], 1.4, 1.2, 0.5);
   sp.rect(0, -45, -80, -41.5, 80, 0.8, 0.9);       // canal bank
   sp.rect(1, -22, -63, 16, -29, 0.25);            // marble plaza
   sp.rect(1, -2.4, -29.5, 2.4, -26, 0.2);         // gate steps
@@ -368,6 +396,74 @@ export function buildWorld(game) {
     rect(x, z, 1.2, 0.7);
   }
 
+  // ---- Gopal's Sweets: pink halwai shop with a glass counter of mithai, a jalebi kadahi
+  // on a brick chulha, a striped awning and plastic chairs out front
+  {
+    const [x, z] = POS.gopal;
+    b.push(x, 0, z);
+    b.rbox(0xd8cbb3, { y: 0.15, z: 0.2, sx: 7.2, sy: 0.3, sz: 5.4 }, 0.04);
+    b.rbox(0xf6b8cf, { y: 1.95, z: -1.05, sx: 6.6, sy: 3.3, sz: 2.9 }, 0.06);
+    for (const s of [-1, 1]) b.rbox(0xf6b8cf, { x: s * 3.15, y: 1.95, z: 0.9, sx: 0.3, sy: 3.3, sz: 1.2 }, 0.04);
+    b.rbox(0xfde2ec, { y: 3.75, z: -0.4, sx: 6.9, sy: 0.3, sz: 4.3 }, 0.05);
+    b.box(GOLD, { y: 3.62, z: 1.76, sx: 6.92, sy: 0.08, sz: 0.06, ao: false });
+    for (let i = 0; i < 9; i++) b.rbox(0xfde2ec, { x: -3.2 + i * 0.8, y: 4.1, z: 1.6, sx: 0.28, sy: 0.4, sz: 0.28 }, 0.04);
+    b.dome(GOLD, { y: 3.9, z: -1.2, s: 1.0 }, 12, 6);
+    // back wall: shelves stacked with mithai boxes
+    b.rbox(0xc59a6a, { y: 1.1, z: -2.25, sx: 5.6, sy: 0.08, sz: 0.5 }, 0.02);
+    b.rbox(0xc59a6a, { y: 1.9, z: -2.25, sx: 5.6, sy: 0.08, sz: 0.5 }, 0.02);
+    for (let r = 0; r < 2; r++) for (let i = 0; i < 9; i++) b.rbox([0xff6fae, 0xe03131, 0xf2bd3a, 0xff922b][(i + r) % 4], { x: -2.5 + i * 0.62, y: 1.3 + r * 0.8, z: -2.2, sx: 0.5, sy: 0.3, sz: 0.36 }, 0.03);
+    // glass counter with trays: ladoo, jalebi, barfi, gulab jamun, peda
+    b.rbox(0xf1f3f5, { x: 0.7, y: 0.55, z: 1.55, sx: 4.6, sy: 1.1, sz: 1.0 }, 0.05);
+    b.box(0x9fd3e6, { x: 0.7, y: 0.62, z: 2.06, sx: 4.4, sy: 0.75, sz: 0.02, ao: false });
+    b.rbox(0xdee2e6, { x: 0.7, y: 1.13, z: 1.55, sx: 4.7, sy: 0.06, sz: 1.08 }, 0.02);
+    const trays = [[0xff9f1c, 'sph'], [0xffb703, 'tor'], [0xf8f1e5, 'box'], [0x6b2d0f, 'sph'], [0xe9c46a, 'sph']];
+    trays.forEach(([c, kind], i) => {
+      const tx = -1.1 + i * 0.9;
+      b.cyl(0xced4da, { x: tx, y: 1.18, z: 1.55, sy: 0.04 }, 0.38, 0.4, 14);
+      for (let k = 0; k < 7; k++) {
+        const ax = tx + Math.cos(k * 2.4) * 0.2 * (k ? 1 : 0), az = 1.55 + Math.sin(k * 2.4) * 0.2 * (k ? 1 : 0), y = 1.27 + (k ? 0 : 0.08);
+        if (kind === 'sph') b.sph(c, { x: ax, y, z: az, s: 0.15, ao: false }, 8, 6);
+        else if (kind === 'tor') b.torus(c, { x: ax, y: y - 0.04, z: az, rx: Math.PI / 2, s: 1, ao: false }, 0.08, 0.025, 4, 10);
+        else b.box(c, { x: ax, y: y - 0.03, z: az, sx: 0.16, sy: 0.06, sz: 0.16, ry: k, ao: false });
+      }
+    });
+    // kadahi on a brick chulha, the jalebi corner
+    b.rbox(BRICK, { x: -2.3, y: 0.45, z: 2.2, sx: 1.2, sy: 0.9, sz: 1.0 }, 0.05);
+    b.box(0x2b1a12, { x: -2.3, y: 0.3, z: 2.71, sx: 0.5, sy: 0.35, sz: 0.02, ao: false });
+    b.box(0xff7a1a, { x: -2.3, y: 0.24, z: 2.72, sx: 0.36, sy: 0.18, sz: 0.02, ao: false });
+    b.sph(0x3a3a3a, { x: -2.3, y: 1.16, z: 2.2, sx: 1.1, sy: 0.55, sz: 1.1, rx: Math.PI }, 14, 6, Math.PI * 2, Math.PI / 2);
+    b.cyl(0xd9a514, { x: -2.3, y: 1.12, z: 2.2, sy: 0.02 }, 0.5, 0.5, 14);
+    for (let k = 0; k < 5; k++) b.torus(0xffa41b, { x: -2.3 + Math.cos(k * 1.3) * 0.25, y: 1.15, z: 2.2 + Math.sin(k * 1.3) * 0.25, rx: Math.PI / 2, s: 1, ao: false }, 0.09, 0.025, 4, 10);
+    // a scalloped pink-and-white valance under the sign (no deep awning: it would hide Gopal ji
+    // from the camera) and hanging bulbs
+    b.box(0xe64980, { y: 2.74, z: 1.8, sx: 6.0, sy: 0.12, sz: 0.06 });
+    for (let i = 0; i < 12; i++) b.cone(i % 2 ? 0xffffff : 0xe64980, { x: -2.75 + i * 0.5, y: 2.56, z: 1.8, rx: Math.PI, sx: 0.5, sy: 0.3, sz: 0.08 }, 3);
+    for (const px of [-1.6, 0.5, 2.4]) { b.cyl(0x222222, { x: px, y: 2.6, z: 1.6, sy: 0.4 }, 0.01, 0.01, 3); b.sph(0xfff3bf, { x: px, y: 2.38, z: 1.6, s: 0.14, ao: false, j: 0 }, 6, 4); glows.push([x + px, 2.38, z + 1.6, 0.9]); }
+    // plastic chairs and a table for customers
+    b.cyl(0xffffff, { x: 3.6, y: 0.7, z: 3.4, sy: 0.05 }, 0.45, 0.45, 14);
+    b.cyl(0xffffff, { x: 3.6, y: 0.35, z: 3.4, sy: 0.7 }, 0.05, 0.12, 6);
+    for (const [cx2, cz2, ry2] of [[2.85, 3.5, 1.4], [4.35, 3.3, -1.6]]) {
+      b.push(cx2, 0, cz2, ry2);
+      b.rbox(0xe03131, { y: 0.45, sx: 0.45, sy: 0.06, sz: 0.45 }, 0.02);
+      b.rbox(0xe03131, { y: 0.75, z: -0.22, sx: 0.45, sy: 0.55, sz: 0.05, rx: -0.12 }, 0.02);
+      for (const [lx, lz] of [[-0.18, -0.18], [0.18, -0.18], [-0.18, 0.18], [0.18, 0.18]]) b.cyl(0xc92a2a, { x: lx, y: 0.22, z: lz, sy: 0.44 }, 0.025, 0.03, 4);
+      b.pop();
+    }
+    b.cyl(0xfff3bf, { x: 3.45, y: 0.76, z: 3.3, sy: 0.04 }, 0.16, 0.12, 10);
+    b.sph(0xff9f1c, { x: 3.45, y: 0.84, z: 3.3, s: 0.12, ao: false }, 6, 4);
+    b.pop();
+    rect(x, z - 1.05, 6.8, 3.0);
+    rect(x + 0.7, z + 1.55, 4.7, 1.0);
+    rect(x - 2.3, z + 2.2, 1.2, 1.0);
+    circ(x + 3.6, z + 3.4, 0.5);
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 1.15), new THREE.MeshBasicMaterial({
+      map: textTexture([{ text: "GOPAL'S SWEETS", size: 78 }, { text: 'ਗੋਪਾਲ ਸਵੀਟਸ · ਸ਼ੁੱਧ ਦੇਸੀ ਘਿਓ', size: 46 }], { w: 1024, h: 256, bg: '#c2255c', border: '#f2bd3a' }),
+    }));
+    sign.position.set(x, 3.32, z + 1.95);
+    scene.add(sign);
+    game.kadahi = new THREE.Vector3(x - 2.3, 1.3, z + 2.2);
+  }
+
   // ---------- Gurdwara Sri Dukh Niwaran Sahib
   buildGurdwara(b, rect, circ, game, anim, glows);
 
@@ -393,9 +489,9 @@ export function buildWorld(game) {
 
   // ---- Patiala road sign and milestone
   {
-    props.sign(b, 3.6, -23);
+    props.sign(b, -3.7, -19.5);         // west of the road, clear of the flyover piers
     const s = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 1.0), new THREE.MeshBasicMaterial({ map: textTexture([{ text: 'ਪਟਿਆਲਾ' }, { text: 'PATIALA' }], { w: 512, h: 256 }) }));
-    s.position.set(3.6, 2.05, -22.98);
+    s.position.set(-3.7, 2.05, -19.42);
     scene.add(s);
     b.rbox(0xffffff, { x: -2.6, y: 0.4, z: 12, sx: 0.5, sy: 0.8, sz: 0.25 }, 0.05);
     b.dome(0xf2c200, { x: -2.6, y: 0.8, z: 12, sx: 0.5, sy: 0.4, sz: 0.25 }, 10, 4);
@@ -407,13 +503,13 @@ export function buildWorld(game) {
 
   // ---------- trees, kups, flowers, poles
   for (let z = -24; z <= 40; z += 7) {
-    if (Math.abs(z - 2) < 4 || Math.abs(z - 23) < 3 || Math.abs(z + 14.5) < 3) continue;
+    if (Math.abs(z - 2) < 4 || Math.abs(z - 23) < 3 || Math.abs(z + 14.5) < 3 || Math.abs(z - FLY_Z) < 3) continue;   // and none under the flyover
     for (const x of [-3, 3]) {
       if (z > -12 && z < 32) continue;                    // keep the farm, mandi and workshops clear
       props.safeda(b, x, z, 5.5 + Math.abs(z % 3) * 0.5); circ(x, z, 0.35);
     }
   }
-  const kikars = [[-33, -22], [-20, -22], [-8, -24], [-44, 0], [-33, 19], [-20, 19.6], [33, -24], [37, -14], [38, 2], [24, 3], [32, 10], [-45, -30], [20, 33], [-10, 33], [30, 34], [-30, 32]];
+  const kikars = [[-33, -22], [-20, -22], [-8.5, -20.6], [-48, 0], [-33, 19], [-20, 19.6], [33.5, -28.5], [37, -14], [38, 2], [28.6, 6], [32, 10], [-45, -30], [20, 33], [-10, 33], [30, 34], [-30, 32]];
   for (const [x, z] of kikars) { props.kikar(b, x, z, 0.9 + Math.abs(Math.sin(x * z)) * 0.4); circ(x, z, 0.4); }
   const trees = [[-6, 35], [4, 37], [17, 36], [-24, 34], [37, -30], [36, -40], [22, -32], [-30, -34], [-40, -40], [-28, -44], [20, -44], [-24, -56], [17, -60], [-44, 30], [40, 26], [-12, 40], [26, 42]];
   for (const [x, z] of trees) { props.tree(b, x, z, 0.9 + Math.abs(Math.cos(x + z)) * 0.5, LEAVES[Math.abs(x | 0) % 3]); circ(x, z, 0.5); }
@@ -436,14 +532,37 @@ export function buildWorld(game) {
     }
   }
 
-  // ---------- canal (nehar) on the west edge: brick-lined banks
+  // ---------- Bhakhra Nehar (canal) on the west edge: brick-lined banks and painted boards
   {
-    for (const s of [-1, 1]) b.rbox(0xb4785a, { x: -43.6 + s * 1.65, y: 0.12, z: -3, sx: 0.35, sy: 0.3, sz: 140 }, 0.06);
+    const cx = POS.canalX;
+    for (const s of [-1, 1]) b.rbox(0xb4785a, { x: cx + s * 1.65, y: 0.12, z: -3, sx: 0.35, sy: 0.3, sz: 140 }, 0.06);
     const water = new THREE.Mesh(new THREE.PlaneGeometry(3, 140), waterMaterial(3, 140, { foam: 0.35 }));
     water.rotation.x = -Math.PI / 2;
-    water.position.set(-43.6, 0.1, -3);
+    water.position.set(cx, 0.1, -3);
     scene.add(water);
     colliders.push({ x0: -50, x1: -42, z0: -80, z1: 80 });
+    // canal department boards on the east bank, readable from the fields
+    const board = textTexture([{ text: 'ਭਾਖੜਾ ਨਹਿਰ', size: 64 }, { text: 'BHAKHRA NEHAR', size: 54 }], { w: 512, h: 256, bg: '#1c5fa8', border: '#ffffff' });
+    // turned slightly towards the fields so they read from the camera
+    const ry = 0.2;
+    for (const z of [-30, -3, 24]) {
+      b.push(-40.4, 0, z, ry);
+      for (const s of [-1, 1]) b.cyl(0x8a8f96, { x: s * 1.2, y: 1.2, sy: 2.4 }, 0.06, 0.06, 6);
+      b.rbox(0x123f73, { y: 2.15, z: -0.12, sx: 2.75, sy: 1.42, sz: 0.08 }, 0.03);
+      b.pop();
+      const s = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.3), new THREE.MeshBasicMaterial({ map: board }));
+      s.position.set(-40.4, 2.15, z);
+      s.rotation.y = ry;
+      scene.add(s);
+      circ(-40.4, z, 1.0);
+    }
+    const warn = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.8), new THREE.MeshBasicMaterial({ map: textTexture([{ text: 'ਖ਼ਤਰਾ! ਨਾ ਨਹਾਓ', size: 46 }, { text: 'DANGER · NO SWIMMING', size: 30 }], { w: 384, h: 236, bg: '#c92a2a' }) }));
+    b.cyl(0x8a8f96, { x: -40.6, y: 0.8, z: 9, sy: 1.6 }, 0.05, 0.05, 6);
+    warn.position.set(-40.6, 1.45, 9.06);
+    scene.add(warn);
+    circ(-40.6, 9, 0.25);
+    // a little stone ghat with steps down to the water
+    for (let i = 0; i < 3; i++) b.rbox(0xc9c2b4, { x: -41.6 - i * 0.35, y: 0.2 - i * 0.07, z: -14, sx: 0.5, sy: 0.14, sz: 2.6 }, 0.03);
   }
 
   // ---------- beyond the farm: neighbours' fields, village houses, tree lines on the hills

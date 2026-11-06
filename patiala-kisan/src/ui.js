@@ -4,16 +4,23 @@ import * as THREE from 'three';
 import {
   CROPS, ITEMS, BAGS, CANS, STORAGE, STALL, FIELDS, PENS, BUILDINGS, RECIPES, VEHICLES, ATTACHMENTS, TRACTOR_HP,
   STAFF, MANAGERS, SEERI, MANAGER_RANKS, wage, OFFLINE_HOURS, SOUL_PERKS, QUESTS, ACHIEVEMENTS, BUILDING_UPGRADES, PEN_PIPE_COST, PEN_WATER_CAP, TANKER_CAP, xpNeed, TURBAN_COLORS, PLOT,
+  SWEETS, GOPAL_RATE, VENDORS, TRADE,
 } from './config.js';
-import { carryCap, storageCap, storageUsed, have, saveWorks } from './state.js';
-import { POS } from './world.js';
+import { carryCap, storageCap, storageUsed, have, saveWorks, rating, todayKey, tradeLimitError, itemCount, itemsValue } from './state.js';
+import { POS, FLY_Z } from './world.js';
 import { fmt } from './pads.js';
 import { portrait } from './portrait.js';
+import { describe, findCode } from './friends.js';
 
 const $ = (id) => document.getElementById(id);
 const _v = new THREE.Vector3();
 const money = (n) => `₹${fmt(n)}`;
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const stars = (n) => `${'★'.repeat(n)}<i>${'★'.repeat(5 - n)}</i>`;
+const ago = (t) => {
+  const m = Math.max(0, (Date.now() - (t || Date.now())) / 60000);
+  return m < 1 ? 'just now' : m < 60 ? `${Math.round(m)} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`;
+};
 
 export class UI {
   constructor(game) {
@@ -25,6 +32,7 @@ export class UI {
     this.cache = {};
     this.view = null;
     this.toastQ = [];
+    this.tr = { to: null, mode: 'gift', give: {}, want: {} };     // the trade being put together
     $('hud').hidden = false;
     const bind = (id, fn) => $(id).addEventListener('click', (e) => { e.stopPropagation(); game.audio.unlock(); game.audio.play('click'); fn(); });
     bind('btnShop', () => this.open('shop'));
@@ -33,7 +41,16 @@ export class UI {
     bind('btnBag', () => this.openBag());
     bind('btnMap', () => this.open('map'));
     bind('btnStaff', () => this.openStaff());
+    bind('btnFriends', () => this.open('friends'));
     bind('btnMenu', () => this.open('settings'));
+    bind('homeBtn', () => game.goHome());
+    if (game.visit) {
+      // a friend's farm: look around only
+      for (const id of ['btnShop', 'btnFarm', 'btnMissions', 'btnBag', 'btnStaff', 'btnFriends', 'seedPill', 'quest', 'carryPill', 'waterPill']) $(id).hidden = true;
+      const v = game.visit;
+      $('visitBar').hidden = false;
+      $('visitInfo').innerHTML = `👀 <b>${esc(v.fn)}</b>'s farm · Level ${v.l || 1}${v.r ? ` · ⭐ ${v.r}` : ''}<small>shared ${ago(v.ts)}</small>`;
+    }
     bind('lvl', () => this.open('missions'));
     bind('quest', () => { const q = QUESTS[game.state.quest]; if (q?.target) { game.guide.set(q.target, true); this.toast('Follow the yellow arrow ➜'); } else this.open('missions'); });
     bind('seedPill', () => this.open('seeds'));
@@ -85,13 +102,18 @@ export class UI {
     $('carryPill').classList.toggle('full', c.items.length >= c.cap);
   }
   blessBadge() { $('blessBadge').hidden = !this.game.perks.blessed; }
+  boosts() {
+    const b = this.game.state.boosts, icons = { speed: '🍥 Fast', price: '🟤 Prices', happy: '😊 Happy' };
+    const t = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+    this.set('boosts', Object.entries(b).filter(([, s]) => s > 0).map(([k, s]) => `<span>${icons[k]} ${t(s)}</span>`).join(''));
+  }
 
   update(dt) {
     const g = this.game;
     this.tick = (this.tick || 0) - dt;
     if (this.tick <= 0) {
       this.tick = 0.25;
-      this.money(); this.level(); this.carryPill(); this.waterPill(); this.questBar();
+      this.money(); this.level(); this.carryPill(); this.waterPill(); this.questBar(); this.boosts();
       if (this.view && this.live) this.render();
       this.set('dayInfo', `Day ${g.state.day.n} · ${{ sunny: '☀️', cloudy: '⛅', rain: '🌧️' }[g.state.day.weather]}${g.weather.raining ? ' raining' : ''}`);
     }
@@ -225,7 +247,7 @@ export class UI {
   openBag(tab) { this.open('bag', tab); }
 
   defaultTab(view) {
-    return { shop: 'seeds', farm: 'fields', missions: 'mission', bag: 'carry' }[view] || null;
+    return { shop: 'seeds', farm: 'fields', missions: 'mission', bag: 'carry', friends: 'friends' }[view] || null;
   }
 
   tabs(list) {
@@ -246,10 +268,18 @@ export class UI {
       case 'seeds': title = '🌱 Choose seeds'; html = this.seedsHTML(true); break;
       case 'farm':
         title = '🏡 Farm';
-        tabs = [['fields', '🟫 Fields'], ['animals', '🐾 Animals'], ['work', '🏭 Workshops'], ['blessings', '🙏 Blessings'], ['stats', '📊 Stats']];
-        html = this.farmHTML();
-        this.live = this.tab === 'animals' || this.tab === 'work' || this.tab === 'fields';
+        tabs = [['fields', '🟫 Fields'], ['animals', '🐾 Animals'], ['work', '🏭 Workshops'], ['reviews', '⭐ Reviews'], ['blessings', '🙏 Blessings'], ['stats', '📊 Stats']];
+        html = this.tab === 'reviews' ? this.reviewsHTML() : this.farmHTML();
+        this.live = this.tab === 'animals' || this.tab === 'work' || this.tab === 'fields' || this.tab === 'reviews';
         break;
+      case 'sweets': title = "🍥 Gopal's Sweets"; html = this.sweetsHTML(); this.live = true; break;
+      case 'vendor': {
+        const v = g.vendors?.v;
+        if (!v) { this.close(); return; }
+        title = `${VENDORS[v.id].icon} ${VENDORS[v.id].name}`; html = this.vendorHTML(); this.live = true; break;
+      }
+      case 'friends': title = '👥 Friends'; tabs = [['friends', '👥 Friends'], ['paste', '📋 Paste a link']]; html = this.friendsHTML(); break;
+      case 'trade': title = this.tr.mode === 'gift' ? '🎁 Send a gift' : '🔁 Make a trade'; html = this.tradeHTML(); break;
       case 'missions': title = '📜 Goals'; tabs = [['mission', 'Mission'], ['daily', 'Daily'], ['ach', 'Achievements']]; html = this.missionsHTML(); this.live = true; break;
       case 'bag': title = '🎒 Bag & Godown'; tabs = [['carry', '🧺 Carrying'], ['storage', '🏚️ Godown'], ['seedbag', '🌱 Seeds']]; html = this.bagHTML(); break;
       case 'map': title = '🗺️ Map'; html = this.mapHTML(); break;
@@ -448,16 +478,18 @@ export class UI {
     // simple top-down SVG map
     const X = (x) => (x + 47) * 3, Z = (z) => (z + 66) * 3;
     let s = `<svg viewBox="0 0 270 336" class="map"><rect width="270" height="336" fill="#8fd14f" rx="12"/>`;
-    s += `<rect x="${X(-45)}" y="0" width="${3 * 3}" height="336" fill="#4fb3d9"/>`;
+    s += `<rect x="${X(-45)}" y="0" width="${3 * 3}" height="336" fill="#4fb3d9"/><text x="${X(-43.6) + 2}" y="120" transform="rotate(-90 ${X(-43.6) + 2} 120)" class="mt" fill="#fff">BHAKHRA</text>`;
     s += `<rect x="${X(-1.6)}" y="${Z(-29)}" width="${3.2 * 3}" height="${73 * 3}" fill="#dba467"/><rect x="${X(-22)}" y="${Z(-63)}" width="${38 * 3}" height="${34 * 3}" fill="#f1ece2"/>`;
     s += `<rect x="${X(-8)}" y="${Z(-44)}" width="48" height="24" fill="#4fb3d9"/><circle cx="${X(0)}" cy="${Z(-55)}" r="9" fill="#f2bd3a"/>`;
     for (const f of FIELDS) s += `<rect x="${X(f.x0)}" y="${Z(f.z0)}" width="${f.cols * PLOT * 3}" height="${f.rows * PLOT * 3}" fill="${st.fields[f.id].owned ? '#8a5a32' : '#6faa3e'}" stroke="#fff" stroke-width="${st.fields[f.id].owned ? 0 : 1}" stroke-dasharray="3 2" rx="2"/>`;
     const dot = (x, z, c, r = 4) => `<circle cx="${X(x)}" cy="${Z(z)}" r="${r}" fill="${c}" stroke="#fff" stroke-width="1.5"/>`;
-    s += dot(...POS.stall, '#f76707') + dot(...POS.godown, '#74c0fc') + dot(...POS.tubewell, '#1c7ed6') + dot(...POS.farmhouse, '#fff3bf');
+    s += `<rect x="0" y="${Z(FLY_Z) - 5}" width="270" height="10" fill="#adb5bd" opacity=".9"/><text x="${X(-30)}" y="${Z(FLY_Z) + 3.5}" class="mt" fill="#1d1d1f">22 No. FLYOVER</text>`;
+    s += dot(...POS.stall, '#f76707') + dot(...POS.godown, '#74c0fc') + dot(...POS.tubewell, '#1c7ed6') + dot(...POS.farmhouse, '#fff3bf') + dot(...POS.gopal, '#e64980', 5);
+    if (g.vendors?.v) s += dot(g.vendors.v.w.pos.x, g.vendors.v.w.pos.z, '#ffd43b', 5);
     for (const [id, p] of Object.entries(POS.pens)) s += dot(p[0], p[1], st.pens[id].owned ? '#ffd43b' : '#ced4da');
     for (const [id, p] of Object.entries(POS.buildings)) s += dot(p[0], p[1], st.buildings[id].owned ? '#d6336c' : '#ced4da');
     s += `<circle cx="${X(g.player.pos.x)}" cy="${Z(g.player.pos.z)}" r="6" fill="#e8590c" stroke="#fff" stroke-width="2.5"/></svg>`;
-    const places = [['f1', '🟫 Your khet'], ['tubewell', '💧 Tubewell'], ['stall', '🧺 Mandi stall'], ['arhtiya', '⚖️ Arhtiya'], ['board', '📋 Order board'], ['godown', '🏚️ Godown'], ['darbar', '🙏 Gurdwara Dukh Niwaran Sahib'], ['langar', '🍲 Langar hall'], ['garage', '🚜 Garage'], ['farmhouse', '🏡 Kothi (home)'], ['coop', '🐔 Murgi Khana'], ['tabela', '🐃 Tabela'], ['bakri', '🐐 Goats'], ['bhed', '🐑 Sheep'], ...Object.entries(BUILDINGS).map(([id, b]) => [id, `🏭 ${b.name}`])];
+    const places = [['f1', '🟫 Your khet'], ['tubewell', '💧 Tubewell'], ['stall', '🧺 Mandi stall'], ['arhtiya', '⚖️ Arhtiya'], ['board', '📋 Order board'], ['godown', '🏚️ Godown'], ['gopal', "🍥 Gopal's Sweets"], ...(g.vendors?.v ? [['vendor', `${VENDORS[g.vendors.v.id].icon} Vendor deal`]] : []), ['darbar', '🙏 Gurdwara Dukh Niwaran Sahib'], ['langar', '🍲 Langar hall'], ['flyover', '🌉 22 No. Flyover'], ['canal', '🌊 Bhakhra Nehar'], ['garage', '🚜 Garage'], ['farmhouse', '🏡 Kothi (home)'], ['coop', '🐔 Murgi Khana'], ['tabela', '🐃 Tabela'], ['bakri', '🐐 Goats'], ['bhed', '🐑 Sheep'], ...Object.entries(BUILDINGS).map(([id, b]) => [id, `🏭 ${b.name}`])];
     return `<div class="mapwrap">${s}</div><div class="chips">${places.map(([t, n]) => `<button class="chip" data-act="guide" data-t="${t}">${n}</button>`).join('')}</div>`;
   }
 
@@ -593,6 +625,132 @@ export class UI {
   }
 
   setFieldCrop(fid, crop) { this.game.state.fields[fid].crop = crop; }
+
+  // ---------------------------------------------------------------- reviews
+  reviewsHTML() {
+    const st = this.game.state, r = rating(st);
+    if (!st.reviews.length) return '<p class="empty">No reviews yet. Customers leave one after they buy at your Mandi stall — keep the shelf full and the queue short!</p>';
+    let h = `<div class="card2 gold rating"><b class="big">${r.toFixed(1)} <span class="stars">${stars(Math.round(r))}</span></b><small>from the last ${st.reviews.length} customers${r >= 4 ? ' · 🎉 More customers are coming!' : r < 2.2 ? ' · 😬 Fewer customers come — keep the stall stocked' : ''}</small></div>`;
+    h += '<p class="hint">Full shelves, short queues, the Gurdwara blessing and Gopal\'s Kaju Barfi earn better reviews.</p>';
+    for (const x of st.reviews) h += `<div class="review"><div><b>${esc(x.n)}</b> <span class="stars">${stars(x.s)}</span>${x.i && ITEMS[x.i] ? ` <span class="tag">${ITEMS[x.i].icon}</span>` : ''}<small>${ago(x.d)}</small></div><p>${esc(x.t)}</p></div>`;
+    return h;
+  }
+
+  // ---------------------------------------------------------------- Gopal's Sweets
+  sweetsHTML() {
+    const g = this.game, st = g.state, sw = g.sweets;
+    sw.ensureList();
+    let h = '<p class="hint">🧑‍🍳 Gopal ji: "Sab ton taazi mithai Patiale di! Kujh mitha ho jaye?"</p>';
+    for (const [id, s] of Object.entries(SWEETS)) {
+      const c = sw.cost(id), on = s.boost && st.boosts[s.boost] > 0;
+      h += this.row(s.icon, `${s.name}${on ? ' <span class="tag ok">active</span>' : ''}`, s.desc, this.btn(`${s.item ? 'Buy' : 'Khao'} ${money(c)}`, 'eat', { id }, st.money < c, 'go'));
+    }
+    const gp = st.gopal, wants = Object.entries(gp.wants);
+    h += '<h3>📜 Gopal ji di list (today)</h3>';
+    if (!wants.length) h += '<p class="empty">Gopal ji needs nothing you can make yet.</p>';
+    else {
+      const ok = wants.every(([k, n]) => have(st, k) >= n);
+      h += `<div class="card2 ${gp.done ? 'done' : ''}"><div class="need">${wants.map(([k, n]) => { const hv = have(st, k); return `<span class="${hv >= n ? 'ok' : ''}">${ITEMS[k].icon} ${Math.min(hv, n)}/${n} ${ITEMS[k].name}</span>`; }).join('')}</div>
+        <small>Pays ${money(sw.listPay())} — ${Math.round((GOPAL_RATE - 1) * 100)}% more than the mandi. A new list every game day.</small>
+        <div class="ctrl">${gp.done ? '<span class="tag ok">✅ Delivered — new list tomorrow</span>' : this.btn('Deliver', 'gopalList', {}, !ok, 'go')}</div></div>`;
+    }
+    return h;
+  }
+
+  // ---------------------------------------------------------------- vendor deal
+  vendorHTML() {
+    const g = this.game, st = g.state, v = g.vendors.v, d = v.deal, cfg = VENDORS[v.id];
+    let h = `<p class="hint">${cfg.icon} "${esc(cfg.lines[0])}" · leaves in ${Math.max(0, Math.ceil(v.stay))}s</p>`;
+    if (v.sold) return h + '<div class="card2 done"><b>✅ Sauda ho gaya!</b><small>Another vendor will come by soon.</small></div>';
+    if (d.kind === 'buyer') {
+      const n = Math.min(have(st, d.item), d.max), mandi = g.market.price(d.item);
+      h += `<div class="card2 gold"><b>💵 Buys ${ITEMS[d.item].icon} ${ITEMS[d.item].name} at ${money(d.rate)} each</b><small>Mandi pays ${money(mandi)} · up to ${d.max} · you have ${have(st, d.item)} (bag + godown)</small>
+        <div class="ctrl">${this.btn(n ? `Sell ${n} for ${money(n * d.rate)}` : `No ${ITEMS[d.item].name} to sell`, 'deal', {}, !n, 'go')}</div></div>`;
+    } else {
+      const save = d.was ? Math.round((1 - d.price / d.was) * 100) : 0;
+      h += `<div class="card2 gold"><b>${esc(d.text)}</b>${d.was ? `<small><s>${money(d.was)}</s> → <b>${money(d.price)}</b> · save ${save}%</small>` : `<small>${money(d.price)}</small>`}
+        <div class="ctrl">${this.btn(`Buy ${money(d.price)}`, 'deal', {}, st.money < d.price, 'go')}</div></div>`;
+    }
+    return h;
+  }
+
+  // ---------------------------------------------------------------- friends and trading
+  friendsHTML() {
+    const g = this.game, st = g.state, fr = g.friends;
+    if (this.tab === 'paste') {
+      return `<p class="hint">Got a Patiala Kisan link from a friend? If tapping it opened Safari instead of your Home Screen game, copy the whole message and paste it here.</p>
+        <textarea id="pasteBox" class="paste" placeholder="Paste the link or message here"></textarea>
+        <button class="btn wide" data-act="pasteOpen">Open link</button>`;
+    }
+    let h = `<div class="card2 gold"><b>🏡 Your farm link</b><small>Send it on WhatsApp: friends can walk around your farm and they join your friends list. Share it again whenever your farm grows.</small>
+      <div class="ctrl">${this.btn('📤 Share my farm', 'shareFarm', {}, false, 'go')}${this.btn('📋 Paste a link', 'tab', { tab: 'paste' }, false, 'ghost')}</div></div>`;
+    // waiting for you: gifts and trade offers
+    for (const e of st.inbox) {
+      if (e.k === 'gift') h += `<div class="card2 inbox"><b>🎁 Gift from ${esc(e.fn)}</b><small>${describe(e.items)}</small><div class="ctrl">${this.btn('Receive', 'getGift', { id: e.id }, false, 'go')}${this.btn('Not now', 'decline', { id: e.id }, false, 'ghost')}</div></div>`;
+      else {
+        const ok = Object.entries(e.want).every(([k, n]) => have(st, k) >= n);
+        h += `<div class="card2 inbox"><b>🔁 ${esc(e.fn)} wants to trade</b><small>You get: ${describe(e.give)}<br>You give: ${describe(e.want)}${ok ? '' : ' <b>(you don\'t have it all yet)</b>'}</small><div class="ctrl">${this.btn('Accept', 'acceptOffer', { id: e.id }, !ok, 'go')}${this.btn('Decline', 'decline', { id: e.id }, false, 'ghost')}</div></div>`;
+      }
+    }
+    for (const [id, o] of Object.entries(st.trade.out)) {
+      if (o.status !== 'open') continue;
+      h += `<div class="card2"><b>⏳ Trade sent to ${esc(o.tn)}</b><small>You give ${describe(o.give)} · you get ${describe(o.want)}. When ${esc(o.tn)} accepts, they send you a link back — open it to collect.</small><div class="ctrl">${this.btn('📤 Send again', 'reshare', { id }, false, 'ghost')}${this.btn('Cancel', 'cancelOffer', { id }, false, 'ghost')}</div></div>`;
+    }
+    for (const [id, r] of Object.entries(st.trade.replies)) {
+      if (Date.now() - r.ts > 3 * 864e5) continue;
+      h += `<div class="card2"><b>🤝 Traded with ${esc(r.tn)}</b><small>Send ${esc(r.tn)} the link for their ${describe(r.items)} if you haven't yet.</small><div class="ctrl">${this.btn('📤 Send their link', 'reshareReply', { id }, false, 'ghost')}</div></div>`;
+    }
+    const ids = Object.keys(st.friends).sort((a, b) => st.friends[b].seen - st.friends[a].seen);
+    h += `<h3>👥 Your friends (${ids.length})</h3>`;
+    if (!ids.length) h += '<p class="empty">No friends yet. Ask a friend to send you their farm link — open it and they appear here. Send them yours too!</p>';
+    for (const id of ids) {
+      const f = st.friends[id];
+      h += `<div class="friend"><div class="fav" style="--c:${esc(f.turban)}">👳</div><div class="fi"><b>${esc(f.name)}</b><small>Level ${f.level || '?'}${f.fields ? ` · ${f.fields} fields` : ''}${f.rating ? ` · ⭐ ${f.rating}` : ''} · shared ${ago(f.seen)}${f.sent || f.got ? `<br>You sent ${f.sent} · got ${f.got} items` : ''}</small>
+        <div class="ctrl">${this.btn('👀 Visit', 'visitFriend', { id }, !f.code, 'go')}${this.btn('🎁 Gift', 'compose', { id, mode: 'gift' })}${this.btn('🔁 Trade', 'compose', { id, mode: 'offer' })}${this.btn('✕', 'unfriend', { id }, false, 'ghost')}</div></div></div>`;
+    }
+    const left = st.trade.day === todayKey() ? Math.max(0, TRADE.linksPerDay - st.trade.sent) : TRADE.linksPerDay;
+    h += `<p class="hint small">Trades are fair: up to ${TRADE.items(st.level)} items worth ${money(TRADE.value(st.level))} per link, ${TRADE.linksPerDay} links a day (${left} left today). Gifts and trades only open on the farm they were sent to, once. Money can't be traded.</p>`;
+    return h;
+  }
+
+  tradeHTML() {
+    const g = this.game, st = g.state, tr = this.tr, f = st.friends[tr.to];
+    if (!f) { this.tr.to = null; return '<p class="empty">Pick a friend in 👥 Friends first.</p>'; }
+    const giveIds = Object.keys(ITEMS).filter((k) => have(st, k) > 0);
+    const stepper = (side, k, n, max) => `<div class="step">${this.btn('−', 'trQty', { side, id: k, d: -1 }, n <= 0, 'ghost')}<b>${n}</b>${this.btn('+', 'trQty', { side, id: k, d: 1 }, n >= max, 'ghost')}${this.btn('+5', 'trQty', { side, id: k, d: 5 }, n >= max, 'ghost')}</div>`;
+    let h = `<div class="seg wide">${this.btn('🎁 Gift', 'trMode', { mode: 'gift' }, false, tr.mode === 'gift' ? 'on' : 'ghost')}${this.btn('🔁 Trade', 'trMode', { mode: 'offer' }, false, tr.mode === 'offer' ? 'on' : 'ghost')}</div>`;
+    h += `<p class="hint">To <b>${esc(f.name)}</b>. ${tr.mode === 'gift' ? 'They get these goods when they open your link.' : 'Your side is set aside now. When they accept, they get your goods and send yours back with a link.'}</p>`;
+    h += `<h3>${tr.mode === 'gift' ? 'Send' : 'You give'}</h3>`;
+    if (!giveIds.length) h += '<p class="empty">Your bag and godown are empty.</p>';
+    for (const k of giveIds) h += this.row(ITEMS[k].icon, ITEMS[k].name, `You have ${have(st, k)} · ${money(ITEMS[k].price)} each`, stepper('give', k, tr.give[k] || 0, have(st, k)));
+    if (tr.mode === 'offer') {
+      h += '<h3>You want back</h3>';
+      for (const k of Object.keys(ITEMS)) h += this.row(ITEMS[k].icon, ITEMS[k].name, `${money(ITEMS[k].price)} each`, stepper('want', k, tr.want[k] || 0, 99), tr.want[k] ? '' : 'dim');
+    }
+    const err = tradeLimitError(st, tr.give) || (tr.mode === 'offer' && !itemCount(tr.want) ? 'Choose what you want back' : '');
+    h += `<div class="card2 sticky"><small>${itemCount(tr.give)} items · ${money(itemsValue(tr.give))}${tr.mode === 'offer' ? ` for ${itemCount(tr.want)} items · ${money(itemsValue(tr.want))}` : ''} · limit ${TRADE.items(st.level)} items / ${money(TRADE.value(st.level))}</small>
+      ${err ? `<small class="warn">${esc(err)}</small>` : ''}<button class="btn wide" data-act="makeLink" ${err ? 'disabled' : ''}>📤 Make ${tr.mode === 'gift' ? 'gift' : 'trade'} link</button></div>`;
+    return h;
+  }
+
+  // A link is ready: share it from a fresh tap (iOS only opens the share sheet from a tap)
+  shareSheet(link) {
+    const m = $('modal');
+    const what = { farm: 'Your farm link', gift: `Gift for ${esc(link.to)}`, offer: `Trade for ${esc(link.to)}`, reply: `${esc(link.to)}'s goods` }[link.kind];
+    m.innerHTML = `<div class="card"><div class="big">📤</div><h2>${what} is ready</h2><p>Send it on WhatsApp or any chat.${link.kind === 'gift' || link.kind === 'offer' ? ' Only their farm can open it, once.' : ''}</p>
+      <input class="linkbox" readonly value="${esc(link.url)}"><div class="row2"><button class="btn ghost" id="mCopy">📋 Copy</button><button class="btn" id="mShare">📤 Share</button></div><button class="btn ghost small" id="mDone">Done</button></div>`;
+    m.hidden = false;
+    const full = `${link.text} ${link.url}`;
+    $('mShare').onclick = () => {
+      if (navigator.share) navigator.share({ title: 'Patiala Kisan', text: link.text, url: link.url }).catch(() => {});
+      else navigator.clipboard?.writeText(full).then(() => this.toast('🔗 Link copied — paste it in WhatsApp'), () => {});
+    };
+    $('mCopy').onclick = () => {
+      const box = m.querySelector('.linkbox'); box.select();
+      (navigator.clipboard ? navigator.clipboard.writeText(full) : Promise.reject()).then(() => this.toast('🔗 Link copied — paste it in WhatsApp'), () => { document.execCommand?.('copy'); this.toast('🔗 Copied'); });
+    };
+    $('mDone').onclick = () => { m.hidden = true; };
+  }
 
   // ---------------------------------------------------------------- actions
   async handle(act, d) {
@@ -747,6 +905,66 @@ export class UI {
         g.production.shops[this.shopId].refresh();
         g.carryDirty = true;
         break;
+      }
+      // Gopal's Sweets and vendors
+      case 'eat': { const err = g.sweets.buy(d.id); if (err) return fail(err); break; }
+      case 'gopalList': { const err = g.sweets.fillList(); if (err) return fail(err); this.toast(`🍥 Gopal ji paid ${money(g.sweets.listPay())}!`, 2.6); break; }
+      case 'deal': { const err = g.vendors?.accept(); if (err) return fail(err); break; }
+      // friends and trading
+      case 'shareFarm': this.shareSheet(await g.friends.farmLink()); return;
+      case 'pasteOpen': {
+        const code = findCode($('pasteBox')?.value);
+        if (!code) return fail('That does not look like a Patiala Kisan link');
+        this.close();
+        await g.friends.open(code);
+        return;
+      }
+      case 'getGift': { const err = g.friends.receiveGift(d.id); if (err) return fail(err); this.toast('🎁 Received! It went to your godown', 2.6); break; }
+      case 'acceptOffer': {
+        const r = await g.friends.acceptOffer(d.id);
+        if (typeof r === 'string') return fail(r);
+        this.render();
+        this.shareSheet(r);
+        return;
+      }
+      case 'decline': g.friends.decline(d.id); break;
+      case 'cancelOffer':
+        if (!(await this.confirm('<h2>Cancel this trade?</h2><p>Your goods come back. If your friend already accepted, you won\'t get theirs.</p>', 'Cancel trade', 'Keep it'))) return;
+        { const err = g.friends.cancelOffer(d.id); if (err) return fail(err); }
+        break;
+      case 'reshare': {
+        const o = st.trade.out[d.id];
+        if (o) this.shareSheet(g.friends.ready({ kind: 'offer', code: o.code, to: o.tn, text: `🔁 ${st.name} offers ${describe(o.give)} for your ${describe(o.want)} in Patiala Kisan. Tap to trade:` }));
+        return;
+      }
+      case 'reshareReply': {
+        const r = st.trade.replies[d.id];
+        if (r) this.shareSheet(g.friends.ready({ kind: 'reply', code: r.code, to: r.tn, text: `🤝 Trade done! Here is your ${describe(r.items)} from ${st.name} in Patiala Kisan. Tap to collect:` }));
+        return;
+      }
+      case 'visitFriend': { const err = g.friends.visit(d.id); if (err) return fail(err); return; }
+      case 'unfriend': {
+        const f = st.friends[d.id];
+        if (!f || !(await this.confirm(`<h2>Remove ${esc(f.name)}?</h2><p>You can add them again from their farm link.</p>`, 'Remove'))) return;
+        g.friends.removeFriend(d.id);
+        break;
+      }
+      case 'compose': this.tr = { to: d.id, mode: d.mode, give: {}, want: {} }; this.open('trade'); return;
+      case 'trMode': this.tr.mode = d.mode; this.titleEl.textContent = d.mode === 'gift' ? '🎁 Send a gift' : '🔁 Make a trade'; break;
+      case 'trQty': {
+        const side = this.tr[d.side], max = d.side === 'give' ? have(st, d.id) : 99;
+        side[d.id] = Math.max(0, Math.min(max, (side[d.id] || 0) + +d.d));
+        if (!side[d.id]) delete side[d.id];
+        break;
+      }
+      case 'makeLink': {
+        const tr = this.tr;
+        const r = tr.mode === 'gift' ? await g.friends.gift(tr.to, tr.give) : await g.friends.offer(tr.to, tr.give, tr.want);
+        if (typeof r === 'string') return fail(r);
+        this.tr = { to: tr.to, mode: tr.mode, give: {}, want: {} };
+        this.open('friends');
+        this.shareSheet(r);
+        return;
       }
     }
     this.money();

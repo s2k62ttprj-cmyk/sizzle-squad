@@ -1,9 +1,16 @@
 // Save data: creation, versioned load/migrate, autosave and inventory helpers.
 // Pure module (no three.js) so it can be unit tested in tests/index.html.
-import { SAVE_KEY, SAVE_VERSION, START_MONEY, FIELDS, PENS, BUILDINGS, VEHICLES, BAGS, STORAGE, TANKER_CAP, MANAGERS } from './config.js';
+import { SAVE_KEY, SAVE_VERSION, START_MONEY, FIELDS, PENS, BUILDINGS, VEHICLES, BAGS, STORAGE, TANKER_CAP, MANAGERS, ITEMS, TRADE } from './config.js';
 
 export function todayKey(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Random id for this farm (friends address gifts and trades to it)
+export function makeId(n = 10) {
+  const a = new Uint8Array(n);
+  (globalThis.crypto || { getRandomValues: (x) => x.map(() => Math.random() * 256) }).getRandomValues(a);
+  return Array.from(a, (b) => 'abcdefghijkmnpqrstuvwxyz23456789'[b % 32]).join('');
 }
 
 export function newState(name = 'Guri', turban = '#e8590c') {
@@ -38,6 +45,14 @@ export function newState(name = 'Guri', turban = '#e8590c') {
     day: { n: 1, t: 0, weather: 'sunny', rain: 0 },
     player: { x: 2.5, z: 6, rot: Math.PI, ride: null },
     settings: { music: 0.45, sfx: 0.8, quality: 'auto', sens: 1, zoom: 1 },
+    // added in the reviews / Gopal's Sweets / friends update (older saves get these filled in)
+    pid: makeId(),
+    reviews: [],
+    boosts: { speed: 0, price: 0, happy: 0 },
+    gopal: { day: 0, wants: {}, done: false },
+    friends: {},
+    trade: { redeemed: [], out: {}, replies: {}, day: '', sent: 0 },
+    inbox: [],
   };
 }
 
@@ -89,16 +104,33 @@ export function parseSave(text) {
 }
 
 let storageOk = true;
+// A copy of the farm exactly as the previous version of the game left it, taken once
+const PRE_UPDATE = SAVE_KEY + '-before-friends-update';
 export function loadSave() {
   for (const key of [SAVE_KEY, SAVE_KEY + '-backup']) {
     try {
-      const s = parseSave(localStorage.getItem(key));
-      if (s) return s;
+      const raw = localStorage.getItem(key);
+      const s = parseSave(raw);
+      if (s) {
+        try { if (!localStorage.getItem(PRE_UPDATE) && !JSON.parse(raw).pid) localStorage.setItem(PRE_UPDATE, raw); } catch { /* storage full: not essential */ }
+        return s;
+      }
     } catch (e) {
       console.warn('save slot unreadable', key, e);
     }
   }
   return null;
+}
+
+// A save exists but could not be read: park both slots under rescue keys so starting
+// a new farm can never overwrite them.
+export function rescueSave() {
+  try {
+    for (const k of [SAVE_KEY, SAVE_KEY + '-backup']) {
+      const raw = localStorage.getItem(k);
+      if (raw && !localStorage.getItem(k + '-rescue')) localStorage.setItem(k + '-rescue', raw);
+    }
+  } catch { /* storage blocked */ }
 }
 
 export function hasSave() {
@@ -151,4 +183,39 @@ export function take(s, id, n) {
 
 export function canAfford(s, items) {
   return Object.entries(items).every(([id, n]) => have(s, id) >= n);
+}
+
+// ---------- reviews and trading
+export const rating = (s) => s.reviews.length ? s.reviews.reduce((a, r) => a + r.s, 0) / s.reviews.length : 0;
+export const itemCount = (items) => Object.values(items).reduce((a, n) => a + n, 0);
+export const itemsValue = (items) => Object.entries(items).reduce((a, [k, n]) => a + (ITEMS[k]?.price || 0) * n, 0);
+
+// Can this farm send these goods in one link today? Returns an error message or ''.
+export function tradeLimitError(s, items, today = todayKey()) {
+  const n = itemCount(items);
+  if (!n) return 'Pick something first';
+  if (Object.entries(items).some(([k, q]) => !ITEMS[k] || !(q > 0) || q !== Math.floor(q))) return 'Unknown goods';
+  if (n > TRADE.items(s.level)) return `Max ${TRADE.items(s.level)} items per link at level ${s.level}`;
+  if (itemsValue(items) > TRADE.value(s.level)) return `Max ₹${TRADE.value(s.level).toLocaleString('en-IN')} of goods per link at level ${s.level}`;
+  if (s.trade.day === today && s.trade.sent >= TRADE.linksPerDay) return `${TRADE.linksPerDay} links a day — more tomorrow`;
+  return '';
+}
+export function noteTradeSent(s, today = todayKey()) {
+  if (s.trade.day !== today) { s.trade.day = today; s.trade.sent = 0; }
+  s.trade.sent++;
+}
+// Remember a link id so the same gift or trade can only be used once on this farm
+export function redeemOnce(s, id) {
+  if (s.trade.redeemed.includes(id)) return false;
+  s.trade.redeemed.push(id);
+  if (s.trade.redeemed.length > TRADE.keepRedeemed) s.trade.redeemed.splice(0, s.trade.redeemed.length - TRADE.keepRedeemed);
+  return true;
+}
+// Room for incoming goods: godown first, then the bag
+export function roomFor(s) { return storageCap(s) - storageUsed(s) + carryCap(s) - s.carry.length; }
+export function receive(s, items) {
+  for (const [k, n] of Object.entries(items)) {
+    const put = addStorage(s, k, n);
+    for (let i = put; i < n && s.carry.length < carryCap(s); i++) s.carry.push(k);
+  }
 }

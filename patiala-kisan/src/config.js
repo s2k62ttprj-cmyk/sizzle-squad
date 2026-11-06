@@ -44,6 +44,7 @@ export const PRODUCTS = {
   jam:      { name: 'Strawberry Jam', pa: 'Jam', icon: '🥫', price: 135, color: 0xc0182a },
   phulkari: { name: 'Phulkari',  pa: 'Phulkari', icon: '🧣', price: 330, color: 0xff6a1a },
   khes:     { name: 'Khes Blanket', pa: 'Khes',  icon: '🛏️', price: 300, color: 0x3a6fd8 },
+  mithai:   { name: "Gopal's Mithai Box", pa: 'Mithai da Dabba', icon: '🎁', price: 300, color: 0xff6fae },
 };
 
 // Unified item table: crops sell at their crop price.
@@ -254,6 +255,135 @@ export const CUSTOMER_LINES = [
   'Sat Sri Akal ji!', 'Wah, taaze taaze!', 'Kinne da?', 'Vadhiya maal aa!', 'Ghar layi le chaliye',
   'Patiale di shaan!', 'Ik hor dena ji', 'Bahut vadhiya!', 'Chaa naal khavange', 'Rabb mehar kare!',
 ];
+// said while buying (haggling); the stall sometimes answers back
+export const CUSTOMER_BARGAIN = [
+  'Kujh ghatt karo ji!', 'Pichhli vaari sasta si!', 'Dhaniya muft paa do 🌿', 'Do kilo lavanga, ik de paise 😅',
+  'Tarazu theek aa na? 👀', 'Bhaji, rate sun ke chakkar aa gaya', 'Online te sasta milda!', 'Main tuhada purana customer aan!',
+  'Bebe ne kiha si mol-bhaa karin', 'Ik free, ik paid?', 'Change nahi, Paytm chalega?', 'Inne paise ch Bullet aa jaandi!',
+];
+export const SELLER_REPLIES = [
+  'Fixed rate ji, taaza maal! 🙏', 'Bhaji, eh Patiale da maal aa!', 'Dhaniya khatam, pyaar haazir aa 😄', 'Tarazu ekdum sachcha, aap check karo!',
+  'Online wale tuhanu gajar nahi bhejde 😏', 'Tusi tan ghar de ho ji!', 'Ajj discount: muskaan free! 😁', 'Chalo, ik mirch free 🌶️',
+];
+export const CUSTOMER_EMPTY = ['🤔 Kuj taaza?', 'Dukaan khulli, maal kithe?', 'Shelf khaali kyon aa?'];
+export const CUSTOMER_GIVEUP = ['Kujh nahi? Kal aavange', 'Gopal di dukaan chalde aan 🍥', 'Khaali haath ghar? Bebe gussa karegi!'];
+
+// Reviews customers leave as they walk away. stars 1–5; `for` ties a review to what they bought;
+// `when` ties it to how the visit went (wait = long queue, empty = stall ran out).
+export const REVIEWS = [
+  // the funny bad ones
+  { s: 1, when: 'wait', t: 'Line vich khade khade meri dadhi chitti ho gayi 👴' },
+  { s: 1, when: 'wait', t: 'Inni der ch tan main aap kanak ugga laindi 🌾' },
+  { s: 2, when: 'wait', t: 'Line inni lambi, PRTC bus jaldi aa jaandi 🚌' },
+  { s: 2, when: 'wait', t: 'Intezaar karde karde do serial mukk gaye 📺' },
+  { s: 1, when: 'empty', t: 'Shelf khaali, dil khaali, jeb vi khaali 😢' },
+  { s: 1, when: 'empty', t: 'Khaali dukaan vekhan aaye si? Waah ji waah 👏' },
+  { s: 2, when: 'empty', t: 'Adha samaan mileya. Adhi khushi. 2 star 😐' },
+  { s: 1, t: 'Dhaniya muft nahi dita. Rishta khatam 💔' },
+  { s: 2, t: 'Rate sun ke mera BP high ho gaya 🩺' },
+  { s: 1, t: 'Wifi password puchheya, dukaandar hass peya 📶' },
+  { s: 2, t: 'Dukaan te AC kyon nahi? Garmi ch main paneer ban gaya 🥵' },
+  { s: 2, t: 'Change nahi si, toffee de ditti. Main baccha nahi! 🍬' },
+  { s: 1, t: 'Zomato te vi 1 star pauga 😤' },
+  { s: 2, t: 'Mere kutte ne vi changa mol-bhaa karna si 🐕' },
+  { s: 2, t: 'Dukaandar ne smile nahi kitti. Do star, bas 😑' },
+  { s: 1, t: 'Tarazu thalle ungal si. Main sab vekh leya 👀' },
+  { s: 2, t: "Kiha 'taaza', par eh tan kal da lagda 🤨" },
+  { s: 2, t: 'Socheya si free sample milu. Sapne tutt gaye 🥲' },
+  { s: 1, t: 'Mummy ne bhejeya si, hun mummy di daant mainu paini 😬' },
+  { s: 2, t: 'Pichhli vaari vadhiya si. Is vaari? Pichhli vaari vadhiya si.' },
+  { s: 2, for: 'carrot', t: 'Gajar inni mehngi? Sone di bani aa? 🥕' },
+  { s: 2, for: 'tomato', t: 'Tamatar inne laal, sharma rahe ne ya mehngaai ton? 🍅' },
+  { s: 2, for: 'potato', t: 'Aloo vich mitti, mitti vich aloo. Kaun kis vich? 🥔' },
+  { s: 1, for: 'wheat', t: 'Kanak vich kankar! Daant hil gaya 🦷' },
+  { s: 2, for: 'sugarcane', t: 'Ganna mitha, dukaandar kaurha 😤' },
+  { s: 2, for: 'mustard', t: 'Sarson vekh ke DDLJ yaad aayi, rate vekh ke rona 🌼' },
+  { s: 3, for: 'strawberry', t: 'Strawberry? Patiale ch? Jatt fancy ho gaye 🍓' },
+  { s: 2, for: 'egg', t: 'Anda tutt gaya. Naal mera dil vi 🥚' },
+  { s: 2, for: 'milk', t: 'Dudh ch paani ke paani ch dudh? Rabb jaane 🥛' },
+  { s: 2, for: 'cauliflower', t: 'Bebe kehndi ghar di gobhi vadhiya. Bebe hamesha sahi 🥦' },
+  { s: 3, for: 'maize', t: 'Makki tan le layi, hun saag kithon laiye? 🌽' },
+  { s: 3, for: 'chilli', t: 'Hari mirch ne rula ditta. Akhaan vi, dil vi 😭' },
+  { s: 3, for: 'ghee', t: 'Ghee vekh ke cholesterol ne chhutti lai layi 🍯' },
+  { s: 2, for: 'atta', t: 'Atta vadhiya, par rotiyan main hi pakauniyan? 🫓' },
+  { s: 3, for: 'mithai', t: "Gopal di mithai ithe? Gopal nu dassanga! 🍥" },
+  // and the good ones
+  { s: 5, t: 'Ekdum taaza! Rabb tuhanu taraqqi deve 🙏' },
+  { s: 5, t: 'Patiale di shaan, tuhadi dukaan! 👑' },
+  { s: 4, t: 'Dukaandar bada hasmukh, rate vi theek 👍' },
+  { s: 5, t: 'Ghar wali khush, main khush, sab khush 😄' },
+  { s: 5, t: 'Mandi Patiale di number 1 🥇' },
+  { s: 4, t: 'Vadhiya maal. 5 star nahi dinda, aadat nahi 😏' },
+  { s: 5, t: 'Inni sohni dukaan, selfie banti aa 🤳' },
+  { s: 4, t: 'Taaza maal, sachchi gal. Phir aavange 😊' },
+  { s: 5, for: 'tomato', t: 'Tuhade tamatar ne meri chutney bachaa layi 🍅' },
+  { s: 5, for: 'potato', t: 'Inne sohne aalu, Insta te paavangi 📸' },
+  { s: 5, for: 'carrot', t: 'Gajar da halwa banauna, Bebe khush ho jaavegi 🥕' },
+  { s: 5, for: 'wheat', t: 'Kanak sone vargi chamakdi aa ✨' },
+  { s: 5, for: 'sugarcane', t: 'Ganne da ras pee ke Bullet vargi taakat 🏍️' },
+  { s: 5, for: 'watermelon', t: 'Thanda hadwana, garmi gayi bhaad ch 🍉' },
+  { s: 4, for: 'watermelon', t: 'Hadwana inna vadda, ghar layi tractor chahida 🍉' },
+  { s: 5, for: 'paneer', t: 'Paneer inna soft, mera dil pighal gaya 🧀' },
+  { s: 5, for: 'lassi', t: 'Lassi pee ke neend aa gayi. Kamm kal karange 😴' },
+  { s: 5, for: 'pinni', t: 'Pinni khaa ke Naani di yaad aa gayi 🥹' },
+  { s: 5, for: 'gur', t: 'Gur di khushboo ne pind yaad karaa ditta 🟫' },
+  { s: 5, for: 'thali', t: 'Saag te makki di roti! Swarg ithe hi aa 🍛' },
+  { s: 5, for: 'paratha', t: 'Makkhan wala paratha? Hun diet kal ton 😂' },
+  { s: 5, for: 'achaar', t: 'Achaar inna teekha, gawandiyan nu vi pata lagg gaya 🌶️' },
+  { s: 5, for: 'phulkari', t: 'Phulkari vekh ke Dadi ji ro paye. Khushi de hanju 🧣' },
+  { s: 5, for: 'khes', t: 'Khes ch aisi neend, alarm vi sharminda 😴' },
+  { s: 5, for: 'makkhan', t: 'Makkhan inna changa, roti vi sharma gayi 🧈' },
+  { s: 5, for: 'egg', t: 'Desi anda, desi taakat 💪' },
+  { s: 5, for: 'mithai', t: 'Mithai da dabba! Rishta pakka 😍🎁' },
+  { s: 5, when: 'blessed', t: 'Dukh Niwaran Sahib di kirpa, maal vich barkat 🙏' },
+];
+export const REVIEW_KEEP = 40;            // reviews kept in the save (newest first)
+
+// Travelling vendors stop at the mandi with a deal for a couple of minutes.
+// kind: seeds (cheap seed bundle), bundle (cheap goods), buyer (pays extra for one item),
+// khaad (instant crop growth), chai (walk faster), kulfi (happier customers), tools (cheap upgrade)
+export const VENDOR_GAP = [140, 260];     // seconds between visits
+export const VENDOR_STAY = 110;           // seconds a vendor waits at the mandi
+export const VENDORS = {
+  beej:   { name: 'Bhola Beej Wala', icon: '🌱', kind: 'seeds', look: { turban: 0x2b8a3e, shirt: 0xd3f9d8, pants: 0x495057 }, cart: [0xd9c49a, 0x6dbb3c],
+    lines: ['Beej lai lo, beej! Sone vargi fasal! 🌱', 'Pakke beej, pakki fasal!', 'Ik vaari beejo, saal bhar khush raho!'] },
+  pheri:  { name: 'Pappu Pheriwala', icon: '🛺', kind: 'bundle', look: { turban: 0x1c7ed6, shirt: 0xfff3bf, pants: 0x868e96 }, cart: [0xff922b, 0xf8f9fa],
+    lines: ['Pheri wala aaya! Sasta maal, vadhiya maal!', 'Ajj di deal, kal nahi milni!', 'Bebe ji, ik vaari vekh tan lao!'] },
+  vapari: { name: 'Vapari Kartar Singh', icon: '💵', kind: 'buyer', look: { turban: 0xffffff, shirt: 0xf8f9fa, pants: 0xf8f9fa, vest: 0x5c4033, glasses: true }, cart: [0xb07a43, 0x8a5a2b],
+    lines: ['Maal vecho, nakad paise lao! 💵', 'Mandi ton vadh rate! Sirf ajj!', 'Changa maal, changa bhaa!'] },
+  khaad:  { name: 'Karnail Khaad Wala', icon: '🧪', kind: 'khaad', look: { turban: 0x5f3dc4, shirt: 0xe9ecef, pants: 0x343a40 }, cart: [0xf1f3f5, 0x4c6ef5],
+    lines: ['Urea-DAP! Fasal ho jau double! 🌾', 'Khaad pao, fasal vadhao!', 'Ik bori, khet hasse!'] },
+  chai:   { name: 'Channi Chaiwala', icon: '☕', kind: 'chai', look: { turban: 0xc92a2a, shirt: 0xffe8cc, pants: 0x495057, apron: 0x8a5a2b }, cart: [0xadb5bd, 0xffd8a8],
+    lines: ['Chaa garam! Adrak waali! ☕', 'Cutting chaa, full energy!', 'Ik cup, te Bullet vargi speed!'] },
+  kulfi:  { name: 'Kaka Kulfi Wala', icon: '🍦', kind: 'kulfi', look: { turban: 0xf783ac, shirt: 0xffffff, pants: 0x495057 }, cart: [0xc92a2a, 0xfff3bf],
+    lines: ['Kulfi! Malai waali kulfi! 🍦', 'Garmi bhagao, kulfi khao!', 'Customer khush, tusi khush!'] },
+  lohar:  { name: 'Lakhbir Lohar', icon: '🔧', kind: 'tools', look: { turban: 0x343a40, shirt: 0xadb5bd, pants: 0x343a40, apron: 0x5c4033 }, cart: [0x868e96, 0x495057],
+    lines: ['Sand banvao, sasta banvao! 🔧', 'Lohe da kamm, pakka kamm!', 'Ajj discount, kal nahi!'] },
+};
+
+// Gopal's Sweets: eat a sweet for a boost, buy a mithai box, or fill Gopal ji's daily list.
+// boost: seconds of an effect; grow: share of grow time added to every growing crop at once.
+export const BOOST_TIME = 180;
+export const SWEETS = {
+  jalebi: { name: 'Garam Jalebi', icon: '🍥', cost: (l) => 30 + l * 6, desc: 'Walk 30% faster for 3 min', boost: 'speed' },
+  ladoo:  { name: 'Motichoor Ladoo', icon: '🟠', cost: (l) => 50 + l * 15, desc: 'Every growing crop jumps 30% ahead', grow: 0.3 },
+  jamun:  { name: 'Gulab Jamun', icon: '🟤', cost: (l) => 80 + l * 20, desc: 'Mandi prices +12% for 3 min', boost: 'price' },
+  barfi:  { name: 'Kaju Barfi', icon: '⬜', cost: (l) => 60 + l * 15, desc: 'Happy customers for 3 min: better reviews, they buy more', boost: 'happy' },
+  dabba:  { name: 'Mithai da Dabba', icon: '🎁', cost: () => 450, desc: 'A box of mithai for your bag: gift it to a friend or sell it', item: 'mithai' },
+};
+export const BOOSTS = { speed: 0.3, price: 0.12, happy: 1 };
+export const GOPAL_LINES = ['Garam garam jalebiyan! 🍥', 'Patiale di sab ton mithi dukaan!', 'Ladoo khao, khushiyan manao!', 'Shudh desi ghee di mithai!', 'Gopal di mithai, mooh ch ghul jaave!'];
+export const GOPAL_BUYS = ['milk', 'gur', 'ghee', 'makkhan', 'paneer', 'atta', 'sugarcane', 'wheat', 'strawberry', 'egg'];
+export const GOPAL_RATE = 1.35;           // Gopal ji pays this much over the mandi price for his list
+
+// Friends trade with share links. Limits keep trades fair: per link and per day.
+export const TRADE = {
+  linksPerDay: 5,
+  items: (lvl) => Math.min(120, 10 + lvl * 3),
+  value: (lvl) => 400 + lvl * 160,
+  keepRedeemed: 300,
+  maxFriends: 30,
+};
 export const CUSTOMER_NAMES = ['Bhola', 'Jeeto', 'Kartar', 'Simran', 'Harpal', 'Preeto', 'Balwant', 'Gurmeet', 'Nindi', 'Jassi', 'Raju', 'Bebe', 'Chacha ji', 'Pinky', 'Lakha'];
 
 export const TURBAN_COLORS = ['#e8590c', '#1c4fd1', '#d6336c', '#2b8a3e', '#f2c400', '#7b2cbf', '#111111', '#ffffff'];

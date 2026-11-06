@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { makeHuman, animateHuman } from './models.js';
 import { StackView } from './cargo.js';
 import { collide } from './world.js';
-import { CROPS, CANS, BAGS } from './config.js';
+import { CROPS, CANS, BAGS, BOOSTS } from './config.js';
 import { carryCap, addStorage } from './state.js';
 
 const WALK = 6.2;
@@ -93,7 +93,7 @@ export class Player {
     if (this.bow > 0) { this.updateBow(dt); return; }
 
     const v = g.input.vector();
-    const slow = g.guru.inside ? 0.62 : 1;
+    const slow = (g.guru.inside ? 0.62 : 1) * (st.boosts.speed > 0 ? 1 + BOOSTS.speed : 1);
     const target = v.len > 0.08 ? WALK * v.len * slow : 0;
     this.speed += (target - this.speed) * Math.min(1, dt * 12);
     if (v.len > 0.08) {
@@ -129,6 +129,7 @@ export class Player {
 
   tryWork() {
     const g = this.game, st = g.state, farm = g.farm;
+    if (g.visit) return;
     const plots = farm.near(this.pos.x, this.pos.z, 1.35, tmp);
     if (!plots.length) return;
     let best = null, bd = 1e9, bestAct = null, blocked = null;

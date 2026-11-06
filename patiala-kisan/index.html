@@ -16,11 +16,41 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Baloo+Paaji+2:wght@700;800&display=swap">
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=3">
+<!-- Every game file carries the release number (?v=) so phones never mix files from two
+     releases out of their cache. Bump it on every release, here and on main.js below. -->
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+  "./src/animals.js": "./src/animals.js?v=3",
+  "./src/audio.js": "./src/audio.js?v=3",
+  "./src/cargo.js": "./src/cargo.js?v=3",
+  "./src/config.js": "./src/config.js?v=3",
+  "./src/crops.js": "./src/crops.js?v=3",
+  "./src/farm.js": "./src/farm.js?v=3",
+  "./src/flyover.js": "./src/flyover.js?v=3",
+  "./src/friends.js": "./src/friends.js?v=3",
+  "./src/fx.js": "./src/fx.js?v=3",
+  "./src/geo.js": "./src/geo.js?v=3",
+  "./src/guru.js": "./src/guru.js?v=3",
+  "./src/input.js": "./src/input.js?v=3",
+  "./src/life.js": "./src/life.js?v=3",
+  "./src/market.js": "./src/market.js?v=3",
+  "./src/models.js": "./src/models.js?v=3",
+  "./src/pads.js": "./src/pads.js?v=3",
+  "./src/player.js": "./src/player.js?v=3",
+  "./src/portrait.js": "./src/portrait.js?v=3",
+  "./src/production.js": "./src/production.js?v=3",
+  "./src/progression.js": "./src/progression.js?v=3",
+  "./src/shading.js": "./src/shading.js?v=3",
+  "./src/staff.js": "./src/staff.js?v=3",
+  "./src/state.js": "./src/state.js?v=3",
+  "./src/sweets.js": "./src/sweets.js?v=3",
+  "./src/ui.js": "./src/ui.js?v=3",
+  "./src/vehicles.js": "./src/vehicles.js?v=3",
+  "./src/vendors.js": "./src/vendors.js?v=3",
+  "./src/world.js": "./src/world.js?v=3"
 } }
 </script>
 </head>
@@ -48,6 +78,8 @@
     </div>
     <button id="quest" class="quest"></button>
     <div id="blessBadge" class="bless" hidden>✨ Blessed today</div>
+    <div id="boosts" class="boosts"></div>
+    <div id="visitBar" class="visitbar" hidden><span id="visitInfo"></span><button id="homeBtn" class="mini">🏠 My farm</button></div>
     <div class="pills">
       <div id="carryPill" class="pill"></div>
       <div id="waterPill" class="pill"></div>
@@ -58,6 +90,7 @@
       <button id="btnMissions"><i>📜</i><span>Goals</span></button>
       <button id="btnBag"><i>🎒</i><span>Bag</span></button>
       <button id="btnStaff"><i>👔</i><span>Staff</span></button>
+      <button id="btnFriends"><i>👥</i><span>Friends</span></button>
       <button id="btnMap"><i>🗺️</i><span>Map</span></button>
     </div>
     <div id="vehBar" class="vehbar" hidden>
@@ -86,7 +119,9 @@
       <h1>Patiala Kisan</h1>
       <p>Kheti, Mandi te Dukh Niwaran Sahib di Hazri</p>
     </div>
+    <div id="invite" class="invite" hidden></div>
     <div class="startcard">
+      <button id="visitBtn" class="btn big visit" hidden></button>
       <label>Your name <input id="nameIn" maxlength="14" autocomplete="off"></label>
       <div class="lab">Pagg colour</div>
       <div id="swatches" class="swatches"></div>
@@ -112,6 +147,6 @@
     if (!document.getElementById('loading').hidden && document.getElementById('start').hidden && m.textContent === 'Loading Patiala…') m.textContent = 'Still loading… this needs Safari 16.4 or newer and an internet connection.';
   }, 12000);
 </script>
-<script type="module" src="src/main.js"></script>
+<script type="module" src="src/main.js?v=3"></script>
 </body>
 </html>

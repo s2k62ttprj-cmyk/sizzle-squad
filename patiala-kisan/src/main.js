@@ -1,8 +1,8 @@
 // Patiala Kisan — boot, game loop, camera, lighting, day/weather cycle and saving.
 import * as THREE from 'three';
 import { DAY_SECONDS, FIELDS, PLOT, xpNeed, TURBAN_COLORS, CANS } from './config.js';
-import { newState, loadSave, hasSave, writeSave, wipeSave, carryCap, todayKey } from './state.js';
-import { buildWorld, POS } from './world.js';
+import { newState, loadSave, hasSave, writeSave, wipeSave, rescueSave, carryCap, todayKey } from './state.js';
+import { buildWorld, POS, areaAt } from './world.js';
 import { Farm } from './farm.js';
 import { Player } from './player.js';
 import { Input } from './input.js';
@@ -20,6 +20,10 @@ import { Progression } from './progression.js';
 import { UI } from './ui.js';
 import { Life } from './life.js';
 import { SH, setAnisotropy } from './shading.js';
+import { Flyover } from './flyover.js';
+import { Sweets } from './sweets.js';
+import { Vendors } from './vendors.js';
+import { Friends, decode, findCode, visitState, describe, INBOX_KEY } from './friends.js';
 
 const $ = (id) => document.getElementById(id);
 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
@@ -38,7 +42,8 @@ class Guide {
     if (POS.pens[name]) return [POS.pens[name][0], POS.pens[name][1] + (POS.pens[name][1] < -14 ? 4 : -4)];
     if (POS.buildings[name]) return [POS.buildings[name][0], POS.buildings[name][1] + 3.6];
     if (POS.desks[name]) return [POS.desks[name][0], POS.desks[name][1] + 1.35];
-    const map = { tubewell: POS.tankPad, stall: POS.stallPad, pile: POS.pile, arhtiya: POS.arhtiyaPad, board: [POS.board[0], POS.board[1] + 1.2], godown: POS.godownPad, darbar: POS.darbar, langar: POS.langarPad, garage: POS.garage, farmhouse: [POS.farmhouse[0], POS.farmhouse[1] + 3] };
+    const map = { tubewell: POS.tankPad, stall: POS.stallPad, pile: POS.pile, arhtiya: POS.arhtiyaPad, board: [POS.board[0], POS.board[1] + 1.2], godown: POS.godownPad, darbar: POS.darbar, langar: POS.langarPad, garage: POS.garage, farmhouse: [POS.farmhouse[0], POS.farmhouse[1] + 3],
+      gopal: POS.gopalAct, vendor: [POS.vendor[0] - 1.6, POS.vendor[1] + 1.2], flyover: [0, POS.flyZ + 3], canal: [POS.canalX + 4.5, -6] };
     return map[name] || null;
   }
   set(name, temporary = false) { this.target = this.pos(name); this.temp = temporary; }
@@ -59,8 +64,10 @@ class Guide {
 }
 
 class Game {
-  constructor(state) {
+  // opts.visit: a friend's farm snapshot — the game runs on a copy of their farm and never saves
+  constructor(state, opts = {}) {
     this.state = state;
+    this.visit = opts.visit || null;
     this.listeners = {};
     this.carryDirty = true;
     this.weather = { raining: false };
@@ -96,6 +103,7 @@ class Game {
     const w = buildWorld(this);
     this.colliders.push(...w.colliders);
     this.anim = w.anim;
+    this.flyover = new Flyover(this);
     this.fx = new FX(this.scene);
     this.flyers = new Flyers(this.scene);
     this.farm = new Farm(this);
@@ -103,6 +111,9 @@ class Game {
     this.input = new Input(this);
     this.guide = new Guide(this);
     this.market = new Market(this);
+    this.sweets = new Sweets(this);
+    this.vendors = this.visit ? null : new Vendors(this);
+    this.friends = new Friends(this);
     this.animals = new Animals(this);
     this.production = new Production(this);
     this.vehicles = new Vehicles(this);
@@ -123,9 +134,10 @@ class Game {
     });
     addEventListener('pagehide', () => this.save(true));
     const q = this.progression.quest;
-    if (q?.target) this.guide.set(q.target);
-    const away = this.staff.catchUp();
+    if (q?.target && !this.visit) this.guide.set(q.target);
+    const away = this.visit ? null : this.staff.catchUp();
     this.welcome(away);
+    if (!this.visit) setTimeout(() => this.friends.pullInbox(), 900);
     this.last = performance.now();
     this.fpsT = 0; this.frames = 0; this.slow = 0;
     this.renderer.setAnimationLoop(() => this.frame());
@@ -310,11 +322,17 @@ class Game {
       this.actions.update();
       this.farm.update(dt, t);
       this.market.update(dt);
+      this.sweets.update(dt);
+      this.vendors?.update(dt);
+      this.flyover.update(dt);
       this.animals.update(dt, t);
       this.production.update(dt);
       this.staff.update(dt);
       this.guru.update();
-      this.progression.update(dt);
+      if (!this.visit) this.progression.update(dt);
+      this.updateArea(dt);
+      const bo = this.state.boosts;
+      for (const k in bo) if (bo[k] > 0) bo[k] = Math.max(0, bo[k] - dt);
       this.guide.update(dt, t);
       this.flyers.update(dt);
       this.fx.update(dt, this.player.pos, this.weather.raining);
@@ -340,7 +358,19 @@ class Game {
     }
   }
 
+  // Music follows the area; a few landmarks announce themselves when you arrive
+  updateArea(dt) {
+    const p = this.player.pos, a = areaAt(p.x, p.z);
+    this.audio.setZone(a, dt);
+    if (a === this.area) return;
+    this.area = a;
+    const names = { canal: '🌊 Bhakhra Nehar · ਭਾਖੜਾ ਨਹਿਰ', flyover: '🌉 22 No. Flyover · 22 ਨੰਬਰ ਫਲਾਈਓਵਰ', sweets: "🍥 Gopal's Sweets · ਗੋਪਾਲ ਸਵੀਟਸ" };
+    this.areaSeen ||= {};
+    if (names[a] && !(this.clock - (this.areaSeen[a] ?? -1e9) < 60)) { this.areaSeen[a] = this.clock; this.ui.toast(names[a], 2.4); }
+  }
+
   save(now = false) {
+    if (this.visit) return;             // a friend's farm is only visited, never saved
     if (!now) { this.saveT = Math.min(this.saveT, 1.5); return; }
     this.saveT = 10;
     this.player.save();
@@ -350,12 +380,18 @@ class Game {
 
   welcome(report) {
     const st = this.state;
+    $('pname').textContent = st.name;
+    if (this.visit) { setTimeout(() => this.ui.toast(`👀 Welcome to ${esc(st.name)}'s farm! Walk around — tap 🏠 to go home`, 4), 600); return; }
     const away = st.saved ? (Date.now() - st.saved) / 60000 : 0;
     if (report) setTimeout(() => this.ui.awayReport(report), 400);
     else if (away > 5) setTimeout(() => this.ui.toast(`Welcome back, ${st.name}! Your crops kept growing while you were away 🌱`, 3.5), 600);
     else if (!st.saved) setTimeout(() => this.ui.toast(`Sat Sri Akal, ${st.name}! Welcome to your khet in Patiala 🌾`, 3.5), 600);
     if (st.guru.last !== todayKey() && st.quest > 6) setTimeout(() => this.ui.toast('🙏 Visit Gurdwara Dukh Niwaran Sahib today for your blessing', 3.5), 4500);
-    $('pname').textContent = st.name;
+  }
+
+  goHome() {
+    try { sessionStorage.removeItem('pk-visit'); } catch { /* ignore */ }
+    location.replace(location.pathname + location.search);
   }
 
   share() {
@@ -374,13 +410,17 @@ class Game {
   }
 }
 const _ct = new THREE.Vector3(), _sky = new THREE.Color(), _gray = new THREE.Color(), _dusk = new THREE.Color(), _ngt = new THREE.Color();
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 // ---------------------------------------------------------------- start screen
-function boot() {
+async function boot() {
   const start = $('start');
   $('loading').hidden = true;
   start.hidden = false;
-  const saved = hasSave() ? loadSave() : null;
+  const has = hasSave();
+  const saved = has ? loadSave() : null;
+  // a save that exists but can't be read is parked under rescue keys, never overwritten
+  if (has && !saved) rescueSave();
   let turban = saved?.turban || TURBAN_COLORS[0];
   const sw = $('swatches');
   sw.innerHTML = TURBAN_COLORS.map((c) => `<button style="background:${c}" data-c="${c}" class="${c === turban ? 'on' : ''}" aria-label="pagg colour"></button>`).join('');
@@ -394,17 +434,17 @@ function boot() {
     $('playBtn').textContent = 'Continue ▶';
     $('newBtn').hidden = false;
     $('saveInfo').textContent = `Level ${saved.level} · ₹${fmt(saved.money)} · ${saved.soul} 🙏`;
-  }
+  } else if (has) $('saveInfo').textContent = '⚠️ Your saved farm could not be opened here. It has been kept safe on this device.';
   let launched = false;
-  const launch = (state) => {
+  const launch = (state, visit = null) => {
     if (launched) return;
     launched = true;
     start.hidden = true;
     $('loading').hidden = false;
-    $('loadmsg').textContent = 'Building your farm…';
+    $('loadmsg').textContent = visit ? `Walking over to ${visit.fn}'s farm…` : 'Building your farm…';
     setTimeout(() => {
       try {
-        new Game(state);
+        new Game(state, { visit });
         $('loading').hidden = true;
       } catch (e) {
         console.error(e);
@@ -412,6 +452,7 @@ function boot() {
       }
     }, 30);
   };
+  links(saved, launch).catch((e) => console.warn('link', e));
   $('playBtn').addEventListener('click', () => {
     const name = $('nameIn').value.trim() || 'Guri';
     const state = saved || newState(name, turban);
@@ -427,6 +468,50 @@ function boot() {
     launch(newState($('nameIn').value.trim() || 'Guri', turban));
   });
 }
+// Links tapped in WhatsApp arrive as #pk=…; a friend's farm picked in 👥 Friends arrives
+// through sessionStorage. Gifts, trades and new friends wait in the inbox until your own
+// farm has loaded, so the start screen never touches the save.
+async function links(saved, launch) {
+  const card = $('invite'), vb = $('visitBtn');
+  let hashText = location.hash || '';
+  try { hashText = decodeURIComponent(hashText); } catch { /* keep raw */ }
+  const code = findCode(hashText);
+  if (code) { try { history.replaceState(null, '', location.pathname + location.search); } catch { /* ignore */ } }
+  let visitCode = null;
+  try { visitCode = sessionStorage.getItem('pk-visit'); sessionStorage.removeItem('pk-visit'); } catch { /* ignore */ }
+  const show = (html) => { card.innerHTML = html; card.hidden = false; };
+  const play = saved ? 'Continue' : 'Play';
+  if (code) {
+    let o;
+    try { o = await decode(code); } catch (e) { show(`⚠️ ${esc(e.message)}`); return; }
+    const mine = !!saved && o.from === saved.pid;
+    if (!mine) queueInbox(code);
+    if (mine) show('🙂 This is your own link — send it to your friends!');
+    else if (o.k === 'farm') {
+      visitCode = code;
+      show(`👥 <b>${esc(o.fn)}</b> shared their farm with you! ${saved ? 'They join your friends when you play.' : 'Visit it, then start your own farm.'}`);
+    } else if (o.k === 'gift') show(`🎁 <b>${esc(o.fn)}</b> sent ${esc(o.tn || 'you')} a gift: ${describe(o.items)}. Tap ${play} to receive it.`);
+    else if (o.k === 'offer') show(`🔁 <b>${esc(o.fn)}</b> wants to trade their ${describe(o.give)} for ${describe(o.want)}. Tap ${play} to answer.`);
+    else if (o.k === 'reply') show(`🤝 <b>${esc(o.fn)}</b> accepted your trade! Tap ${play} to collect.`);
+  }
+  if (visitCode) {
+    let snap;
+    try { snap = await decode(visitCode); } catch { return; }
+    if (snap.k !== 'farm') return;
+    if (!code) show(`👀 Ready to visit <b>${esc(snap.fn)}</b>'s farm (level ${snap.l || 1}).`);
+    vb.textContent = `👀 Visit ${snap.fn}'s farm`;
+    vb.hidden = false;
+    vb.onclick = () => { unlockAudioEarly(); launch(visitState(snap, saved), snap); };
+  }
+}
+function queueInbox(code) {
+  try {
+    const list = JSON.parse(localStorage.getItem(INBOX_KEY) || '[]');
+    if (!list.includes(code)) list.push(code);
+    localStorage.setItem(INBOX_KEY, JSON.stringify(list.slice(-20)));
+  } catch { /* storage blocked */ }
+}
+
 // iOS needs the AudioContext created inside the tap handler itself
 function unlockAudioEarly() {
   const AC = window.AudioContext || window.webkitAudioContext;

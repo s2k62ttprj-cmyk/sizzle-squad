@@ -4,8 +4,11 @@ import * as THREE from 'three';
 import { makeHuman, animateHuman } from './models.js';
 import { StackView, noteGeometry } from './cargo.js';
 import { POS } from './world.js';
-import { ITEMS, STALL, ARHTIYA_RATE, CANS, TANKER_CAP, CROPS, PENS, BUILDINGS, RECIPES, CUSTOMER_LINES, CUSTOMER_NAMES } from './config.js';
-import { carryCap, storageCap, storageUsed, addStorage, have, take } from './state.js';
+import {
+  ITEMS, STALL, ARHTIYA_RATE, CANS, TANKER_CAP, CROPS, PENS, BUILDINGS, RECIPES, BOOSTS,
+  CUSTOMER_LINES, CUSTOMER_NAMES, CUSTOMER_BARGAIN, SELLER_REPLIES, CUSTOMER_EMPTY, CUSTOMER_GIVEUP, REVIEWS, REVIEW_KEEP,
+} from './config.js';
+import { carryCap, storageCap, storageUsed, addStorage, have, take, rating } from './state.js';
 import { fmt } from './pads.js';
 
 const _v = new THREE.Vector3();
@@ -82,10 +85,13 @@ export class Market {
     game.actions.add({ label: () => `📋 Orders (${st.orders.length})`, x: POS.board[0], z: POS.board[1] + 1.2, r: 2.0, onPress: () => game.ui.openOrders() });
     game.actions.add({ label: () => '🏚️ Open Godown', x: POS.godownPad[0] + 2.6, z: POS.godownPad[1], r: 1.5, onPress: () => game.ui.openBag('storage') });
     while (st.orders.length < 3) st.orders.push(this.makeOrder());
+    // the stall answers back when customers haggle
+    this.reply = { text: '', t: 0 };
+    game.labels.add(() => this.reply.t > 0 ? this.reply.text : '', new THREE.Vector3(POS.stall[0] - 1.4, 2.7, POS.stall[1] + 0.6), 'bubble seller', 18);
   }
 
   stock() { return Object.values(this.game.state.stall).reduce((a, b) => a + b, 0); }
-  priceMul() { return 1 + this.game.perks.price; }
+  priceMul() { return 1 + this.game.perks.price + (this.game.state.boosts.price > 0 ? BOOSTS.price : 0); }
   price(id) { return Math.max(1, Math.round(ITEMS[id].price * this.priceMul())); }
 
   refreshShelf() {
@@ -234,12 +240,15 @@ export class Market {
   update(dt) {
     const g = this.game, st = g.state;
     this.spawnT -= dt;
-    const every = STALL[st.up.stall].every;
+    // a well-reviewed stall draws a few more customers, a badly reviewed one a few less
+    const r = rating(st);
+    const every = STALL[st.up.stall].every * (r >= 4 ? 0.88 : r && r < 2.2 ? 1.1 : 1);
     if (this.spawnT <= 0) {
       this.spawnT = every * (0.7 + Math.random() * 0.6);
       const max = 4 + st.up.stall;
       if (this.customers.length < max && (this.stock() > 0 || this.customers.length < 1)) this.spawn();
     }
+    if (this.reply.t > 0) this.reply.t -= dt;
     for (let i = this.customers.length - 1; i >= 0; i--) {
       const c = this.customers[i];
       if (c.state !== 'leave') {
@@ -248,27 +257,39 @@ export class Market {
         if (c.slot !== slot) { c.slot = slot; c.w.goto(tx, tz); }
       }
       const arrived = c.w.update(dt, c.state === 'buy' ? c.anim : 0);
+      if ((c.state === 'walk' && arrived) || c.state === 'wait') c.queued += dt;     // standing in the queue
       if (c.state === 'walk' && arrived && c.slot === 0) { c.state = 'wait'; c.wait = 0; c.w.face(Math.PI); }
       else if (c.state === 'wait') {
         c.wait += dt;
         const ids = Object.keys(st.stall).filter((k) => st.stall[k] > 0);
         if (ids.length) {
           c.state = 'buy'; c.t = 0; c.want = c.want || (1 + Math.floor(Math.random() * 3)); c.pay = 0; c.anim = 0;
-          c.say = CUSTOMER_LINES[Math.floor(Math.random() * CUSTOMER_LINES.length)]; c.sayT = 2.2;
-        } else if (c.wait > 18) { c.say = 'Kujh nahi? Kal aavange'; c.sayT = 2; this.leave(c); }
-        else if (!c.bubbled) { c.bubbled = true; c.say = '🤔 Kuj taaza?'; c.sayT = 3; }
+          if (st.boosts.happy > 0) c.want += BOOSTS.happy;
+          const haggle = Math.random() < 0.45;
+          c.say = pick(haggle ? CUSTOMER_BARGAIN : CUSTOMER_LINES); c.sayT = 2.4;
+          if (haggle && Math.random() < 0.6) c.replyIn = 1.5;
+        } else if (c.wait > 18) {
+          c.say = pick(CUSTOMER_GIVEUP); c.sayT = 2.2; c.short = true;
+          if (Math.random() < 0.5) c.reviewIn = 2.4;
+          this.leave(c);
+        } else if (!c.bubbled) { c.bubbled = true; c.say = pick(CUSTOMER_EMPTY); c.sayT = 3; }
       } else if (c.state === 'buy') {
         c.t += dt;
         c.anim = (c.t * 2) % 1;
         if (c.t >= 0.5) {
           c.t = 0;
           const ids = Object.keys(st.stall).filter((k) => st.stall[k] > 0);
-          if (!ids.length || c.want <= 0) { this.pay(c); this.leave(c); }
-          else {
+          if (!ids.length || c.want <= 0) {
+            if (c.want > 0) c.short = true;
+            const paid = this.pay(c);
+            if (paid && Math.random() < 0.7) c.reviewIn = 1.8;
+            this.leave(c);
+          } else {
             const id = c.pick && st.stall[c.pick] > 0 ? c.pick : (c.pick = ids[Math.floor(Math.random() * ids.length)]);
             st.stall[id]--; if (!st.stall[id]) delete st.stall[id];
             c.pay += this.price(id);
             c.want--;
+            c.got.push(id);
             g.state.stats.sold++;
             g.emit('sold', { id, money: this.price(id) });
             g.flyers.add(id, new THREE.Vector3(POS.stall[0], 1.4, POS.stall[1] + 0.5), c.w.pos.clone().setY(1.2), 0.3);
@@ -278,23 +299,55 @@ export class Market {
         }
       } else if (c.state === 'leave' && arrived) {
         c.w.remove();
-        if (c.label) c.label.el.remove();
-        this.game.labels.list.splice(this.game.labels.list.indexOf(c.label), 1);
+        this.game.labels.remove(c.label);
         this.customers.splice(i, 1);
       }
       if (c.sayT > 0) c.sayT -= dt;
+      if (c.replyIn > 0 && (c.replyIn -= dt) <= 0) { this.reply.text = `🧑‍🌾 ${pick(SELLER_REPLIES)}`; this.reply.t = 2.6; }
+      if (c.reviewIn > 0 && (c.reviewIn -= dt) <= 0) this.review(c);
     }
   }
 
   pay(c) {
-    if (c.pay <= 0) return;
-    const g = this.game;
+    if (c.pay <= 0) return 0;
+    const g = this.game, amt = c.pay;
     g.state.pile += c.pay;
     g.flyers.add('cash', c.w.pos.clone().setY(1.1), new THREE.Vector3(POS.pile[0], 0.5, POS.pile[1]), 0.4, () => this.refreshPile());
     if (g.player.pos.distanceTo(c.w.pos) < 14) g.audio.play('cash');
     c.say = `₹${c.pay} 🙏`;
     c.sayT = 1.6;
     c.pay = 0;
+    return amt;
+  }
+
+  // Pick a review from how the visit went: long queues and an empty shelf earn the
+  // funny bad ones, blessings and sweets tip the odds towards five stars.
+  pickReview(c) {
+    const g = this.game, st = g.state;
+    let score = 3.2 + (Math.random() * 3 - 1.5);
+    if (g.perks.blessed) score += 0.4;
+    if (st.boosts.happy > 0) score += 1.2;
+    if (c.queued > 14) score -= 1.3;
+    if (c.short) score -= 1.0;
+    const good = score >= 3.5;
+    const pool = REVIEWS.filter((r) => (good ? r.s >= 4 : r.s <= 3));
+    const item = c.got.length ? pick(c.got) : null;
+    const when = !good && c.queued > 14 ? 'wait' : !good && c.short ? 'empty' : good && g.perks.blessed && Math.random() < 0.3 ? 'blessed' : null;
+    let list = when ? pool.filter((r) => r.when === when) : [];
+    if (!list.length && item && Math.random() < 0.6) list = pool.filter((r) => r.for === item);
+    if (!list.length) list = pool.filter((r) => !r.for && !r.when);
+    return { ...pick(list), item };
+  }
+
+  review(c) {
+    const g = this.game, st = g.state, r = this.pickReview(c);
+    st.reviews.unshift({ n: c.name, s: r.s, t: r.t, i: r.item, d: Date.now() });
+    if (st.reviews.length > REVIEW_KEEP) st.reviews.length = REVIEW_KEEP;
+    c.say = `<span class="stars">${'★'.repeat(r.s)}<i>${'★'.repeat(5 - r.s)}</i></span><br>${r.t}`;
+    c.sayT = 4.2;
+    c.label.el.classList.add('review');
+    if (g.player.pos.distanceTo(c.w.pos) < 16) g.audio.play(r.s >= 4 ? 'yay' : 'womp');
+    g.emit('review', { s: r.s });
   }
 
   leave(c) {
@@ -310,9 +363,10 @@ export class Market {
       : { shirt: pick(SHIRTS), pants: 0xf2eee2, turban: pick(TURBANS), skin: pick([0xc68a5a, 0xb57a4f, 0xd49a6a]), hair: pick([0x1b1410, 0x1b1410, 0xd9d9d9]) });
     w.pos.set(POS.customerSpawn[0] + 0.6, 0, POS.customerSpawn[1]);
     w.rot = Math.PI;
-    const c = { w, state: 'walk', slot: -1, say: '', sayT: 0 };
-    c.label = this.game.labels.add(() => c.sayT > 0 ? c.say : '', () => _lb.set(c.w.pos.x, 2.4, c.w.pos.z), 'bubble', 16);
+    const c = { w, name: pick(CUSTOMER_NAMES), state: 'walk', slot: -1, say: '', sayT: 0, got: [], queued: 0 };
+    c.label = this.game.labels.add(() => c.sayT > 0 ? c.say : '', () => _lb.set(c.w.pos.x, 2.4, c.w.pos.z), 'bubble', 18);
     this.customers.push(c);
   }
 }
 const _lb = new THREE.Vector3();
+const pick = (a) => a[Math.floor(Math.random() * a.length)];

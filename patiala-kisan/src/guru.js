@@ -87,7 +87,6 @@ export class Guru {
     const inside = p.z < -28.5 && p.x > -23 && p.x < 17;
     if (inside !== this.inside) {
       this.inside = inside;
-      this.game.audio.zone = inside ? 'gurdwara' : 'farm';
       if (inside) this.game.ui.toast('🙏 Gurdwara Sri Dukh Niwaran Sahib, Patiala', 2.5);
     }
   }

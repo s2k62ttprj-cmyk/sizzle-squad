@@ -113,6 +113,22 @@ export class Farm {
     return null;
   }
 
+  // Fertiliser / ladoo: every growing crop jumps ahead by a share of its grow time.
+  // Returns how many crops it helped.
+  boostAll(frac) {
+    const now = Date.now();
+    let n = 0;
+    for (const p of this.list) {
+      if (!this.owned(p.fid)) continue;
+      const d = this.data(p);
+      if (d.s !== 2 || !d.w || !d.c || this.progress(d, now) >= 1) continue;
+      d.w -= CROPS[d.c].grow * 1000 * frac / this.growMul();
+      n++;
+    }
+    if (n) this.dirty = true;
+    return n;
+  }
+
   rainAll() {
     let n = 0;
     for (const p of this.list) {
