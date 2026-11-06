@@ -1,7 +1,7 @@
 // Animal pens: chickens, Murrah buffaloes, goats and sheep. Feed them crops and water and
 // they produce eggs, milk and wool over real time (paused, never punished, when unfed).
 import * as THREE from 'three';
-import { Builder, vcMaterial } from './geo.js';
+import { Builder, vcMaterial, vcMaterialCut } from './geo.js';
 import { props, animalGeometry, shade } from './models.js';
 import { PENS, PEN_WATER_CAP, PEN_PIPE_COST, CANS, ITEMS } from './config.js';
 import { POS } from './world.js';
@@ -93,6 +93,9 @@ class Pen {
       b.rbox(0xd9b45a, { x: cx, y: 2.45, z: back + face * 1.25, sx: w - 0.1, sy: 0.25, sz: 2.8, rx: face * 0.12 }, 0.1);
       b.rbox(0xcfa84e, { x: cx, y: 2.62, z: back + face * 1.15, sx: w - 0.5, sy: 0.18, sz: 2.3, rx: face * 0.12 }, 0.08);
       for (let i = 0; i < 10; i++) b.box(0xb8923f, { x: cx - (w - 0.2) / 2 + 0.3 + i * (w - 0.8) / 9, y: 2.3, z: back + face * 2.62, sx: 0.04, sy: 0.18, sz: 0.06, ao: false });
+      // the ceiling under the thatch: bamboo rafters on a beam
+      b.box(0x6b4a2b, { x: cx, y: 2.3, z: back + face * 2.3, sx: w - 0.4, sy: 0.14, sz: 0.14 });
+      for (let i = 0; i < 6; i++) b.cyl(0xb59a5a, { x: cx - (w - 1) / 2 + i * (w - 1) / 5, y: 2.36, z: back + face * 1.25, rx: Math.PI / 2 + face * 0.12, sy: 2.6 }, 0.04, 0.04, 6);
       b.rbox(0x9aa0a6, { x: cx, y: 0.3, z: back + face * 0.85, sx: w - 1.4, sy: 0.45, sz: 0.55 }, 0.06);
       b.box(0xd9b45a, { x: cx, y: 0.52, z: back + face * 0.85, sx: w - 1.6, sy: 0.04, sz: 0.4 });
       // straw heaps
@@ -100,7 +103,7 @@ class Pen {
     }
     // troughs at the front fence (feed and water)
     for (const tx of [cx - 1.9, cx]) b.rbox(0x8a8f96, { x: tx, y: 0.25, z: front - face * 0.5, sx: 1.4, sy: 0.4, sz: 0.5 }, 0.06);
-    this.pen = b.mesh();
+    this.pen = b.mesh(vcMaterialCut);
     this.feedFill = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.08, 0.36), enhance(new THREE.MeshLambertMaterial({ color: 0xd9b45a }), { detail: 0.4, rim: 0 }));
     this.feedFill.position.set(cx - 1.9, 0.42, front - face * 0.5);
     this.waterFill = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.36), waterMaterial(1.2, 0.36, { foam: 0.05 }));
@@ -108,12 +111,16 @@ class Pen {
     this.waterFill.position.set(cx, 0.43, front - face * 0.5);
     g.scene.add(this.site, this.pen, this.feedFill, this.waterFill);
     g.colliders.push({ x0: x0 - 0.1, x1: x1 + 0.1, z0: z0 - 0.1, z1: z1 + 0.1 });
-    // animals with soft contact shadows
-    this.inst = new THREE.InstancedMesh(animalGeometry(this.cfg.animal), vcMaterial, 16);
-    this.inst.castShadow = true;
-    this.inst.count = 0;
-    this.inst.frustumCulled = false;
-    g.scene.add(this.inst);
+    // animals with soft contact shadows; the tabela keeps desi cows alongside the buffaloes
+    this.kinds = this.id === 'tabela' ? ['buffalo', 'cow'] : [this.cfg.animal];
+    this.insts = this.kinds.map((k) => {
+      const m = new THREE.InstancedMesh(animalGeometry(k), vcMaterial, 16);
+      m.castShadow = true;
+      m.count = 0;
+      m.frustumCulled = false;
+      g.scene.add(m);
+      return m;
+    });
     this.blobs = new THREE.InstancedMesh(blobGeo, blobMaterial, 16);
     this.blobs.count = 0;
     this.blobs.frustumCulled = false;
@@ -131,9 +138,15 @@ class Pen {
     const o = this.data.owned;
     this.site.visible = !o;
     this.pen.visible = this.feedFill.visible = this.waterFill.visible = o;
+    if (o && !this.tall) { this.tall = true; this.game.seeThrough?.add(this.pen); }
     while (this.animals.length < this.data.n) {
+      const i = this.animals.length;
       const a = { x: this.cx + (Math.random() - 0.5) * (this.w - 2), z: this.cz + (Math.random() - 0.5) * (this.d - 2.2), rot: Math.random() * 6, tx: 0, tz: 0, wait: Math.random() * 3, ph: Math.random() * 6 };
       a.tx = a.x; a.tz = a.z;
+      a.kind = this.kinds[i % this.kinds.length];
+      // every animal has its own voice and its own moment to speak
+      a.voice = 0.88 + ((i * 37 + this.id.length * 11) % 25) / 100;
+      a.callT = 3 + Math.random() * 14;
       this.animals.push(a);
     }
     this.animals.length = this.data.n;
@@ -154,7 +167,7 @@ class Pen {
     d.n = Math.max(d.n, 2);
     d.t = Date.now();
     this.refresh();
-    this.game.ui.toast(`${this.cfg.name} built! 2 ${this.cfg.animalName}s moved in 🎉`);
+    this.game.ui.toast(`${this.cfg.name} built! 2 ${this.cfg.plural} moved in 🎉`);
     this.game.fx.sparkle(this.cx, 1, this.cz, 0xffd43b, 30);
     this.game.emit('build', { key: this.id });
     if (this.id === 'coop') this.game.state.stats.chickens = d.n;
@@ -205,7 +218,7 @@ class Pen {
       this.updateFills();
       return;
     }
-    if (!this.fedHint) { this.fedHint = true; g.ui.toast(`${this.cfg.animalName}s eat ${this.cfg.feeds.map((f) => ITEMS[f].icon + ' ' + ITEMS[f].name).join(', ')}`); }
+    if (!this.fedHint) { this.fedHint = true; g.ui.toast(`${this.cfg.plural} eat ${this.cfg.feeds.map((f) => ITEMS[f].icon + ' ' + ITEMS[f].name).join(', ')}`); }
   }
   waterTick(dt) {
     const g = this.game, st = g.state, d = this.data;
@@ -266,7 +279,9 @@ class Pen {
     if (guard <= 0) d.t = now;
     if (changed) {
       this.updateFills();
-      if (!this.game.simulating && Math.hypot(this.game.player.pos.x - this.cx, this.game.player.pos.z - this.cz) < 14) this.game.audio.play(this.cfg.animal === 'chicken' ? 'cluck' : this.cfg.animal === 'sheep' || this.cfg.animal === 'goat' ? 'baa' : 'moo');
+      // someone in the pen announces the fresh eggs, milk or wool
+      const a = this.animals[Math.floor(Math.random() * this.animals.length)];
+      if (a) a.callT = Math.min(a.callT, 0.4);
     }
   }
 
@@ -284,6 +299,7 @@ class Pen {
 
   animate(dt, t) {
     const n = this.animals.length;
+    this.slot = this.kinds.map(() => 0);
     const hw = this.w / 2 - 0.9, hd = this.d / 2 - 1.0;
     for (let i = 0; i < n; i++) {
       const a = this.animals[i];
@@ -304,16 +320,47 @@ class Pen {
       a.ph += dt * (moving ? 10 : 2);
       const bob = moving ? Math.abs(Math.sin(a.ph)) * 0.05 : 0;
       const peck = !moving && this.cfg.animal === 'chicken' ? Math.max(0, Math.sin(a.ph)) * 0.35 : 0;
-      _q.setFromEuler(_e.set(peck, a.rot, moving ? Math.sin(a.ph) * 0.06 : 0));
+      // a calling animal lifts its head a little
+      const call = a.calling > 0 ? Math.sin(Math.min(1, a.calling) * Math.PI) * -0.12 : 0;
+      if (a.calling > 0) a.calling -= dt;
+      _q.setFromEuler(_e.set(peck + call, a.rot, moving ? Math.sin(a.ph) * 0.06 : 0));
       _m.compose(_p.set(a.x, bob, a.z), _q, _s);
-      this.inst.setMatrixAt(i, _m);
+      const k = this.kinds.indexOf(a.kind);
+      this.insts[k].setMatrixAt(this.slot[k]++, _m);
       _q.setFromEuler(_e.set(0, a.rot, 0));
       _m.compose(_p.set(a.x, 0.03, a.z), _q, _bs.set(this.blobSize[0], 1, this.blobSize[1]));
       this.blobs.setMatrixAt(i, _m);
     }
-    this.inst.count = this.blobs.count = n;
-    this.inst.instanceMatrix.needsUpdate = true;
+    this.insts.forEach((m, k) => { m.count = this.slot[k]; m.instanceMatrix.needsUpdate = true; });
+    this.blobs.count = n;
     this.blobs.instanceMatrix.needsUpdate = true;
+  }
+
+  // Each animal speaks on its own timer, louder as the farmer comes closer; walking up to the
+  // pen gets someone's attention. The Animals manager keeps calls from piling up.
+  voices(dt, mgr) {
+    const g = this.game, p = g.player.pos;
+    const d0 = Math.hypot(p.x - this.cx, p.z - this.cz);
+    if (d0 > 34 || !this.animals.length) { this.wasNear = false; return; }
+    const close = d0 < 9;
+    if (close && !this.wasNear && (this.greetT || 0) <= 0) {
+      let best = null, bd = 1e9;
+      for (const a of this.animals) { const d = Math.hypot(p.x - a.x, p.z - a.z); if (d < bd) { bd = d; best = a; } }
+      if (best) { best.callT = 0.3 + Math.random() * 0.9; this.greetT = 25; }
+    }
+    this.wasNear = close;
+    if (this.greetT > 0) this.greetT -= dt;
+    for (const a of this.animals) {
+      a.callT -= dt;
+      if (a.callT > 0) continue;
+      const d = Math.hypot(p.x - a.x, p.z - a.z);
+      if (!mgr.canCall(a.kind)) { a.callT = 0.8 + Math.random() * 1.5; continue; }
+      a.callT = a.kind === 'chicken' ? 9 + Math.random() * 14 : 15 + Math.random() * 22;
+      if (!this.data.owned) continue;
+      a.calling = 1.2;
+      mgr.called(a.kind);
+      g.audio.animal(a.kind, { dist: d, pan: Math.max(-1, Math.min(1, (a.x - p.x) / 12)) * 0.8, pitch: a.voice });
+    }
   }
 }
 const _bp = new THREE.Vector3();
@@ -324,6 +371,7 @@ export class Animals {
     this.pens = {};
     for (const id in PENS) this.pens[id] = new Pen(game, id);
     this.t = 0;
+    this.kindGap = {};
   }
   update(dt, t) {
     this.t -= dt;
@@ -333,9 +381,15 @@ export class Animals {
       for (const id in this.pens) this.pens[id].produce(now);
     }
     const p = this.game.player.pos;
+    this.gap = Math.max(0, (this.gap || 0) - dt);
+    for (const k in this.kindGap) this.kindGap[k] = Math.max(0, this.kindGap[k] - dt);
     for (const id in this.pens) {
       const pen = this.pens[id];
       if (Math.abs(p.x - pen.cx) < 30 && Math.abs(p.z - pen.cz) < 34) pen.animate(dt, t);
+      pen.voices(dt, this);
     }
   }
+  // never two animals at once, and the same kind leaves a longer pause
+  canCall(kind) { return !(this.gap > 0) && !(this.kindGap[kind] > 0); }
+  called(kind) { this.gap = 1.6 + Math.random() * 1.2; this.kindGap[kind] = 2.8 + Math.random() * 2; }
 }

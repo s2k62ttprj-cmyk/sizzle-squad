@@ -13,6 +13,11 @@ export const SH = {
   uDetail: { value: null },
   uWind: { value: 1 },
   uLight: { value: 1 },                          // overall light level for unlit shaders (water)
+  // see-through: anything between the camera and the farmer (walls, roofs, trees) dissolves
+  // inside a soft cone around them; uCut eases 0..1 so it fades in and out
+  uCut: { value: 0 },
+  uCutT: { value: new THREE.Vector3() },         // the farmer's chest
+  uCutR: { value: 2.3 },                         // radius of the clear circle at the farmer, metres
 };
 
 function mulberry32(a) {
@@ -226,11 +231,11 @@ export function setAnisotropy(n) { for (const k of ['grass', 'dirt', 'soil', 'ti
 // opts: detail (strength of triplanar texture detail), rim (0..1), clouds, sway (wind on
 // instanced plants, scaled by height), wmap (world-mapped texture multiplied in), wscale
 export function enhance(m, opts = {}) {
-  const o = { detail: 0.16, rim: 1, clouds: true, sway: 0, wmap: null, wscale: 0.5, wmul: 1, ...opts };
-  const key = `enh:${o.detail}:${o.rim}:${o.clouds}:${o.sway}:${!!o.wmap}:${o.wscale}:${o.wmul}`;
+  const o = { detail: 0.16, rim: 1, clouds: true, sway: 0, wmap: null, wscale: 0.5, wmul: 1, cut: false, ...opts };
+  const key = `enh:${o.detail}:${o.rim}:${o.clouds}:${o.sway}:${!!o.wmap}:${o.wscale}:${o.wmul}:${o.cut}`;
   m.customProgramCacheKey = () => key;
   m.onBeforeCompile = (sh) => {
-    Object.assign(sh.uniforms, { uTime: SH.uTime, uCloud: SH.uCloud, uRim: SH.uRim, uRimColor: SH.uRimColor, uDetail: SH.uDetail, uDetailAmt: SH.uDetailAmt, uWind: SH.uWind });
+    Object.assign(sh.uniforms, { uTime: SH.uTime, uCloud: SH.uCloud, uRim: SH.uRim, uRimColor: SH.uRimColor, uDetail: SH.uDetail, uDetailAmt: SH.uDetailAmt, uWind: SH.uWind, uCut: SH.uCut, uCutT: SH.uCutT, uCutR: SH.uCutR });
     if (o.wmap) sh.uniforms.uWMap = { value: o.wmap };
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vWPos;\nvarying vec3 vWN;\nuniform float uTime;\nuniform float uWind;')
@@ -257,7 +262,23 @@ export function enhance(m, opts = {}) {
         uniform sampler2D uDetail;
         uniform float uTime, uCloud, uRim, uDetailAmt;
         uniform vec3 uRimColor;
+        ${o.cut ? 'uniform float uCut, uCutR;\nuniform vec3 uCutT;' : ''}
         ${o.wmap ? 'uniform sampler2D uWMap;' : ''}`)
+      .replace('#include <clipping_planes_fragment>', `${o.cut ? `if (uCut > 0.001 && vWPos.y > 0.3) {
+          // a cone from the camera to the farmer: in front of them and inside it, dissolve
+          vec3 ray = uCutT - cameraPosition;
+          float L = length(ray);
+          vec3 dir = ray / L, rel = vWPos - cameraPosition;
+          float s = dot(rel, dir);
+          if (s < L - 0.7) {
+            float r = uCutR * s / L;
+            float k = 1.0 - smoothstep(0.55, 1.0, length(rel - dir * s) / r);
+            k *= smoothstep(L - 0.7, L - 1.6, s) * uCut;
+            float ign = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+            if (ign < k * 0.86) discard;
+          }
+        }` : ''}
+        #include <clipping_planes_fragment>`)
       .replace('#include <color_fragment>', `#include <color_fragment>
         ${o.wmap ? `diffuseColor.rgb *= texture2D(uWMap, vWPos.xz * ${o.wscale.toFixed(3)}).rgb * ${o.wmul.toFixed(3)};` : ''}
         ${o.detail ? `{

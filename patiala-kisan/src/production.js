@@ -1,7 +1,7 @@
 // Workshops: Atta Chakki, Kohlu, Dairy, Gur Belna, Dhaba, Halwai and Phulkari workshop.
 // Drop raw goods on the input pad (or queue from the panel); finished goods pile up at the output pad.
 import * as THREE from 'three';
-import { Builder, textTexture } from './geo.js';
+import { Builder, textTexture, vcMaterialCut } from './geo.js';
 import { props, shade } from './models.js';
 import { BUILDINGS, BUILDING_UPGRADES, RECIPES, ITEMS } from './config.js';
 import { POS } from './world.js';
@@ -90,7 +90,7 @@ function buildingMesh(id) {
       for (let k = 0; k < 3; k++) b.box([0xf2c200, 0xffffff, 0x2b8a3e][(i + k) % 3], { x: 1.15 + i * 0.65, y: 0.65 + k * 0.32, z: 1.42, sx: 0.4, sy: 0.08, sz: 0.01, ao: false });
     }
   }
-  return b.mesh();
+  return b.mesh(vcMaterialCut);
 }
 
 class Workshop {
@@ -142,6 +142,7 @@ class Workshop {
   refresh() {
     const o = this.data.owned;
     this.mesh.visible = o;
+    if (o && !this.tall) { this.tall = true; this.game.seeThrough?.add(this.group); }
     this.group.children[1].visible = o;
     this.site.visible = !o;
     const out = [];

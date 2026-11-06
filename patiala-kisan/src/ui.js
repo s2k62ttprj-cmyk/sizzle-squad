@@ -4,13 +4,18 @@ import * as THREE from 'three';
 import {
   CROPS, ITEMS, BAGS, CANS, STORAGE, STALL, FIELDS, PENS, BUILDINGS, RECIPES, VEHICLES, ATTACHMENTS, TRACTOR_HP,
   STAFF, MANAGERS, SEERI, MANAGER_RANKS, wage, OFFLINE_HOURS, SOUL_PERKS, QUESTS, ACHIEVEMENTS, BUILDING_UPGRADES, PEN_PIPE_COST, PEN_WATER_CAP, TANKER_CAP, xpNeed, TURBAN_COLORS, PLOT,
-  SWEETS, GOPAL_RATE, VENDORS, TRADE,
+  SWEETS, GOPAL_RATE, VENDORS, TRADE, SCARECROW_DESIGNS, SCARECROW_LEVELS, SCARECROW_MAX, AURA, BIKE_ENGINES, SOCIAL,
 } from './config.js';
-import { carryCap, storageCap, storageUsed, have, saveWorks, rating, todayKey, tradeLimitError, itemCount, itemsValue } from './state.js';
+import { carryCap, storageCap, storageUsed, have, saveWorks, rating, todayKey, tradeLimitError, itemCount, itemsValue, backupCode, readBackup } from './state.js';
 import { POS, FLY_Z } from './world.js';
 import { fmt } from './pads.js';
 import { portrait } from './portrait.js';
 import { describe, findCode } from './friends.js';
+import { REASONS } from './reviews.js';
+import { isOnline } from './net.js';
+import { clean } from './moderation.js';
+import { fmtT } from './gerhi.js';
+import { RADIO } from './audio.js';
 
 const $ = (id) => document.getElementById(id);
 const _v = new THREE.Vector3();
@@ -43,6 +48,7 @@ export class UI {
     bind('btnStaff', () => this.openStaff());
     bind('btnFriends', () => this.open('friends'));
     bind('btnMenu', () => this.open('settings'));
+    bind('radioBtn', () => this.open('radio'));
     bind('homeBtn', () => game.goHome());
     if (game.visit) {
       // a friend's farm: look around only
@@ -57,7 +63,7 @@ export class UI {
     bind('soulBox', () => this.open('farm', 'blessings'));
     $('action').addEventListener('pointerdown', (e) => { e.stopPropagation(); e.preventDefault(); game.audio.unlock(); this.pressAction(); });
     $('attBtn').addEventListener('click', (e) => { e.stopPropagation(); this.cycleAttachment(); });
-    $('hornBtn').addEventListener('click', (e) => { e.stopPropagation(); game.audio.play('horn'); });
+    $('hornBtn').addEventListener('click', (e) => { e.stopPropagation(); game.audio.play(game.player.vehicle?.kind === 'bike' && game.state.aura.owned.horn ? 'hornP' : 'horn'); });
     this.panel.querySelector('.x').addEventListener('click', () => this.close());
     $('scrim').addEventListener('click', () => this.close());
     this.panel.addEventListener('click', (e) => {
@@ -115,6 +121,7 @@ export class UI {
       this.tick = 0.25;
       this.money(); this.level(); this.carryPill(); this.waterPill(); this.questBar(); this.boosts();
       if (this.view && this.live) this.render();
+      if (g.player.vehicle?.kind === 'bike') this.gerhiPill();
       this.set('dayInfo', `Day ${g.state.day.n} · ${{ sunny: '☀️', cloudy: '⛅', rain: '🌧️' }[g.state.day.weather]}${g.weather.raining ? ' raining' : ''}`);
     }
     // action button
@@ -139,9 +146,11 @@ export class UI {
 
   vehicleMode(v) {
     const bar = $('vehBar');
-    bar.hidden = !v || v.kind === 'bike';
+    bar.hidden = !v;
     $('seedPill').hidden = !!v && v.kind !== 'tractor';
-    if (!v || v.kind === 'bike') return;
+    $('gerhiPill').hidden = !v || v.kind !== 'bike' || !!this.game.visit;
+    if (!v) return;
+    if (v.kind === 'bike') { $('attBtn').hidden = true; $('tankInfo').hidden = true; this.gerhiPill(); return; }
     if (v.kind === 'tractor') {
       const a = ATTACHMENTS[v.data.att];
       $('attBtn').hidden = false;
@@ -150,6 +159,8 @@ export class UI {
       $('tankInfo').innerHTML = `💧 ${v.data.tank}/${TANKER_CAP}`;
     } else { $('attBtn').hidden = true; $('tankInfo').hidden = true; }
   }
+  gerhiPill() { if (!this.game.visit) this.set('gerhiPill', this.game.gerhi.status()); }
+
   cycleAttachment() {
     const g = this.game, v = g.player.vehicle;
     if (!v || v.kind !== 'tractor') return;
@@ -239,7 +250,7 @@ export class UI {
     $('scrim').hidden = false;
     this.render(true);
   }
-  close() { this.panel.hidden = true; $('scrim').hidden = true; this.view = null; }
+  close() { if (this.view === 'board') this.game.social?.unwatchBoard(); this.panel.hidden = true; $('scrim').hidden = true; this.view = null; this.chatWith = null; }
   openOrders() { this.open('orders'); }
   openStaff(role = null) { this.focusRole = role; this.open('staff'); }
   openPen(id) { this.penId = id; this.open('pen'); }
@@ -247,7 +258,7 @@ export class UI {
   openBag(tab) { this.open('bag', tab); }
 
   defaultTab(view) {
-    return { shop: 'seeds', farm: 'fields', missions: 'mission', bag: 'carry', friends: 'friends' }[view] || null;
+    return { shop: 'seeds', farm: 'fields', missions: 'mission', bag: 'carry', friends: this.game.social?.on ? 'online' : 'friends' }[view] || null;
   }
 
   tabs(list) {
@@ -273,14 +284,19 @@ export class UI {
         this.live = this.tab === 'animals' || this.tab === 'work' || this.tab === 'fields' || this.tab === 'reviews';
         break;
       case 'sweets': title = "🍥 Gopal's Sweets"; html = this.sweetsHTML(); this.live = true; break;
+      case 'scarecrow': title = `${SCARECROW_DESIGNS[this.scarecrow?.data.d]?.icon || '🧍'} Scarecrow`; html = this.scarecrowHTML(); break;
       case 'vendor': {
         const v = g.vendors?.v;
         if (!v) { this.close(); return; }
         title = `${VENDORS[v.id].icon} ${VENDORS[v.id].name}`; html = this.vendorHTML(); this.live = true; break;
       }
-      case 'friends': title = '👥 Friends'; tabs = [['friends', '👥 Friends'], ['paste', '📋 Paste a link']]; html = this.friendsHTML(); break;
+      case 'friends': title = '👥 Friends'; tabs = g.social?.on ? [['online', '🌐 Online'], ['friends', '🔗 Link friends'], ['paste', '📋 Paste a link']] : [['friends', '👥 Friends'], ['paste', '📋 Paste a link']]; html = this.friendsHTML(); break;
+      case 'gift': title = '🎁 Send a gift'; html = this.giftHTML(); break;
+      case 'chat': title = `💬 ${esc(clean(g.social.friends[this.chatWith]?.name || '', 14))}`; html = this.chatHTML(); break;
+      case 'board': title = '📝 Guestbook'; html = this.boardHTML(); break;
       case 'trade': title = this.tr.mode === 'gift' ? '🎁 Send a gift' : '🔁 Make a trade'; html = this.tradeHTML(); break;
-      case 'missions': title = '📜 Goals'; tabs = [['mission', 'Mission'], ['daily', 'Daily'], ['ach', 'Achievements']]; html = this.missionsHTML(); this.live = true; break;
+      case 'missions': title = '📜 Goals'; tabs = [['mission', 'Mission'], ['daily', 'Daily'], ['gerhi', '🏍️ Gerhi'], ['ach', 'Achievements']]; html = this.missionsHTML(); this.live = this.tab !== 'gerhi'; break;
+      case 'radio': title = '📻 Radio'; html = this.radioHTML(); break;
       case 'bag': title = '🎒 Bag & Godown'; tabs = [['carry', '🧺 Carrying'], ['storage', '🏚️ Godown'], ['seedbag', '🌱 Seeds']]; html = this.bagHTML(); break;
       case 'map': title = '🗺️ Map'; html = this.mapHTML(); break;
       case 'settings': title = '⚙️ Settings'; html = this.settingsHTML(); break;
@@ -297,7 +313,7 @@ export class UI {
       this.cache.panelHtml = html;
       this.body.scrollTop = scrollTop ? 0 : y;
     }
-    if (this.view === 'settings') this.bindSettings();
+    if (this.view === 'settings' || this.view === 'radio') this.bindSettings();
   }
 
   row(icon, title, sub, btnHtml = '', cls = '') {
@@ -344,7 +360,7 @@ export class UI {
         const o = st.fields[f.id].owned;
         const b = o ? '<span class="tag ok">Owned</span>' : st.level < f.level ? `<span class="tag">🔒 L${f.level}</span>` : this.btn(`Buy ${money(f.cost - st.fields[f.id].paid)}`, 'buyField', { id: f.id }, st.money < f.cost - st.fields[f.id].paid);
         return this.row('🟫', f.name, `${f.cols * f.rows} plots`, b + (o ? '' : this.btn('📍', 'guide', { t: f.id })));
-      }).join('');
+      }).join('') + this.scarecrowShopHTML();
       case 'build': {
         let h = '<p class="hint">Build here or stand on the site pad to pay.</p><h3>Animals</h3>';
         for (const [id, p] of Object.entries(PENS)) {
@@ -366,6 +382,11 @@ export class UI {
           const o = st.vehicles[id].owned;
           const b = o ? '<span class="tag ok">Owned</span>' + this.btn('📍', 'guide', { t: 'garage' }) : st.level < v.level ? `<span class="tag">🔒 L${v.level}</span>` : this.btn(`Buy ${money(v.cost)}`, 'buyVehicle', { id }, st.money < v.cost);
           h += this.row({ bike: '🏍️', tractor: '🚜', combine: '🌾' }[id], v.name, v.desc + (v.cargo ? ` Holds ${v.cargo}.` : ''), b);
+        }
+        if (st.vehicles.bike.owned) {
+          const e = st.vehicles.bike.hp, next = BIKE_ENGINES[e + 1];
+          h += this.row('🏍️', `Bullet engine: ${BIKE_ENGINES[e].name}`, `Top speed ${Math.round(BIKE_ENGINES[e].top * 3.6)} km/h${next ? ` → ${Math.round(next.top * 3.6)} km/h, quicker pickup` : ''}. Paint and extras: Goals → 🏍️ Gerhi`,
+            next ? (st.level < next.level ? `<span class="tag">🔒 L${next.level}</span>` : this.btn(`${next.name.split(' ·')[0]} · ${money(next.cost)}`, 'bikeUp', {}, st.money < next.cost)) : '<span class="tag">MAX</span>');
         }
         if (st.vehicles.tractor.owned) {
           h += '<h3>Tractor attachments</h3>';
@@ -408,7 +429,7 @@ export class UI {
           const d = st.pens[id];
           if (!d.owned) { h += this.row('🔒', p.name, `Level ${p.level} · ${money(p.cost)}`, this.btn('📍', 'guide', { t: id }), 'locked'); continue; }
           const pen = g.animals.pens[id];
-          h += this.row(ITEMS[p.product].icon, `${p.name} · ${d.n}/${pen.cap()} ${p.animalName}s`, `Feed ${d.feed} · Water ${d.pipe ? 'pipe' : d.water} · Ready ${d.ready}`, this.btn('Manage', 'openPen', { id }));
+          h += this.row(ITEMS[p.product].icon, `${p.name} · ${d.n}/${pen.cap()} ${p.plural}`, `Feed ${d.feed} · Water ${d.pipe ? 'pipe' : d.water} · Ready ${d.ready}`, this.btn('Manage', 'openPen', { id }));
         }
         return h;
       }
@@ -451,10 +472,50 @@ export class UI {
       for (const n of QUESTS.slice(st.quest + 1, st.quest + 5)) h += this.row('▫️', esc(n.text), `Reward ₹${n.reward}`);
       return h;
     }
+    if (this.tab === 'gerhi') return this.gerhiHTML();
     if (this.tab === 'daily') {
       return `<p class="hint">New goals every day. Finished goals pay out automatically.</p>` + st.daily.goals.map((d) => `<div class="card2 ${d.done ? 'done' : ''}"><b>${d.done ? '✅' : '🎯'} ${esc(d.text)}</b><div class="bar"><i style="width:${Math.min(1, d.prog / d.n) * 100}%"></i></div><small>${Math.min(d.prog, d.n).toLocaleString('en-IN')}/${d.n.toLocaleString('en-IN')} · ₹${d.money} + ${d.xp} XP</small></div>`).join('');
     }
     return ACHIEVEMENTS.map((a) => this.row(st.ach[a.id] ? '🏆' : '▫️', a.text, `${Math.min(st.stats[a.stat] || 0, a.n).toLocaleString('en-IN')}/${a.n.toLocaleString('en-IN')}`, st.ach[a.id] ? '<span class="tag ok">Done</span>' : '', st.ach[a.id] ? '' : 'locked')).join('');
+  }
+
+  // ---------------------------------------------------------------- gerhi and Aura
+  gerhiHTML() {
+    const g = this.game, st = g.state, a = st.aura, gh = g.gerhi;
+    const bike = st.vehicles.bike.owned;
+    let h = `<div class="card2 gold aura"><b class="big">✨ ${fmt(a.pts)} Aura</b><small>${(a.dist / 1000).toFixed(1)} km ridden · ${a.laps} laps${a.best ? ` · best lap ${fmtT(a.best)}` : ''}${a.title ? ' · 👑 Gerhi Raja' : ''}</small>
+      ${bike ? '' : `<div class="ctrl">${this.btn('🏍️ Get a Bullet', 'goVehicles')}</div>`}</div>`;
+    h += `<p class="hint">Ride the Bullet round the ring road: every 200 m earns Aura (${AURA.distPerDay} a day), every full lap +${AURA.lap} (${AURA.lapsPerDay} a day), and each sight of Patiala you find +20.</p>`;
+    h += "<h3>Today's challenges</h3>";
+    for (const gl of a.goals) {
+      const G = AURA.goals.find((x) => x.id === gl.id), [n, of] = gh.progress(gl);
+      h += `<div class="card2 ${gl.done ? 'done' : ''}"><b>${gl.done ? '✅' : '🏍️'} ${esc(G.text)}</b><div class="bar"><i style="width:${Math.min(1, n / of) * 100}%"></i></div><small>${G.type === 'dist' ? `${(n / 1000).toFixed(1)}/${of / 1000} km` : `${n}/${of}`} · +${AURA.goal} ✨ and ₹${50 + st.level * 10}</small></div>`;
+    }
+    h += '<h3>Sights of Patiala</h3><div class="chips">' + AURA.spots.map((s) => `<span class="chip ${a.spots[s.id] ? 'on' : ''}">${a.spots[s.id] ? s.icon : '❔'} ${a.spots[s.id] ? s.name : 'Not found yet'}</span>`).join('') + '</div>';
+    h += '<h3>Spend Aura on your Bullet</h3>';
+    for (const [id, r] of Object.entries(AURA.rewards)) {
+      const own = a.owned[id];
+      const b = own ? (r.paint ? (a.paint === id ? '<span class="tag ok">On</span>' : this.btn('Use', 'auraPaint', { id })) : '<span class="tag ok">Yours</span>') : this.btn(`${r.cost} ✨`, 'auraBuy', { id }, a.pts < r.cost);
+      h += this.row(r.icon, r.name, r.paint ? 'Paint job for the tank and mudguards' : { ribbons: 'Bright ribbons on the handlebar', horn: 'Tap 📯 on the Bullet for the three-tone horn', lamps: 'Two chrome fog lamps on the crash guard', title: 'Shown next to your name' }[id], b);
+    }
+    if (Object.keys(AURA.rewards).some((id) => AURA.rewards[id].paint && a.owned[id])) h += this.row('⬛', 'Original black', 'The classic look', !a.paint ? '<span class="tag ok">On</span>' : this.btn('Use', 'auraPaint', { id: '' }));
+    h += '<h3>Milestones</h3>';
+    for (const m of AURA.miles) {
+      const v = m.stat === 'dist' ? a.dist : a.laps;
+      h += this.row(a.miles[m.id] ? '🏆' : '▫️', m.text, `${m.stat === 'dist' ? `${(Math.min(v, m.n) / 1000).toFixed(1)}/${m.n / 1000} km` : `${Math.min(v, m.n)}/${m.n}`} · +${m.pts} ✨`, a.miles[m.id] ? '<span class="tag ok">Done</span>' : '', a.miles[m.id] ? '' : 'locked');
+    }
+    return h;
+  }
+
+  radioHTML() {
+    const g = this.game, s = g.state.settings, au = g.audio;
+    const st = (id, icon, name, sub) => `<button class="station ${s.radio === id && !s.ownMusic ? 'on' : ''}" data-act="radio" data-id="${id}"><b>${icon} ${name}</b><small>${sub}</small></button>`;
+    let h = `<div class="stations">${st('fm', '📻', 'Patiala FM', `Now: ${RADIO[(au.track || 0) % RADIO.length].name}`)}${st('area', '🎵', 'Area music', 'The tune of wherever you are')}${st('off', '🔇', 'Radio off', 'Just the engine and the road')}</div>`;
+    h += `<div class="row2"><button class="btn ghost" data-act="radioPrev">⏮ Previous</button><button class="btn ghost" data-act="radioNext">Next ⏭</button></div>`;
+    h += `<label class="set">🔊 Radio volume <input type="range" min="0" max="1" step="0.05" value="${s.radioVol ?? 0.8}" data-set="radioVol"></label>`;
+    h += `<div class="card2 ${s.ownMusic ? 'gold' : ''}"><b>🎧 My music</b><small>Play songs from your own music app (Spotify, YouTube Music, Apple Music…) while you ride: start them there, then come back. The game turns its own music off and keeps its sounds.</small><div class="ctrl">${this.btn(s.ownMusic ? 'Turn off' : 'Turn on', 'ownMusic', {}, false, s.ownMusic ? 'ghost' : '')}</div></div>`;
+    h += '<p class="hint small">Patiala FM plays original tracks made for this game. Commercial songs (Sidhu Moose Wala and others) need a licence from their rights holders before a game can include them, so use 🎧 My music for those.</p>';
+    return h;
   }
 
   bagHTML() {
@@ -504,8 +565,11 @@ export class UI {
       <div class="set">🖼️ Graphics <div class="seg">${['auto', 'low', 'medium', 'high'].map((q) => `<button data-act="quality" data-q="${q}" class="${s.quality === q ? 'on' : ''}">${q}</button>`).join('')}</div></div>
       <div class="set">👳 Pagg colour <div class="swatches">${TURBAN_COLORS.map((c) => `<button data-act="turban" data-c="${c}" style="background:${c}" class="${st.turban === c ? 'on' : ''}"></button>`).join('')}</div></div>
       <label class="set">✏️ Name <input type="text" maxlength="14" value="${esc(st.name)}" data-set="name"></label>
+      <div class="set">🎧 My own music <div class="seg"><button data-act="ownMusic" class="${s.ownMusic ? 'on' : ''}">${s.ownMusic ? 'On — game music off' : 'Off'}</button></div></div>
       <button class="btn wide" data-act="share">📤 Share the game</button>
       <p class="hint">💾 Progress saves automatically on this device (last saved ${saved}).${saveWorks() ? '' : ' ⚠️ Saving is blocked in this browser mode (private browsing?).'} Saves stay in this browser — they do not sync between devices. Tip: Safari → Share → Add to Home Screen keeps your farm safest.</p>
+      <div class="row2"><button class="btn ghost" data-act="backup">💾 Back up my farm</button><button class="btn ghost" data-act="restore">📥 Restore a backup</button></div>
+      <p class="hint small">A backup code is your whole farm as text. Keep it in your Notes or WhatsApp to yourself, and restore it on a new phone or after clearing Safari.</p>
       <button class="btn wide danger" data-act="reset">Start a new farm…</button>
       <p class="hint small">Patiala Kisan · ${this.game.state.day.n} days farmed</p>`;
   }
@@ -537,7 +601,7 @@ export class UI {
     const g = this.game, st = g.state, id = this.penId, p = PENS[id], d = st.pens[id], pen = g.animals.pens[id];
     const nextCap = p.caps[d.capLvl + 1], capCost = p.capCosts[d.capLvl];
     const feedsInGodown = p.feeds.reduce((a, f) => a + (st.storage[f] || 0), 0);
-    let h = `<div class="stats"><div><span>${p.animalName}s</span><b>${d.n}/${pen.cap()}</b></div><div><span>🌾 Feed</span><b>${d.feed}/${pen.feedCap()}</b></div><div><span>💧 Water</span><b>${d.pipe ? 'Pipe ✔' : `${d.water}/${PEN_WATER_CAP}`}</b></div><div><span>${ITEMS[p.product].icon} Ready</span><b>${d.ready}</b></div><div><span>⏱️ Each makes</span><b>1 / ${p.cycle}s</b></div></div>`;
+    let h = `<div class="stats"><div><span>${p.plural}</span><b>${d.n}/${pen.cap()}</b></div><div><span>🌾 Feed</span><b>${d.feed}/${pen.feedCap()}</b></div><div><span>💧 Water</span><b>${d.pipe ? 'Pipe ✔' : `${d.water}/${PEN_WATER_CAP}`}</b></div><div><span>${ITEMS[p.product].icon} Ready</span><b>${d.ready}</b></div><div><span>⏱️ Each makes</span><b>1 / ${p.cycle}s</b></div></div>`;
     h += `<p class="hint">Eats ${p.feeds.map((f) => `${ITEMS[f].icon} ${ITEMS[f].name}`).join(', ')}. Stand on the yellow pad to feed, blue to water, green to collect.</p>`;
     h += this.row(ITEMS[p.product].icon, `Buy a ${p.animalName}`, money(p.animalCost), this.btn('Buy', 'buyAnimal', {}, d.n >= pen.cap() || st.money < p.animalCost));
     h += this.row('🧱', 'Bigger pen', nextCap ? `Room for ${nextCap}` : 'Max size', nextCap ? this.btn(money(capCost), 'penCap', {}, st.money < capCost) : '<span class="tag">MAX</span>');
@@ -626,13 +690,39 @@ export class UI {
 
   setFieldCrop(fid, crop) { this.game.state.fields[fid].crop = crop; }
 
+  // ---------------------------------------------------------------- scarecrows
+  scarecrowShopHTML() {
+    const st = this.game.state, L0 = SCARECROW_LEVELS[0], locked = st.level < L0.level, full = st.scarecrows.length >= SCARECROW_MAX;
+    let h = `<h3>🧍 Scarecrows · ${st.scarecrows.length}/${SCARECROW_MAX}</h3><p class="hint">Crows peck growing crops and set them back. A scarecrow guards everything within its circle (${L0.radius} m to start). Put it anywhere on or beside your fields, then upgrade it.</p>`;
+    for (const [id, d] of Object.entries(SCARECROW_DESIGNS)) {
+      const b = locked ? `<span class="tag">🔒 L${L0.level}</span>` : this.btn(`Place ${money(L0.cost)}`, 'scarecrowBuy', { d: id }, full || st.money < L0.cost);
+      h += this.row(d.icon, d.name, d.desc, b);
+    }
+    return h;
+  }
+  scarecrowHTML() {
+    const g = this.game, st = g.state, m = this.scarecrow;
+    if (!m || !g.scarecrows.list.includes(m)) return '<p class="empty">This scarecrow is gone.</p>';
+    const L = SCARECROW_LEVELS[m.data.lvl], N = SCARECROW_LEVELS[m.data.lvl + 1], D = SCARECROW_DESIGNS[m.data.d];
+    let h = `<div class="stats"><div><span>Level</span><b>${L.name}</b></div><div><span>Protects</span><b>${L.radius} m</b></div><div><span>Turns away</span><b>${Math.round(L.guard * 100)}% of raids</b></div><div><span>Crows scared</span><b>${st.stats.crowsScared || 0}</b></div></div>`;
+    h += N ? this.row('⬆️', `Upgrade to ${N.name}`, `${N.radius} m circle, turns away ${Math.round(N.guard * 100)}% · adds ${N.adds}`, st.level < N.level ? `<span class="tag">🔒 L${N.level}</span>` : this.btn(money(N.cost), 'scarecrowUp', {}, st.money < N.cost))
+      : '<p class="hint">🏆 The best scarecrow in Patiala: no crow gets past it.</p>';
+    h += '<h3>Look</h3><div class="chips">' + Object.entries(SCARECROW_DESIGNS).map(([id, d]) => `<button class="chip ${id === m.data.d ? 'on' : ''}" data-act="scarecrowStyle" data-d="${id}">${d.icon} ${d.name}</button>`).join('') + '</div>';
+    h += `<div class="row2"><button class="btn ghost" data-act="scarecrowMove">↔️ Move</button><button class="btn ghost danger" data-act="scarecrowRemove">🗑️ Take down</button></div>`;
+    h += `<p class="hint small">${D.icon} ${D.name}: ${D.desc}.</p>`;
+    return h;
+  }
+
   // ---------------------------------------------------------------- reviews
   reviewsHTML() {
     const st = this.game.state, r = rating(st);
     if (!st.reviews.length) return '<p class="empty">No reviews yet. Customers leave one after they buy at your Mandi stall — keep the shelf full and the queue short!</p>';
     let h = `<div class="card2 gold rating"><b class="big">${r.toFixed(1)} <span class="stars">${stars(Math.round(r))}</span></b><small>from the last ${st.reviews.length} customers${r >= 4 ? ' · 🎉 More customers are coming!' : r < 2.2 ? ' · 😬 Fewer customers come — keep the stall stocked' : ''}</small></div>`;
-    h += '<p class="hint">Full shelves, short queues, the Gurdwara blessing and Gopal\'s Kaju Barfi earn better reviews.</p>';
-    for (const x of st.reviews) h += `<div class="review"><div><b>${esc(x.n)}</b> <span class="stars">${stars(x.s)}</span>${x.i && ITEMS[x.i] ? ` <span class="tag">${ITEMS[x.i].icon}</span>` : ''}<small>${ago(x.d)}</small></div><p>${esc(x.t)}</p></div>`;
+    h += '<p class="hint">Customers only complain with a reason: a long queue, an empty shelf or a price surge. Keep the stall stocked and most reviews are happy ones.</p>';
+    for (const x of st.reviews) {
+      const why = REASONS[x.w];
+      h += `<div class="review"><div><b>${esc(x.n)}</b> <span class="stars">${stars(x.s)}</span>${x.i && ITEMS[x.i] ? ` <span class="tag">${ITEMS[x.i].icon}</span>` : ''}${why ? ` <span class="tag why">${why.icon} ${why.text}</span>` : ''}<small>${ago(x.d)}</small></div><p>${esc(x.t)}</p></div>`;
+    }
     return h;
   }
 
@@ -675,8 +765,82 @@ export class UI {
   }
 
   // ---------------------------------------------------------------- friends and trading
+  // ---------------------------------------------------------------- online friends
+  socialChanged() {
+    if (this.view === 'chat') { const el = $('chatList'); if (el) { el.innerHTML = this.chatListHTML(); el.scrollTop = el.scrollHeight; } this.game.social.read(this.chatWith); }
+    else if (this.view === 'board') { const el = $('boardList'); if (el) el.innerHTML = this.boardListHTML(); }
+    else if (this.view === 'friends' && this.tab === 'online') this.render();
+    const n = Object.values(this.game.social?.unread || {}).reduce((a, b) => a + b, 0) + Object.keys(this.game.social?.gifts || {}).length + Object.keys(this.game.social?.requests || {}).length;
+    $('btnFriends').classList.toggle('badge', n > 0);
+  }
+  onlineHTML() {
+    const g = this.game, st = g.state, so = g.social;
+    if (!so.ready) return so.error ? `<p class="empty">⚠️ Can't reach the online service (${esc(so.error)}). Your farm still works offline.</p>` : '<p class="empty">🌐 Connecting…</p>';
+    const now = Date.now();
+    let h = `<div class="card2 gold"><b>🌐 Your friend code: <span class="code">${esc(st.social.code || '…')}</span></b><small>Friends type this code to add you. Gifts and chat work once you have both added each other.</small>
+      <div class="ctrl">${this.btn('📋 Copy', 'copyCode', {}, false, 'ghost')}${this.btn('📤 Share', 'shareCode', {}, false, 'go')}</div></div>`;
+    h += `<div class="addrow"><input id="codeIn" maxlength="8" placeholder="Friend's code" autocomplete="off" autocapitalize="characters"><button class="btn" data-act="sAdd">➕ Add</button></div>`;
+    for (const [id, r] of Object.entries(so.requests)) h += `<div class="card2 inbox"><b>👥 ${esc(clean(r.name, 14))} wants to be friends</b><small>Level ${r.level || '?'}</small><div class="ctrl">${this.btn('Accept', 'sAccept', { id }, false, 'go')}${this.btn('Not now', 'sDecline', { id }, false, 'ghost')}</div></div>`;
+    for (const [id, gf] of Object.entries(so.gifts)) h += `<div class="card2 inbox"><b>🎁 Gift from ${esc(clean(gf.name, 14))}</b><small>${describe(gf.items || {})}</small><div class="ctrl">${this.btn('Collect', 'sCollect', { id }, false, 'go')}</div></div>`;
+    const ids = Object.keys(so.friends).sort((a, b) => (isOnline(so.friends[b], now) - isOnline(so.friends[a], now)) || ((so.friends[b].at || 0) - (so.friends[a].at || 0)));
+    h += `<h3>Friends (${ids.length})</h3>`;
+    if (!ids.length) h += '<p class="empty">Share your code, or add a friend\'s code above.</p>';
+    for (const id of ids) {
+      const f = so.friends[id], on = isOnline(f, now), un = so.unread[id] || 0;
+      const where = f.ride && now - f.ride.at < 5000 ? ' · 🏍️ riding the ring road' : '';
+      h += `<div class="friend"><div class="fav" style="--c:${esc(f.turban || '#e8590c')}">👳<i class="dot ${on ? 'on' : ''}"></i></div><div class="fi"><b>${esc(clean(f.name, 14))}</b><small>${on ? '🟢 Online' : f.at ? `Last seen ${ago(f.at)}` : 'Not seen yet'}${f.level ? ` · Level ${f.level}` : ''}${where}${f.mutual ? '' : '<br>⏳ Waiting for them to add you back'}</small>
+        <div class="ctrl">${this.btn('🎁 Gift', 'sGift', { id }, !f.mutual, 'go')}${this.btn(`💬 Chat${un ? ` (${un})` : ''}`, 'sChat', { id }, !f.mutual)}${this.btn('👀 Visit', 'sVisit', { id }, !f.farm)}${this.btn('✕', 'sUnfriend', { id }, false, 'ghost')}</div></div></div>`;
+    }
+    const hist = st.social.history.slice(0, 12);
+    if (hist.length) {
+      h += '<h3>🎁 Gift history</h3>';
+      for (const e of hist) h += this.row(e.k === 'sent' ? '📤' : '📥', `${e.k === 'sent' ? 'To' : 'From'} ${esc(e.who)}`, `${describe(e.items)} · ${ago(e.at)}`);
+    }
+    const left = st.social.giftDay === todayKey() ? Math.max(0, SOCIAL.giftsPerDay - st.social.giftsToday) : SOCIAL.giftsPerDay;
+    h += `<p class="hint small">Up to ${SOCIAL.giftItems(st.level)} items a gift and ${SOCIAL.giftsPerDay} gifts a day (${left} left today). Chat is filtered; tap a friend's 💬 to block or report.</p>`;
+    return h;
+  }
+  giftHTML() {
+    const g = this.game, st = g.state, f = g.social.friends[this.giftTo];
+    if (!f) return '<p class="empty">Not a friend any more.</p>';
+    const pick = this.giftPick || {};
+    const stock = {};
+    for (const k of st.carry) stock[k] = (stock[k] || 0) + 1;
+    for (const [k, n] of Object.entries(st.storage)) stock[k] = (stock[k] || 0) + n;
+    const ids = Object.keys(stock).filter((k) => ITEMS[k]).sort((a, b) => ITEMS[b].price * stock[b] - ITEMS[a].price * stock[a]).slice(0, 12);
+    let h = `<p class="hint">Tap what to give, then send. ${esc(clean(f.name, 14))} gets it right away.</p><div class="chips gift">`;
+    h += ids.map((k) => `<button class="chip ${pick[k] ? 'on' : ''}" data-act="gPick" data-id="${k}">${ITEMS[k].icon} ${ITEMS[k].name}<small>${pick[k] ? `${pick[k]} of ${stock[k]}` : `you have ${stock[k]}`}</small></button>`).join('');
+    h += '</div>';
+    if (!ids.length) h += '<p class="empty">Your bag and godown are empty.</p>';
+    const err = g.social.giftError(this.giftTo, pick);
+    h += `<div class="card2 sticky"><small>${itemCount(pick)} items · tap an item again for more</small>${itemCount(pick) && err ? `<small class="warn">${esc(err)}</small>` : ''}<button class="btn wide" data-act="gSend" ${err ? 'disabled' : ''}>🎁 Send to ${esc(clean(f.name, 14))}</button></div>`;
+    return h;
+  }
+  chatListHTML() {
+    const g = this.game, me = g.social.uid, list = g.social.msgs[this.chatWith] || [];
+    if (!list.length) return '<p class="empty">Say Sat Sri Akal! 👋</p>';
+    return list.map((m) => `<div class="msg ${m.from === me ? 'me' : ''}"><p>${esc(m.text)}</p><small>${ago(m.at)}</small></div>`).join('');
+  }
+  chatHTML() {
+    return `<div id="chatList" class="chatlist">${this.chatListHTML()}</div>
+      <div class="addrow"><input id="chatIn" maxlength="${SOCIAL.chatLen}" placeholder="Message" autocomplete="off"><button class="btn" data-act="chatSend">Send</button></div>
+      <div class="row2"><button class="btn ghost small" data-act="sBlock">🚫 Block</button><button class="btn ghost small" data-act="sReport">⚠️ Report</button></div>`;
+  }
+  boardListHTML() {
+    const g = this.game, so = g.social, mine = !g.visit;
+    if (!so.board.length) return `<p class="empty">${mine ? 'No messages yet. Friends who visit your farm can leave one here.' : 'Be the first to sign the guestbook!'}</p>`;
+    return so.board.map((p) => `<div class="post"><div class="fav" style="--c:${esc(p.turban || '#e8590c')}">${esc((p.name || '?')[0].toUpperCase())}</div><div class="fi"><b>${esc(p.name)}</b> <small>${ago(p.at)}</small><p>${esc(p.text)}</p></div>${mine || p.from === so.uid ? `<button class="mini ghost" data-act="boardDel" data-id="${p.id}">🗑️</button>` : ''}</div>`).join('');
+  }
+  boardHTML() {
+    const g = this.game, mine = !g.visit;
+    return `<p class="hint">${mine ? 'Messages your visitors leave on your farm. Tap 🗑️ to remove any you don\'t want.' : `Leave a message for ${esc(g.visit.fn)} — they see it on their farm.`}</p>
+      <div id="boardList">${this.boardListHTML()}</div>
+      <div class="addrow"><input id="boardIn" maxlength="${SOCIAL.boardLen}" placeholder="${mine ? 'Write a note on your own board' : 'Write a message'}" autocomplete="off"><button class="btn" data-act="boardPost">📝 Post</button></div>`;
+  }
+
   friendsHTML() {
     const g = this.game, st = g.state, fr = g.friends;
+    if (this.tab === 'online') return this.onlineHTML();
     if (this.tab === 'paste') {
       return `<p class="hint">Got a Patiala Kisan link from a friend? If tapping it opened Safari instead of your Home Screen game, copy the whole message and paste it here.</p>
         <textarea id="pasteBox" class="paste" placeholder="Paste the link or message here"></textarea>
@@ -706,7 +870,7 @@ export class UI {
     for (const id of ids) {
       const f = st.friends[id];
       h += `<div class="friend"><div class="fav" style="--c:${esc(f.turban)}">👳</div><div class="fi"><b>${esc(f.name)}</b><small>Level ${f.level || '?'}${f.fields ? ` · ${f.fields} fields` : ''}${f.rating ? ` · ⭐ ${f.rating}` : ''} · shared ${ago(f.seen)}${f.sent || f.got ? `<br>You sent ${f.sent} · got ${f.got} items` : ''}</small>
-        <div class="ctrl">${this.btn('👀 Visit', 'visitFriend', { id }, !f.code, 'go')}${this.btn('🎁 Gift', 'compose', { id, mode: 'gift' })}${this.btn('🔁 Trade', 'compose', { id, mode: 'offer' })}${this.btn('✕', 'unfriend', { id }, false, 'ghost')}</div></div></div>`;
+        <div class="ctrl">${this.btn('👀 Visit', 'visitFriend', { id }, !f.code, 'go')}${this.btn('🎁 Gift', 'compose', { id, mode: 'gift' })}${this.btn('🔁 Trade', 'compose', { id, mode: 'offer' })}${g.social?.ready ? this.btn('🌐 Add online', 'sConnect', { id }) : ''}${this.btn('✕', 'unfriend', { id }, false, 'ghost')}</div></div></div>`;
     }
     const left = st.trade.day === todayKey() ? Math.max(0, TRADE.linksPerDay - st.trade.sent) : TRADE.linksPerDay;
     h += `<p class="hint small">Trades are fair: up to ${TRADE.items(st.level)} items worth ${money(TRADE.value(st.level))} per link, ${TRADE.linksPerDay} links a day (${left} left today). Gifts and trades only open on the farm they were sent to, once. Money can't be traded.</p>`;
@@ -869,6 +1033,82 @@ export class UI {
       case 'quality': st.settings.quality = d.q; g.applyQuality(); break;
       case 'turban': g.player.setTurban(d.c); break;
       case 'share': g.share(); return;
+      case 'goVehicles': this.open('shop', 'vehicles'); return;
+      // ---- online friends
+      case 'copyCode': navigator.clipboard?.writeText(st.social.code).then(() => this.toast('📋 Code copied'), () => this.toast(st.social.code, 4)); return;
+      case 'shareCode': { const text = `Add me in Patiala Kisan! 🌾 My friend code: ${st.social.code}`; if (navigator.share) navigator.share({ title: 'Patiala Kisan', text, url: location.href.split('#')[0] }).catch(() => {}); else navigator.clipboard?.writeText(text).then(() => this.toast('📋 Copied — paste it in WhatsApp')); return; }
+      case 'sAdd': { const err = await g.social.addByCode($('codeIn')?.value); if (err) return fail(err); this.toast('👥 Friend request sent!'); g.audio.play('trade'); break; }
+      case 'sConnect': { const err = await g.social.addByPid(d.id); if (err) return fail(err); this.toast('👥 Friend request sent!'); break; }
+      case 'sAccept': await g.social.accept(d.id); this.toast('👥 You are friends now!'); g.audio.play('trade'); break;
+      case 'sDecline': await g.social.decline(d.id); break;
+      case 'sUnfriend': if (!await this.confirm('<div class="big">👥</div><h2>Remove this friend?</h2>', 'Remove')) return; await g.social.unfriend(d.id); break;
+      case 'sCollect': { const err = await g.social.collect(d.id); if (err) return fail(err); this.toast('🎁 Collected — it went to your godown'); break; }
+      case 'sGift': this.giftTo = d.id; this.giftPick = {}; this.open('gift'); return;
+      case 'gPick': {
+        const have0 = (st.storage[d.id] || 0) + st.carry.filter((x) => x === d.id).length, cur = this.giftPick[d.id] || 0;
+        const step = cur ? Math.max(1, Math.round(cur / 2)) : Math.min(5, have0);
+        const next = cur >= have0 ? 0 : Math.min(have0, cur + step);
+        if (next) this.giftPick[d.id] = next; else delete this.giftPick[d.id];
+        break;
+      }
+      case 'gSend': { const err = await g.social.sendGift(this.giftTo, this.giftPick); if (err) return fail(err); this.toast('🎁 Gift sent!'); g.audio.play('trade'); this.open('friends', 'online'); return; }
+      case 'sChat': this.chatWith = d.id; g.social.read(d.id); this.open('chat'); { const el = $('chatList'); if (el) el.scrollTop = el.scrollHeight; } return;
+      case 'chatSend': { const box = $('chatIn'); const err = await g.social.say(this.chatWith, box.value); if (err) return fail(err); box.value = ''; box.focus(); return; }
+      case 'sBlock': if (!await this.confirm('<div class="big">🚫</div><h2>Block this player?</h2><p>They are removed from your friends and can\'t message or gift you.</p>', 'Block')) return; await g.social.block(this.chatWith); this.close(); this.toast('🚫 Blocked'); return;
+      case 'sReport': { const why = prompt('What happened? (optional)') ?? ''; await g.social.report(this.chatWith, 'chat', why); this.toast('⚠️ Report sent — thank you'); return; }
+      case 'sVisit': { const f = g.social.friends[d.id]; if (!f?.farm) return fail('Their farm is not shared yet'); g.save(true); try { sessionStorage.setItem('pk-visit', f.farm); } catch { /* ignore */ } location.reload(); return; }
+      case 'boardPost': { const box = $('boardIn'); const me = g.visit ? (g.me || { name: 'Visitor', turban: '#e8590c' }) : { name: st.name, turban: st.turban }; const err = await g.social.post(this.boardOwner, box.value, me); if (err) return fail(err); box.value = ''; this.toast('📝 Posted!'); return; }
+      case 'boardDel': await g.social.unpost(this.boardOwner, d.id); return;
+      case 'auraBuy': { const err = g.gerhi.buy(d.id); if (err) return fail(err); g.audio.play('aura'); this.toast(`${AURA.rewards[d.id].icon} ${AURA.rewards[d.id].name} is yours!`); break; }
+      case 'auraPaint': g.gerhi.paint(d.id); g.audio.play('click'); break;
+      case 'bikeUp': {
+        const bk = st.vehicles.bike, next = BIKE_ENGINES[bk.hp + 1];
+        if (!next || st.level < next.level || st.money < next.cost) return fail('Not yet');
+        st.money -= next.cost; bk.hp++;
+        g.audio.play('buy');
+        this.toast(`🏍️ ${next.name} fitted! Top speed ${Math.round(next.top * 3.6)} km/h`);
+        break;
+      }
+      case 'radio': st.settings.radio = d.id; if (st.settings.ownMusic) { st.settings.ownMusic = false; g.audio.setOwnMusic(false); } break;
+      case 'radioPrev': case 'radioNext': st.settings.radio = 'fm'; g.audio.nextTrack(act === 'radioNext' ? 1 : -1); break;
+      case 'ownMusic': st.settings.ownMusic = !st.settings.ownMusic; g.audio.setOwnMusic(st.settings.ownMusic); this.toast(st.settings.ownMusic ? '🎧 Game music off — play your songs in your music app' : '🎵 Game music back on'); break;
+      case 'scarecrowBuy': { const err = g.scarecrows.start(d.d); if (err) return fail(err); return; }
+      case 'scarecrowUp': { const err = g.scarecrows.upgrade(this.scarecrow); if (err) return fail(err); this.toast('⬆️ Scarecrow upgraded!'); break; }
+      case 'scarecrowStyle': g.scarecrows.restyle(this.scarecrow, d.d); break;
+      case 'scarecrowMove': { const err = g.scarecrows.start(this.scarecrow.data.d, this.scarecrow); if (err) return fail(err); return; }
+      case 'scarecrowRemove': {
+        if (!await this.confirm('<div class="big">🧍</div><h2>Take down this scarecrow?</h2><p>You get 40% of what it cost back.</p>', 'Take down')) return;
+        this.toast(`🧍 Taken down · +${money(g.scarecrows.remove(this.scarecrow))}`);
+        this.close();
+        return;
+      }
+      case 'backup': {
+        g.save(true);
+        const code = await backupCode(st);
+        const m = $('modal');
+        m.innerHTML = `<div class="card"><div class="big">💾</div><h2>Your farm backup</h2><p>Level ${st.level} · ${money(st.money)} · ${fmt(st.soul)} 🙏 — copy it all and keep it safe (Notes, or WhatsApp it to yourself).</p>
+          <textarea class="paste" readonly rows="4">${code}</textarea><div class="row2"><button class="btn ghost" id="mCopy">📋 Copy</button><button class="btn" id="mShare">📤 Save to…</button></div><button class="btn ghost small" id="mDone">Done</button></div>`;
+        m.hidden = false;
+        const text = `My Patiala Kisan farm backup (${st.name}, level ${st.level}). Restore it in ⚙️ Settings → Restore a backup:\n${code}`;
+        $('mCopy').onclick = () => { const box = m.querySelector('textarea'); box.select(); (navigator.clipboard ? navigator.clipboard.writeText(code) : Promise.reject()).then(() => this.toast('💾 Backup copied'), () => { document.execCommand?.('copy'); this.toast('💾 Copied'); }); };
+        $('mShare').onclick = () => { if (navigator.share) navigator.share({ title: 'Patiala Kisan backup', text }).catch(() => {}); else navigator.clipboard?.writeText(text).then(() => this.toast('💾 Backup copied'), () => {}); };
+        $('mDone').onclick = () => { m.hidden = true; };
+        return;
+      }
+      case 'restore': {
+        const m = $('modal');
+        m.innerHTML = `<div class="card"><div class="big">📥</div><h2>Restore a farm backup</h2><p>Paste a backup code. The farm on this device is kept as a safety copy.</p>
+          <textarea class="paste" rows="4" placeholder="PKB…"></textarea><small class="warn" id="mErr"></small><div class="row2"><button class="btn ghost" id="mDone">Cancel</button><button class="btn" id="mGo">Check code</button></div></div>`;
+        m.hidden = false;
+        $('mDone').onclick = () => { m.hidden = true; };
+        $('mGo').onclick = async () => {
+          let s;
+          try { s = await readBackup(m.querySelector('textarea').value); } catch (e) { $('mErr').textContent = '⚠️ ' + e.message; g.audio.play('error'); return; }
+          m.hidden = true;
+          if (await this.confirm(`<div class="big">📥</div><h2>Restore ${esc(s.name)}'s farm?</h2><p>Level ${s.level} · ${money(s.money)} · ${fmt(s.soul)} 🙏<br>It replaces the farm on this device (Level ${st.level}), which is kept as a safety copy.</p>`, 'Restore')) g.restoreFarm(s);
+        };
+        return;
+      }
       case 'reset':
         if (!(await this.confirm('<h2>Start a new farm?</h2><p>This deletes all progress on this device: money, fields, animals and soul points.</p>', 'Delete farm'))) return;
         if (!(await this.confirm('<h2>Are you sure?</h2><p>This cannot be undone.</p>', 'Yes, start over'))) return;

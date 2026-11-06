@@ -6,40 +6,18 @@
 //  - a trade link offers goods for goods: your side is set aside when you make it, your
 //    friend accepts and sends back a reply link that pays you.
 // Limits per link and per day (config TRADE) keep the trading fair.
-import { CROPS, FIELDS, PENS, BUILDINGS, VEHICLES, MANAGERS, ITEMS, SOUL_PERKS, BAGS, CANS, STORAGE, STALL, QUESTS, TRADE, TURBAN_COLORS } from './config.js';
+import { CROPS, FIELDS, PENS, BUILDINGS, VEHICLES, MANAGERS, ITEMS, SOUL_PERKS, BAGS, CANS, STORAGE, STALL, QUESTS, TRADE, TURBAN_COLORS, SCARECROW_DESIGNS, SCARECROW_LEVELS, SCARECROW_MAX } from './config.js';
 import { newState, makeId, tradeLimitError, noteTradeSent, redeemOnce, roomFor, receive, take, have, rating, itemCount, itemsValue } from './state.js';
+import { pack, unpack } from './codec.js';
 
 export const INBOX_KEY = 'patiala-kisan-inbox';      // links opened on the start screen, waiting for the farm to load
 
 // ---------------------------------------------------------------- link codec
 const SALT = 'patiala-kisan';
-function hash(s) {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
-  return (h >>> 0).toString(36);
-}
-const toB64 = (bytes) => { let s = ''; for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
-const fromB64 = (s) => { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; const b = atob(s); return Uint8Array.from(b, (c) => c.charCodeAt(0)); };
-const pipe = async (bytes, stream) => new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer());
-
-export async function encode(obj) {
-  const json = JSON.stringify(obj);
-  const bytes = new TextEncoder().encode(json + '~' + hash(SALT + json));
-  if (typeof CompressionStream !== 'undefined') return 'z' + toB64(await pipe(bytes, new CompressionStream('deflate-raw')));
-  return 'j' + toB64(bytes);
-}
+export const encode = (obj) => pack(obj, SALT);
 export async function decode(code) {
   if (!code || !/^[zj][A-Za-z0-9_-]+$/.test(code) || code.length > 12000) throw new Error('not a Patiala Kisan link');
-  let text;
-  try {
-    let bytes = fromB64(code.slice(1));
-    if (code[0] === 'z') bytes = await pipe(bytes, new DecompressionStream('deflate-raw'));
-    text = new TextDecoder().decode(bytes);
-  } catch { throw new Error('this link is damaged — ask for it again'); }
-  const cut = text.lastIndexOf('~');
-  const json = text.slice(0, cut);
-  if (cut < 0 || hash(SALT + json) !== text.slice(cut + 1)) throw new Error('this link is damaged — ask for it again');
-  return clean(JSON.parse(json));
+  return clean(await unpack(code, SALT, 'this link is damaged — ask for it again'));
 }
 // Pull a link code out of a URL or any pasted message text
 export function findCode(text) {
@@ -99,6 +77,7 @@ export function snapshot(st) {
     mg: Object.fromEntries(Object.entries(st.managers).filter(([, m]) => m.on).map(([id, m]) => [id, m.rank])), sr: st.seeriRank,
     u: [st.up.bag, st.up.can, st.up.storage, st.up.stall], sl: stall,
     g: [st.guru.streak, Object.keys(st.ach).length], ts: Date.now(),
+    sc: (st.scarecrows || []).map((c) => [Math.round(c.x * 10), Math.round(c.z * 10), c.lvl, Object.keys(SCARECROW_DESIGNS).indexOf(c.d)]),
   };
 }
 
@@ -148,6 +127,9 @@ export function visitState(snap, mine = null) {
   s.up = { bag: num(u[0], 0, BAGS.length - 1), can: num(u[1], 0, CANS.length - 1), storage: num(u[2], 0, STORAGE.length - 1), stall: num(u[3], 0, STALL.length - 1) };
   s.stall = cleanItems(snap.sl);
   s.guru.streak = num(snap.g?.[0], 0, 9999);
+  const designs = Object.keys(SCARECROW_DESIGNS);
+  s.scarecrows = (Array.isArray(snap.sc) ? snap.sc : []).slice(0, SCARECROW_MAX).filter((c) => Array.isArray(c) && designs[c[3]])
+    .map((c, i) => ({ id: 'v' + i, x: num(c[0], -600, 600) / 10, z: num(c[1], -600, 600) / 10, lvl: num(c[2], 0, SCARECROW_LEVELS.length - 1), d: designs[c[3]] }));
   s.saved = now;
   return s;
 }

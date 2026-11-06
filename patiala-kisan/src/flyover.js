@@ -8,14 +8,14 @@ import { enhance } from './shading.js';
 import { FLY_Z, FLY_Y } from './world.js';
 
 const X0 = -84, X1 = 78;                       // the deck runs into the hills at both ends
-const PIERS = [-49, -40.2, -31, -22, -13, -4.2, 4.2, 11, 22, 31, 40, 49];
+const PIERS = [-57, -40.2, -31, -22, -13, -4.2, 4.2, 11, 22, 31, 39, 54];   // clear of the ring road
 const LANE = 0.72;                             // left-hand traffic: eastbound in the north lane
 const SCALE = 0.72;                            // vehicles are a little small so two fit side by side
 
 export class Flyover {
   constructor(game) {
     this.game = game;
-    this.mat = enhance(new THREE.MeshLambertMaterial({ vertexColors: true, transparent: true }));
+    this.mat = enhance(new THREE.MeshLambertMaterial({ vertexColors: true }), { cut: true });
     this.opacity = 1;
     const z = FLY_Z, top = FLY_Y;
     const b = new Builder(0.03, { ao: 0.22, aoH: 1.2 });
@@ -72,7 +72,7 @@ export class Flyover {
     this.cars = [];
     const kinds = [['truck', 8.5], ['bus', 10.5], ['car', 13.5], ['tractor', 5.5], ['truck', 9], ['car', 12.5], ['car', 14]];
     kinds.forEach(([kind, speed], i) => {
-      const mesh = this.vehicle(kind, i);
+      const mesh = trafficVehicle(kind, i, this.mat);
       mesh.scale.setScalar(SCALE);
       g.scene.add(mesh);
       const dir = i % 2 ? -1 : 1;
@@ -87,7 +87,50 @@ export class Flyover {
     c.mesh.rotation.y = c.dir > 0 ? 0 : Math.PI;
   }
 
-  vehicle(kind, i) {
+  update(dt) {
+    const g = this.game, p = g.player.pos;
+    // the deck dissolves only above the farmer (seethrough.js); the name boards fade while
+    // they would hide them
+    const want = p.z > FLY_Z - 5.2 && p.z < FLY_Z + 2.2 ? 0.3 : 1;
+    if (Math.abs(want - this.opacity) > 0.001) {
+      this.opacity += (want - this.opacity) * Math.min(1, dt * 6);
+      if (Math.abs(want - this.opacity) < 0.01) this.opacity = want;
+      for (const s of this.signs) s.material.opacity = this.opacity;
+    }
+    const near = Math.abs(p.z - FLY_Z) < 14;
+    for (const c of this.cars) {
+      // keep a gap behind whoever is in front in the same lane (and honk about it)
+      let gap = 1e9, ahead = null;
+      for (const o of this.cars) {
+        if (o === c || o.dir !== c.dir) continue;
+        const d = (o.x - c.x) * c.dir;
+        if (d > 0 && d < gap) { gap = d; ahead = o; }
+      }
+      const room = gap - (c.len + (ahead ? ahead.len : 0)) / 2;
+      const target = room < 2 ? 0 : room < 7 ? Math.min(c.speed, ahead.v) : c.speed;
+      c.v += (target - c.v) * Math.min(1, dt * 2.5);
+      const ox = c.x;
+      c.x += c.v * c.dir * dt;
+      if ((c.dir > 0 && c.x > X1 + 6) || (c.dir < 0 && c.x < X0 - 6)) {
+        c.x = c.dir > 0 ? X0 - 6 - Math.random() * 25 : X1 + 6 + Math.random() * 25;
+        c.v = c.speed;
+      }
+      c.mesh.position.x = c.x;
+      if (!near) continue;
+      const dx = Math.abs(c.x - p.x);
+      c.honkT -= dt;
+      if (c.honkT <= 0 && dx < 18) {
+        c.honkT = room < 7 ? 1.5 + Math.random() * 2 : 5 + Math.random() * 9;
+        g.audio.play(c.kind === 'car' ? 'beep' : 'honk');
+      }
+      if (Math.abs(p.z - FLY_Z) < 4 && (ox - p.x) * (c.x - p.x) < 0) g.audio.play(c.kind === 'tractor' ? 'chug' : 'whoosh');
+    }
+  }
+}
+
+// Punjab trucks, PRTC buses, cars and tractor-trolleys (also used on the ring road)
+export function trafficVehicle(kind, i, mat) {
+  {
     const b = new Builder(0.03, { ao: 0.2, aoH: 0.5 });
     const wheel = (x, s, r = 0.42) => { b.cyl(0x1d1d1f, { x, y: r, z: s, rx: Math.PI / 2, sy: 0.3 }, r, r, 12); b.cyl(0xc0c4c9, { x, y: r, z: s * 1.06, rx: Math.PI / 2, sy: 0.04 }, r * 0.5, r * 0.5, 10); };
     if (kind === 'truck') {
@@ -138,49 +181,8 @@ export class Flyover {
       for (let k = 0; k < 6; k++) b.sph(0xd9c49a, { x: -2.9 + (k % 3) * 0.95, y: 1.55, z: (k < 3 ? -0.4 : 0.4), sx: 0.85, sy: 0.45, sz: 0.7 }, 8, 6);
       wheel(-1.9, -0.95, 0.42); wheel(-1.9, 0.95, 0.42);
     }
-    const m = b.mesh(this.mat, false);       // no shadow pass for traffic: cheap on phones
+    const m = b.mesh(mat, false);            // no shadow pass for traffic: cheap on phones
     m.receiveShadow = false;
     return m;
-  }
-
-  update(dt) {
-    const g = this.game, p = g.player.pos;
-    // fade the deck while the farmer is under it or just north of it
-    const want = p.z > FLY_Z - 5.2 && p.z < FLY_Z + 2.2 ? 0.25 : 1;
-    if (Math.abs(want - this.opacity) > 0.001) {
-      this.opacity += (want - this.opacity) * Math.min(1, dt * 6);
-      if (Math.abs(want - this.opacity) < 0.01) this.opacity = want;
-      this.mat.opacity = this.opacity;
-      this.mat.depthWrite = this.opacity > 0.98;
-      for (const s of this.signs) s.material.opacity = this.opacity;
-    }
-    const near = Math.abs(p.z - FLY_Z) < 14;
-    for (const c of this.cars) {
-      // keep a gap behind whoever is in front in the same lane (and honk about it)
-      let gap = 1e9, ahead = null;
-      for (const o of this.cars) {
-        if (o === c || o.dir !== c.dir) continue;
-        const d = (o.x - c.x) * c.dir;
-        if (d > 0 && d < gap) { gap = d; ahead = o; }
-      }
-      const room = gap - (c.len + (ahead ? ahead.len : 0)) / 2;
-      const target = room < 2 ? 0 : room < 7 ? Math.min(c.speed, ahead.v) : c.speed;
-      c.v += (target - c.v) * Math.min(1, dt * 2.5);
-      const ox = c.x;
-      c.x += c.v * c.dir * dt;
-      if ((c.dir > 0 && c.x > X1 + 6) || (c.dir < 0 && c.x < X0 - 6)) {
-        c.x = c.dir > 0 ? X0 - 6 - Math.random() * 25 : X1 + 6 + Math.random() * 25;
-        c.v = c.speed;
-      }
-      c.mesh.position.x = c.x;
-      if (!near) continue;
-      const dx = Math.abs(c.x - p.x);
-      c.honkT -= dt;
-      if (c.honkT <= 0 && dx < 18) {
-        c.honkT = room < 7 ? 1.5 + Math.random() * 2 : 5 + Math.random() * 9;
-        g.audio.play(c.kind === 'car' ? 'beep' : 'honk');
-      }
-      if (Math.abs(p.z - FLY_Z) < 4 && (ox - p.x) * (c.x - p.x) < 0) g.audio.play(c.kind === 'tractor' ? 'chug' : 'whoosh');
-    }
   }
 }

@@ -1,7 +1,7 @@
 // Patiala Kisan — boot, game loop, camera, lighting, day/weather cycle and saving.
 import * as THREE from 'three';
 import { DAY_SECONDS, FIELDS, PLOT, xpNeed, TURBAN_COLORS, CANS } from './config.js';
-import { newState, loadSave, hasSave, writeSave, wipeSave, rescueSave, carryCap, todayKey } from './state.js';
+import { newState, loadSave, hasSave, writeSave, wipeSave, rescueSave, restoreSave, carryCap, todayKey } from './state.js';
 import { buildWorld, POS, areaAt } from './world.js';
 import { Farm } from './farm.js';
 import { Player } from './player.js';
@@ -21,6 +21,11 @@ import { UI } from './ui.js';
 import { Life } from './life.js';
 import { SH, setAnisotropy } from './shading.js';
 import { Flyover } from './flyover.js';
+import { SeeThrough } from './seethrough.js';
+import { Scarecrows, Crows } from './crows.js';
+import { Ring, onRing } from './ring.js';
+import { Gerhi } from './gerhi.js';
+import { Social } from './net.js';
 import { Sweets } from './sweets.js';
 import { Vendors } from './vendors.js';
 import { Friends, decode, findCode, visitState, describe, INBOX_KEY } from './friends.js';
@@ -68,6 +73,7 @@ class Game {
   constructor(state, opts = {}) {
     this.state = state;
     this.visit = opts.visit || null;
+    this.me = opts.me || null;             // who is visiting (their own name and pagg), for guestbooks
     this.listeners = {};
     this.carryDirty = true;
     this.weather = { raining: false };
@@ -102,11 +108,18 @@ class Game {
     this.colliders = [];
     const w = buildWorld(this);
     this.colliders.push(...w.colliders);
+    this.vehicleColliders = w.vehicleOnly;
     this.anim = w.anim;
+    this.seeThrough = new SeeThrough(this);
+    this.seeThrough.add(w.statics);
     this.flyover = new Flyover(this);
+    this.seeThrough.add(this.flyover.root);
+    this.ring = new Ring(this);
     this.fx = new FX(this.scene);
     this.flyers = new Flyers(this.scene);
     this.farm = new Farm(this);
+    this.scarecrows = new Scarecrows(this);
+    this.crows = new Crows(this);
     this.player = new Player(this);
     this.input = new Input(this);
     this.guide = new Guide(this);
@@ -117,12 +130,14 @@ class Game {
     this.animals = new Animals(this);
     this.production = new Production(this);
     this.vehicles = new Vehicles(this);
+    this.gerhi = new Gerhi(this);
     this.staff = new Staff(this);
     this.guru = new Guru(this);
     this.progression = new Progression(this);
     this.setupFieldPads();
     this.life = new Life(this);
     this.ui = new UI(this);
+    this.social = new Social(this);
     window.__game = this;
 
     this.applyQuality();
@@ -161,6 +176,7 @@ class Game {
     while (st.xp >= xpNeed(st.level)) { st.xp -= xpNeed(st.level); st.level++; up = true; }
     if (up) {
       this.audio.play('level');
+      this.player?.h.expr?.('happy', 3);
       this.fx.sparkle(this.player.pos.x, 2, this.player.pos.z, 0xffd43b, 30);
       this.ui?.levelUp(st.level);
       this.emit('level', {});
@@ -229,8 +245,11 @@ class Game {
     const cloud = d.weather === 'sunny' ? 0 : raining ? 0.6 : 0.32;
     this.sun.intensity = (2.6 + elev * 0.7) * (1 - cloud * 0.55) * (1 - night * 0.72) * (1 - warm * 0.22);
     this.hemi.intensity = (1.42 + elev * 0.12) * (1 - night * 0.42) * (1 - cloud * 0.08) + cloud * 0.25;
-    this.sun.color.set(0xfff1d6).lerp(_dusk.set(0xffa35a), warm * 0.85).lerp(_gray.set(0x9fb0ff), night * 0.8);
-    this.hemi.color.set(0xdcefff).lerp(_dusk.set(0xffd0b0), warm * 0.6).lerp(_gray.set(0x7d8fd8), night * 0.8);
+    // inside the Gurdwara the light turns softer and a little golden
+    const calm = this.calm || 0;
+    this.sun.intensity *= 1 - calm * 0.14;
+    this.sun.color.set(0xfff1d6).lerp(_dusk.set(0xffa35a), warm * 0.85).lerp(_gray.set(0x9fb0ff), night * 0.8).lerp(_dusk.set(0xffe2a8), calm * 0.25);
+    this.hemi.color.set(0xdcefff).lerp(_dusk.set(0xffd0b0), warm * 0.6).lerp(_gray.set(0x7d8fd8), night * 0.8).lerp(_dusk.set(0xfff0d0), calm * 0.3);
     _sky.set(0xbfe3f5).lerp(_gray.set(0xc6ced4), cloud).lerp(_dusk.set(0xffbe8f), warm * 0.75).lerp(_ngt.set(0x55639a), night * 0.85);
     this.scene.background.copy(_sky);
     this.scene.fog.color.copy(_sky);
@@ -318,17 +337,22 @@ class Game {
       this.updateDay(dt);
       this.player.update(dt, t);
       this.vehicles.update(dt, t);
+      this.gerhi.update(dt);
       this.pads.update(dt, t);
       this.actions.update();
       this.farm.update(dt, t);
+      this.scarecrows.update(dt, t);
+      this.crows.update(dt);
       this.market.update(dt);
       this.sweets.update(dt);
       this.vendors?.update(dt);
       this.flyover.update(dt);
+      this.ring.update(dt);
+      this.social.update(dt);
       this.animals.update(dt, t);
       this.production.update(dt);
       this.staff.update(dt);
-      this.guru.update();
+      this.guru.update(dt);
       if (!this.visit) this.progression.update(dt);
       this.updateArea(dt);
       const bo = this.state.boosts;
@@ -344,9 +368,10 @@ class Game {
         if (this.kilnTop) this.fx.puff(this.kilnTop.x, this.kilnTop.y, this.kilnTop.z, { color: 0x8a8a8a, size: 1.6, grow: 3, life: 6, rise: 1.4, drift: 0.5, alpha: 0.5 });
         if (this.chimney && Math.random() < 0.6) this.fx.smoke(this.chimney.x, this.chimney.y, this.chimney.z, 0xd0d0d0);
       }
-      if (Math.random() < dt * 0.25 && !this.weather.raining && !this.guru.inside) this.audio.play('bird');
+      if (Math.random() < dt * (this.guru.inside ? 0.12 : 0.25) && !this.weather.raining) this.audio.play('bird');
       this.audio.update(dt);
       this.updateCamera(dt);
+      this.seeThrough.update(dt);
       this.labels.update();
       this.ui.update(dt);
       this.saveT -= dt;
@@ -360,11 +385,11 @@ class Game {
 
   // Music follows the area; a few landmarks announce themselves when you arrive
   updateArea(dt) {
-    const p = this.player.pos, a = areaAt(p.x, p.z);
+    const p = this.player.pos, a = onRing(p.x, p.z) ? 'ring' : areaAt(p.x, p.z);
     this.audio.setZone(a, dt);
     if (a === this.area) return;
     this.area = a;
-    const names = { canal: '🌊 Bhakhra Nehar · ਭਾਖੜਾ ਨਹਿਰ', flyover: '🌉 22 No. Flyover · 22 ਨੰਬਰ ਫਲਾਈਓਵਰ', sweets: "🍥 Gopal's Sweets · ਗੋਪਾਲ ਸਵੀਟਸ" };
+    const names = { ring: '🛣️ Ring Road · ਰਿੰਗ ਰੋਡ — gerhi time!', canal: '🌊 Bhakhra Nehar · ਭਾਖੜਾ ਨਹਿਰ', flyover: '🌉 22 No. Flyover · 22 ਨੰਬਰ ਫਲਾਈਓਵਰ', sweets: "🍥 Gopal's Sweets · ਗੋਪਾਲ ਸਵੀਟਸ" };
     this.areaSeen ||= {};
     if (names[a] && !(this.clock - (this.areaSeen[a] ?? -1e9) < 60)) { this.areaSeen[a] = this.clock; this.ui.toast(names[a], 2.4); }
   }
@@ -380,7 +405,7 @@ class Game {
 
   welcome(report) {
     const st = this.state;
-    $('pname').textContent = st.name;
+    $('pname').textContent = st.name + (st.aura?.title ? ' 👑' : '');
     if (this.visit) { setTimeout(() => this.ui.toast(`👀 Welcome to ${esc(st.name)}'s farm! Walk around — tap 🏠 to go home`, 4), 600); return; }
     const away = st.saved ? (Date.now() - st.saved) / 60000 : 0;
     if (report) setTimeout(() => this.ui.awayReport(report), 400);
@@ -399,6 +424,16 @@ class Game {
     const data = { title: 'Patiala Kisan', text: 'Farm with me in Patiala! 🌾🚜🙏', url };
     if (navigator.share) navigator.share(data).catch(() => {});
     else navigator.clipboard?.writeText(url).then(() => this.ui.toast('🔗 Link copied!'), () => this.ui.toast(url, 5));
+  }
+
+  // Swap in a farm from a backup code: stop saving this one, keep it as a safety copy, reload
+  restoreFarm(s) {
+    if (this.visit) return;
+    this.renderer.setAnimationLoop(null);
+    this.save = () => {};
+    addEventListener('pagehide', (e) => e.stopImmediatePropagation(), true);
+    restoreSave(s);
+    location.reload();
   }
 
   resetGame() {
@@ -444,7 +479,7 @@ async function boot() {
     $('loadmsg').textContent = visit ? `Walking over to ${visit.fn}'s farm…` : 'Building your farm…';
     setTimeout(() => {
       try {
-        new Game(state, { visit });
+        new Game(state, { visit, me: visit && saved ? { name: saved.name, turban: saved.turban } : null });
         $('loading').hidden = true;
       } catch (e) {
         console.error(e);

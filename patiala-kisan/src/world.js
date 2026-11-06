@@ -1,11 +1,13 @@
 // Static world: terrain, roads, Patiala village buildings, Gurdwara Dukh Niwaran Sahib,
 // trees and the collision map. Dynamic things (fields, pens, workshops) live in their systems.
 import * as THREE from 'three';
-import { Builder, vcMaterial, textTexture } from './geo.js';
+import { Builder, vcMaterial, vcMaterialCut, textTexture } from './geo.js';
 import { props, shade } from './models.js';
 import { groundMaterial, waterMaterial } from './shading.js';
+import { ONLINE } from './config.js';
 
-export const BOUNDS = { x0: -46, x1: 41, z0: -64, z1: 44 };
+// the play area runs out to the ring road that circles the whole village
+export const BOUNDS = { x0: -56, x1: 51, z0: -76, z1: 57 };
 
 export const POS = {
   spawn: [2.5, 6],
@@ -14,7 +16,8 @@ export const POS = {
   arhtiya: [5.2, -6.6], arhtiyaPad: [5.2, -3.8], board: [14.6, 3.2],
   godown: [7, -18], godownPad: [7, -14.6],
   farmhouse: [5, 10], garage: [15, 10],
-  gate: [0, -30], sarovar: [0, -40], darbar: [0, -48.4], gurdwara: [0, -55],
+  guestbook: [7.7, 15.7],
+  gate: [0, -30], sarovar: [0, -40], darbar: [0, -48.4], gurdwara: [0, -55], jodaGhar: [6.6, -27.6], footbath: [0, -28.4],
   langar: [-16, -47.5], langarPad: [-16, -43.2], nishan: [11, -47],
   queue: [10, 0.4], customerSpawn: [10, 46],
   pens: { coop: [16, -20], tabela: [26, -20], bakri: [20, -8], bhed: [29, -8] },
@@ -28,7 +31,7 @@ export const FLY_Z = POS.flyZ, FLY_Y = 5.6;
 
 // Which part of the village a spot belongs to (music and place names follow it)
 export function areaAt(x, z) {
-  if (z < -28.5 && x > -23 && x < 17) return 'gurdwara';
+  if (z < -28.5 && z > -63.6 && x > -23 && x < 17) return 'gurdwara';
   if (x < -35) return 'canal';
   if (Math.abs(z - FLY_Z) < 4.5) return 'flyover';
   if (Math.hypot(x - POS.gopal[0], z - POS.gopal[1] - 1.5) < 6.5) return 'sweets';
@@ -252,6 +255,25 @@ export function buildWorld(game) {
     for (const s of [-1, 1]) { b.rbox(PLASTER, { x: x + s * 1.3, y: 0.7, z: z + 4.4, sx: 0.4, sy: 1.4, sz: 0.4 }, 0.04); b.sph(0xf2c94c, { x: x + s * 1.3, y: 1.5, z: z + 4.4, s: 0.26 }, 8, 6); }
   }
 
+  // ---- Guestbook: a little roofed notice board by the kothi gate where visitors leave notes
+  if (ONLINE) {
+    const [x, z] = POS.guestbook;
+    b.push(x, 0, z);
+    for (const s of [-1, 1]) b.cyl(0x7a4a24, { x: s * 0.75, y: 0.95, sy: 1.9 }, 0.05, 0.06, 6);
+    b.rbox(0x9a6a3a, { y: 1.35, sx: 1.55, sy: 0.95, sz: 0.08 }, 0.03);
+    b.box(0xd9b98a, { y: 1.35, z: 0.045, sx: 1.4, sy: 0.82, sz: 0.01 });
+    for (const [nx, ny, nc, r] of [[-0.45, 1.5, 0xfff3bf, 0.1], [0.05, 1.42, 0xffffff, -0.06], [0.48, 1.55, 0xd0ebff, 0.08], [-0.2, 1.15, 0xffd8e8, -0.1], [0.35, 1.18, 0xfff3bf, 0.05]]) {
+      b.box(nc, { x: nx, y: ny, z: 0.055, sx: 0.3, sy: 0.24, sz: 0.01, rz: r, ao: false });
+      b.sph(0xe03131, { x: nx, y: ny + 0.09, z: 0.065, s: 0.035, ao: false }, 5, 3);
+    }
+    b.prism(0xa4553a, { y: 1.88, sx: 1.8, sy: 0.3, sz: 0.4 });
+    b.pop();
+    circ(x - 0.75, z, 0.12); circ(x + 0.75, z, 0.12);
+    const s = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.24), new THREE.MeshBasicMaterial({ map: textTexture([{ text: 'GUESTBOOK · ਯਾਦਾਂ', size: 40 }], { w: 512, h: 120, bg: '#7a2e1a' }) }));
+    s.position.set(x, 1.9, z + 0.22);
+    scene.add(s);
+  }
+
   // ---- Garage: steel-pillar shed with a corrugated roof
   {
     const [x, z] = POS.garage;
@@ -261,6 +283,16 @@ export function buildWorld(game) {
       circ(x + px, z + pz, 0.2);
     }
     for (let i = 0; i < 12; i++) b.cyl(i % 2 ? 0x2f9e8f : 0x37b3a2, { x: x - 2.85 + i * 0.52, y: 3.25 + (i % 2) * 0.02, z, rx: Math.PI / 2 + 0.06, sy: 5.8 }, 0.27, 0.27, 6, true);
+    // ceiling: the underside of the sheets, steel trusses and purlins, a tube light
+    b.box(0x56656c, { x, y: 3.2, z, sx: 6.0, sy: 0.03, sz: 5.85, ao: false });
+    for (const tz of [-2.6, 0, 2.6]) {
+      b.box(0x6c7178, { x, y: 3.12, z: z + tz, sx: 5.8, sy: 0.1, sz: 0.08 });
+      for (let k = 0; k < 6; k++) b.box(0x6c7178, { x: x - 2.4 + k * 0.96, y: 3.0, z: z + tz, sx: 0.04, sy: 0.24, sz: 0.04, rz: k % 2 ? 0.6 : -0.6 });
+      b.box(0x6c7178, { x, y: 2.88, z: z + tz, sx: 5.8, sy: 0.06, sz: 0.06 });
+    }
+    for (const px of [-2.2, 0, 2.2]) b.box(0x7b858b, { x: x + px, y: 3.15, z, sx: 0.06, sy: 0.06, sz: 5.6 });
+    b.box(0xf8f9fa, { x, y: 2.95, z: z + 1.3, sx: 1.2, sy: 0.05, sz: 0.08, ao: false });
+    glows.push([x, 2.9, z + 1.3, 0.8]);
     b.rbox(0x24857a, { x, y: 3.32, z: z + 2.95, sx: 6.3, sy: 0.12, sz: 0.1 }, 0.03);
     for (const k of [0, 1, 2]) b.rbox([0xe03131, 0x1c7ed6, 0xf2c200][k], { x: x + 2.5, y: 0.25 + k * 0.5, z: z - 2.6, sx: 0.5, sy: 0.48, sz: 0.5 }, 0.05);
     b.cyl(0x343a40, { x: x - 2.4, y: 0.45, z: z - 2.4, sy: 0.9 }, 0.3, 0.3, 12);
@@ -333,6 +365,10 @@ export function buildWorld(game) {
     const [x, z] = POS.arhtiya;
     for (const [px, pz] of [[-2, -1.3], [2, -1.3], [-2, 1.3], [2, 1.3]]) b.cyl(0x6c7178, { x: x + px, y: 1.4, z: z + pz, sy: 2.8 }, 0.07, 0.07, 8);
     for (let i = 0; i < 9; i++) b.cyl(i % 2 ? 0xa8b0b8 : 0xb8c0c8, { x: x - 2.2 + i * 0.55, y: 2.85 + (i % 2) * 0.02, z, rx: Math.PI / 2 - 0.12, sy: 3.3 }, 0.28, 0.28, 6, true);
+    // underside of the tin roof with angle-iron rafters
+    b.box(0x7d878f, { x, y: 2.8, z, sx: 4.8, sy: 0.03, sz: 3.2, rx: -0.12, ao: false });
+    for (const rx of [-2, 0, 2]) b.box(0x5b646b, { x: x + rx, y: 2.72, z, sx: 0.08, sy: 0.12, sz: 3.3, rx: -0.12 });
+    for (const rz of [-1.1, 0, 1.1]) b.box(0x5b646b, { x, y: 2.72 - rz * 0.12, z: z + rz, sx: 4.6, sy: 0.08, sz: 0.06 });
     props.sacks(b, x - 1.0, z - 0.7, 7, 0);
     b.rbox(0x7a4a24, { x: x + 1.2, y: 0.5, z: z + 0.6, sx: 0.1, sy: 1.0, sz: 0.1 }, 0.02);
     b.box(0x7a4a24, { x: x + 1.2, y: 1.0, z: z + 0.6, sx: 1.0, sy: 0.05, sz: 0.05 });
@@ -509,15 +545,15 @@ export function buildWorld(game) {
       props.safeda(b, x, z, 5.5 + Math.abs(z % 3) * 0.5); circ(x, z, 0.35);
     }
   }
-  const kikars = [[-33, -22], [-20, -22], [-8.5, -20.6], [-48, 0], [-33, 19], [-20, 19.6], [33.5, -28.5], [37, -14], [38, 2], [28.6, 6], [32, 10], [-45, -30], [20, 33], [-10, 33], [30, 34], [-30, 32]];
+  const kikars = [[-33, -22], [-20, -22], [-8.5, -20.6], [-55, 6], [-33, 19], [-20, 19.6], [33.5, -28.5], [38, -19], [38, 2], [28.6, 6], [32, 10], [-55.5, -30], [20, 33], [-10, 33], [30, 34], [-30, 32]];
   for (const [x, z] of kikars) { props.kikar(b, x, z, 0.9 + Math.abs(Math.sin(x * z)) * 0.4); circ(x, z, 0.4); }
-  const trees = [[-6, 35], [4, 37], [17, 36], [-24, 34], [37, -30], [36, -40], [22, -32], [-30, -34], [-40, -40], [-28, -44], [20, -44], [-24, -56], [17, -60], [-44, 30], [40, 26], [-12, 40], [26, 42]];
+  const trees = [[-6, 35], [4, 37], [17, 36], [-24, 34], [37, -30], [36, -40], [22, -32], [-30, -34], [-40, -40], [-28, -44], [20, -44], [-24, -56], [17, -60], [-55.5, 30], [40, 26], [-12, 40], [26, 42]];
   for (const [x, z] of trees) { props.tree(b, x, z, 0.9 + Math.abs(Math.cos(x + z)) * 0.5, LEAVES[Math.abs(x | 0) % 3]); circ(x, z, 0.5); }
   for (const [x, z] of [[-36, 38], [33, 40], [-40, 12]]) { props.mango(b, x, z, 1); circ(x, z, 0.5); }
   for (const [x, z, s] of [[-5.2, -11, 0.8], [-31, -2.5, 1], [-36, -2.2, 0.85], [-40, 21, 1], [33, 30, 1]]) { props.kup(b, x, z, s); circ(x, z, 1.1 * s); }
   for (const [x, z, cc] of [[2.2, -27, 0xff922b], [-2.4, -27, 0xffd43b], [7.5, 6.6, 0xff922b], [-7, 21, 0xf06595], [4.2, -28, 0xffd43b], [-4.2, -28, 0xff922b], [12, -34, 0xffd43b], [-12, -34, 0xff922b], [17, 6.5, 0xffd43b], [-12, -40, 0xff922b], [12, -40, 0xffd43b], [-12, -46, 0xffd43b], [12, -51, 0xff922b], [-0.5, 14.8, 0xffd43b], [10.5, 14.8, 0xff922b]]) props.flowers(b, x, z, cc);
   for (const [x, z] of [[-1, 30], [-5, 25.8], [18, 26.5], [-35, -26], [30, -27], [-18, 26], [36, 26], [-26, -26]]) props.bush(b, x, z, 1.1);
-  for (const [x, z] of [[-26, 25], [36, 8], [-46, -12], [12, 40], [30, -2], [-20, 36]]) props.rock(b, x, z, 1.2);
+  for (const [x, z] of [[-26, 25], [36, 8], [-55, -12], [12, 40], [30, -2], [-20, 36]]) props.rock(b, x, z, 1.2);
   props.cart(b, -7.5, 9, 0.6);
   props.crates(b, 19.8, 21.2, 3, 0.1);
   // electricity poles with sagging wires down the road
@@ -535,12 +571,11 @@ export function buildWorld(game) {
   // ---------- Bhakhra Nehar (canal) on the west edge: brick-lined banks and painted boards
   {
     const cx = POS.canalX;
-    for (const s of [-1, 1]) b.rbox(0xb4785a, { x: cx + s * 1.65, y: 0.12, z: -3, sx: 0.35, sy: 0.3, sz: 140 }, 0.06);
+    // (the brick banks and the canal's collider are built in ring.js, with gaps for the bridges)
     const water = new THREE.Mesh(new THREE.PlaneGeometry(3, 140), waterMaterial(3, 140, { foam: 0.35 }));
     water.rotation.x = -Math.PI / 2;
     water.position.set(cx, 0.1, -3);
     scene.add(water);
-    colliders.push({ x0: -50, x1: -42, z0: -80, z1: 80 });
     // canal department boards on the east bank, readable from the fields
     const board = textTexture([{ text: 'ਭਾਖੜਾ ਨਹਿਰ', size: 64 }, { text: 'BHAKHRA NEHAR', size: 54 }], { w: 512, h: 256, bg: '#1c5fa8', border: '#ffffff' });
     // turned slightly towards the fields so they read from the camera
@@ -567,7 +602,7 @@ export function buildWorld(game) {
 
   // ---------- beyond the farm: neighbours' fields, village houses, tree lines on the hills
   {
-    const farFields = [[-62, -40, 12, 30, 0xf2d418], [-62, -5, 12, 26, 0x86c34a], [-62, 25, 12, 20, 0xe9c25a], [52, -50, 10, 26, 0x86c34a], [52, -18, 10, 22, 0xf2d418], [52, 8, 10, 26, 0x6fb33f], [-30, 54, 26, 9, 0xf2d418], [8, 54, 24, 9, 0x86c34a], [-20, -76, 22, 8, 0x6fb33f], [28, -78, 18, 8, 0xe9c25a]];
+    const farFields = [[-62, -40, 12, 30, 0xf2d418], [-62, -5, 12, 26, 0x86c34a], [-62, 25, 12, 20, 0xe9c25a], [61, -50, 10, 26, 0x86c34a], [61, -18, 10, 22, 0xf2d418], [61, 8, 10, 26, 0x6fb33f], [-30, 63, 26, 9, 0xf2d418], [8, 63, 24, 9, 0x86c34a], [-20, -85, 22, 8, 0x6fb33f], [28, -87, 18, 8, 0xe9c25a]];
     for (const [cx, cz, w, d, c] of farFields) {
       const along = d > w;
       const n = Math.floor((along ? w : d) / 0.9);
@@ -578,7 +613,7 @@ export function buildWorld(game) {
         b.capsule(shade(c, (i % 3 - 1) * 0.03), { x, y: y + 0.25, z, rx: along ? Math.PI / 2 : 0, rz: along ? 0 : Math.PI / 2, sx: 1, sy: (along ? d : w) / 1.0, sz: 1, ao: false }, 0.32, 0.4, 5);
       }
     }
-    const houses = [[-56, 40, 0], [-52, 46, 0.3], [48, 36, -0.2], [54, 30, 0.1], [50, -34, 0.2], [-56, -56, 0], [44, -66, 0.4], [-10, 58, 0.1], [20, 58, -0.15]];
+    const houses = [[-60, 40, 0], [-61, 48, 0.3], [58, 36, -0.2], [60, 27, 0.1], [59, -36, 0.2], [-62, -58, 0], [56, -82, 0.4], [-10, 64, 0.1], [20, 64, -0.15]];
     for (const [x, z, ry] of houses) {
       const y = terrainH(x, z);
       b.push(x, y, z, ry);
@@ -592,9 +627,9 @@ export function buildWorld(game) {
     }
     // tree lines on the hills
     for (let i = 0; i < 120; i++) {
-      const a = i / 120 * Math.PI * 2, r = 72 + (i * 37 % 19);
+      const a = i / 120 * Math.PI * 2, r = 80 + (i * 37 % 19);
       const x = Math.cos(a) * r * 0.85, z = Math.sin(a) * r;
-      if (Math.abs(x) < 50 && Math.abs(z) < 62) continue;
+      if (x > -66 && x < 62 && z > -86 && z < 68) continue;
       const y = terrainH(x, z), s = 1 + (i % 5) * 0.25;
       b.cyl(0x5e3f24, { x, y: y + 1 * s, z, sy: 2 * s, ao: false }, 0.15 * s, 0.22 * s, 5);
       b.ico(LEAVES[i % 3], { x, y: y + 2.8 * s, z, sx: 2.6 * s, sy: 2.4 * s, sz: 2.6 * s, ao: false, g: 0.3 }, 1);
@@ -610,15 +645,18 @@ export function buildWorld(game) {
       b.dome(0xb88c60, { x: -28 + i * 9, y: 8, z: -86, s: 3.2 }, 12, 6);
       b.cone(0xd9b45a, { x: -28 + i * 9, y: 9.9, z: -86, sx: 0.3, sy: 0.8, sz: 0.3 }, 6);
     }
-    for (let i = 0; i < 9; i++) b.rbox([0xf1e3c8, 0xe9b98a, 0xd8e2ea, 0xf4c7c3][i % 4], { x: 22 + (i % 3) * 5, y: 2 + (i % 2) * 1.5, z: -70 - Math.floor(i / 3) * 6, sx: 4, sy: 4 + (i % 2) * 3, sz: 4 }, 0.1);
-    b.cyl(0xa4553a, { x: -34, y: 8, z: -72, sy: 16 }, 0.8, 1.6, 12);
-    for (let i = 0; i < 5; i++) b.torus(0x8e4430, { x: -34, y: 2 + i * 3.2, z: -72, rx: Math.PI / 2, s: 1 }, 1.5 - i * 0.16, 0.06, 4, 14);
-    game.kilnTop = new THREE.Vector3(-34, 16.5, -72);
+    for (let i = 0; i < 9; i++) b.rbox([0xf1e3c8, 0xe9b98a, 0xd8e2ea, 0xf4c7c3][i % 4], { x: 22 + (i % 3) * 5, y: 2 + (i % 2) * 1.5, z: -84 - Math.floor(i / 3) * 6, sx: 4, sy: 4 + (i % 2) * 3, sz: 4 }, 0.1);
+    b.cyl(0xa4553a, { x: -34, y: 8, z: -86, sy: 16 }, 0.8, 1.6, 12);
+    for (let i = 0; i < 5; i++) b.torus(0x8e4430, { x: -34, y: 2 + i * 3.2, z: -86, rx: Math.PI / 2, s: 1 }, 1.5 - i * 0.16, 0.06, 4, 14);
+    game.kilnTop = new THREE.Vector3(-34, 16.5, -86);
   }
 
-  scene.add(b.meshChunks(22));
+  const statics = b.meshChunks(22, vcMaterialCut);
+  scene.add(statics);
 
-  return { colliders, anim, splat: sp };
+  // vehicles stay outside the Gurdwara courtyard: everyone walks in barefoot
+  const vehicleOnly = [{ x0: -22.4, x1: 16.4, z0: -63.4, z1: -28.7 }];
+  return { colliders, vehicleOnly, anim, splat: sp, statics };
 }
 
 const LEAVES = [0x4f9a3a, 0x3f8f35, 0x5aa340];
@@ -666,6 +704,46 @@ function buildGurdwara(b, rect, circ, game, anim, glows) {
     }));
     sign.position.set(gx, 4.2, gz + 0.47);
     scene.add(sign);
+    // charan kund: a shallow marble channel of running water at the threshold, walked through barefoot
+    const [kx, kz] = POS.footbath;
+    b.rbox(MARBLE, { x: kx, y: 0.05, z: kz, sx: 4.6, sy: 0.1, sz: 1.3 }, 0.03);
+    b.box(0xd8ccb2, { x: kx, y: 0.02, z: kz, sx: 4.0, sy: 0.04, sz: 0.8 });
+    const kund = new THREE.Mesh(new THREE.PlaneGeometry(4.0, 0.8), waterMaterial(4.0, 0.8, { foam: 0.1, tint: { deep: 0x3d9fc8, shallow: 0x9be3f3 } }));
+    kund.rotation.x = -Math.PI / 2;
+    kund.position.set(kx, 0.075, kz);
+    scene.add(kund);
+  }
+
+  // Joda ghar: the shoe stand outside the gate. Everyone leaves their jutti here and walks in
+  // barefoot; a sevadar hands back a token. (The sevadar and the player's own pair are in guru.js.)
+  {
+    const [jx, jz] = POS.jodaGhar;
+    b.push(jx, 0, jz);                               // counter faces south, like the shops
+    b.rbox(MARBLE, { y: 0.1, sx: 3.6, sy: 0.2, sz: 2.4 }, 0.04);
+    // cubby shelves along the back, full of shoes
+    b.rbox(0xeadfc6, { y: 1.15, z: -0.85, sx: 3.3, sy: 1.9, sz: 0.55 }, 0.04);
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 6; c++) {
+      const x = -1.35 + c * 0.54, y = 0.5 + r * 0.42;
+      b.box(0x5a4632, { x, y, z: -0.6, sx: 0.46, sy: 0.34, sz: 0.06, ao: false });
+      if ((r * 7 + c * 3) % 5 !== 0) for (const s of [-1, 1]) b.rbox([0x7a4a22, 0x2b2b2b, 0xc92a2a, 0x8a5a2b, 0xf2c94c][(r + c) % 5], { x: x + s * 0.09, y: y - 0.1, z: -0.54, sx: 0.12, sy: 0.08, sz: 0.24 }, 0.03);
+    }
+    b.box(GOLD, { y: 2.12, z: -0.6, sx: 3.32, sy: 0.06, sz: 0.06, ao: false });
+    // counter with a steel token tray, and a thin canopy
+    b.rbox(MARBLE, { y: 0.5, z: 0.75, sx: 3.2, sy: 0.8, sz: 0.5 }, 0.04);
+    b.rbox(0xfbf8f1, { y: 0.93, z: 0.75, sx: 3.3, sy: 0.06, sz: 0.62 }, 0.02);
+    b.cyl(0xc8ced4, { x: 1.0, y: 0.98, z: 0.75, sy: 0.04 }, 0.18, 0.16, 12);
+    for (let i = 0; i < 6; i++) b.cyl(0xf2bd3a, { x: 0.92 + (i % 3) * 0.08, y: 1.01, z: 0.7 + (i > 2 ? 0.1 : 0), sy: 0.02 }, 0.035, 0.035, 8);
+    // two posts and a slim front beam carry the sign (no roof: it would hide the sevadar)
+    for (const s of [-1, 1]) b.cyl(0xeadfc6, { x: s * 1.65, y: 1.3, z: 0.95, sy: 2.6 }, 0.07, 0.08, 8);
+    b.rbox(0xeadfc6, { y: 2.62, z: 0.95, sx: 3.5, sy: 0.12, sz: 0.14 }, 0.03);
+    b.box(GOLD, { y: 2.7, z: 1.03, sx: 3.52, sy: 0.04, sz: 0.02, ao: false });
+    b.pop();
+    rect(jx, jz - 0.85, 3.4, 0.6);                    // shelves
+    rect(jx, jz + 0.75, 3.3, 0.55);                   // counter
+    const s = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.6), new THREE.MeshBasicMaterial({ map: textTexture([{ text: 'ਜੋੜਾ ਘਰ · JODA GHAR', size: 52 }, { text: 'Please leave your shoes here', size: 30 }], { w: 640, h: 160, bg: '#1d3f8f', border: '#f2bd3a' }) }));
+    s.position.set(jx, 2.25, jz + 1.04);
+    scene.add(s);
+    glows.push([jx, 2.4, jz, 0.9]);
   }
 
   // main darbar building on a raised marble platform

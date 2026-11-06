@@ -2,6 +2,9 @@
 // balancing never requires touching gameplay code. Times are in seconds, money in rupees.
 
 export const SAVE_KEY = 'patiala-kisan-save';
+// true once recorded animal sounds ship in sounds/ (listed in sounds/animals.json); until then
+// every animal voice is synthesised
+export const SOUND_PACK = false;
 export const SAVE_VERSION = 2;
 export const DAY_SECONDS = 360;          // one in-game day (salaries, weather)
 export const PLOT = 2;                   // plot pitch in metres
@@ -87,10 +90,10 @@ export const BUILDING_UPGRADES = [
 ];
 
 export const PENS = {
-  coop:    { name: 'Murgi Khana',  en: 'Chicken coop', animal: 'chicken', animalName: 'Chicken', level: 5,  cost: 1000, animalCost: 120, caps: [6, 10, 14], capCosts: [1500, 4000], product: 'egg',  cycle: 45,  feeds: ['wheat', 'maize'], xp: 1 },
-  tabela:  { name: 'Majjan da Tabela', en: 'Buffalo shed', animal: 'buffalo', animalName: 'Murrah buffalo', level: 8,  cost: 3500, animalCost: 900, caps: [3, 5, 8], capCosts: [4000, 9000], product: 'milk', cycle: 90, feeds: ['wheat', 'maize', 'sugarcane'], xp: 3 },
-  bakri:   { name: 'Bakriyan da Vada', en: 'Goat pen', animal: 'goat', animalName: 'Beetal goat', level: 11, cost: 5000, animalCost: 500, caps: [4, 7, 10], capCosts: [5000, 11000], product: 'milk', cycle: 60, feeds: ['carrot', 'cauliflower', 'wheat'], xp: 2 },
-  bhed:    { name: 'Bhedan da Vada', en: 'Sheep pen', animal: 'sheep', animalName: 'Sheep', level: 13, cost: 6000, animalCost: 650, caps: [4, 7, 10], capCosts: [6000, 12000], product: 'wool', cycle: 120, feeds: ['wheat', 'maize'], xp: 3 },
+  coop:    { name: 'Murgi Khana',  en: 'Chicken coop', animal: 'chicken', animalName: 'Chicken', plural: 'Chickens', level: 5,  cost: 1000, animalCost: 120, caps: [6, 10, 14], capCosts: [1500, 4000], product: 'egg',  cycle: 45,  feeds: ['wheat', 'maize'], xp: 1 },
+  tabela:  { name: 'Tabela', en: 'Cow & buffalo shed', animal: 'buffalo', animalName: 'Cow or buffalo', plural: 'Cows & buffaloes', level: 8,  cost: 3500, animalCost: 900, caps: [3, 5, 8], capCosts: [4000, 9000], product: 'milk', cycle: 90, feeds: ['wheat', 'maize', 'sugarcane'], xp: 3 },
+  bakri:   { name: 'Bakriyan da Vada', en: 'Goat pen', animal: 'goat', animalName: 'Beetal goat', plural: 'Beetal goats', level: 11, cost: 5000, animalCost: 500, caps: [4, 7, 10], capCosts: [5000, 11000], product: 'milk', cycle: 60, feeds: ['carrot', 'cauliflower', 'wheat'], xp: 2 },
+  bhed:    { name: 'Bhedan da Vada', en: 'Sheep pen', animal: 'sheep', animalName: 'Sheep', plural: 'Sheep', level: 13, cost: 6000, animalCost: 650, caps: [4, 7, 10], capCosts: [6000, 12000], product: 'wool', cycle: 120, feeds: ['wheat', 'maize'], xp: 3 },
 };
 export const PEN_PIPE_COST = 800;     // tubewell pipe: animals never run out of water
 export const PEN_WATER_CAP = 30;
@@ -152,6 +155,61 @@ export const TRACTOR_HP = [
   { name: '75 HP', radius: 3.1, speed: 10.5, cost: 18000, level: 17 },
 ];
 export const COMBINE_RADIUS = 3.4;
+// Bullet engines (stored in vehicles.bike.hp): top speed m/s, acceleration m/s²
+export const BIKE_ENGINES = [
+  { name: 'Bullet 350', top: 13, accel: 5.0 },
+  { name: 'Bullet 500', top: 15.5, accel: 6.2, cost: 6000, level: 8 },
+  { name: 'Classic 650 · Gerhi Special', top: 18.5, accel: 7.6, cost: 16000, level: 14 },
+];
+
+// Aura Points: earned on the Bullet round the ring road (gerhi) and by finding the sights of
+// Patiala, spent on paint jobs and extras. Daily caps keep it from being farmed.
+export const AURA = {
+  lap: 15, lapBest: 10, lapMin: 18, lapsPerDay: 8,          // a lap pays 15 (best lap +10), 8 laps a day; under 18 s is a glitch
+  distEvery: 200, distPerDay: 60,                            // +1 per 200 m ridden on the ring, 60 a day
+  goal: 25,                                                  // each daily challenge
+  spots: [
+    { id: 'pulN', name: 'Bhakhra Pul (north)', icon: '🌉', x: -43.6, z: -68.4, r: 5, pts: 20 },
+    { id: 'pulS', name: 'Bhakhra Pul (south)', icon: '🌉', x: -43.6, z: 50.5, r: 5, pts: 20 },
+    { id: 'gurdwaraBack', name: 'Gurdwara back road', icon: '🙏', x: 0, z: -69, r: 5, pts: 20 },
+    { id: 'qila', name: 'Qila Mubarak view', icon: '🏰', x: -18, z: -69, r: 5, pts: 20 },
+    { id: 'bhatta', name: 'Bhatta (brick kiln) corner', icon: '🧱', x: -46, z: -63, r: 5, pts: 20 },
+    { id: 'flyE', name: '22 No. underpass (east)', icon: '🌉', x: 44.5, z: -23.5, r: 5, pts: 20 },
+    { id: 'flyW', name: '22 No. underpass (west)', icon: '🌉', x: -50.5, z: -23.5, r: 5, pts: 20 },
+    { id: 'footbridge', name: 'Nehar footbridge', icon: '🚶', x: -44, z: 2.5, r: 2.5, pts: 20 },
+    { id: 'mandiRoad', name: 'Mandi road junction', icon: '🧺', x: 10, z: 51, r: 5, pts: 20 },
+  ],
+  goals: [
+    { id: 'laps1', text: 'Ride a full lap of the ring road', type: 'laps', n: 1 },
+    { id: 'laps3', text: 'Ride 3 laps of the ring road', type: 'laps', n: 3 },
+    { id: 'km2', text: 'Ride 2 km on the ring road', type: 'dist', n: 2000 },
+    { id: 'km4', text: 'Ride 4 km on the ring road', type: 'dist', n: 4000 },
+    { id: 'fast', text: 'Ride a lap in under 50 seconds', type: 'fast', n: 50 },
+    { id: 'bridges', text: 'Ride over both Bhakhra bridges', type: 'spots', ids: ['pulN', 'pulS'] },
+    { id: 'unders', text: 'Ride under both ends of the 22 No. flyover', type: 'spots', ids: ['flyE', 'flyW'] },
+    { id: 'dusk', text: 'Ride a lap after sunset, headlight on', type: 'dusk', n: 1 },
+  ],
+  miles: [
+    { id: 'd5', text: 'Ride 5 km', stat: 'dist', n: 5000, pts: 50 },
+    { id: 'd20', text: 'Ride 20 km', stat: 'dist', n: 20000, pts: 100 },
+    { id: 'd50', text: 'Ride 50 km — Gerhi Raja', stat: 'dist', n: 50000, pts: 200 },
+    { id: 'd100', text: 'Ride 100 km', stat: 'dist', n: 100000, pts: 400 },
+    { id: 'l10', text: 'Ride 10 laps', stat: 'laps', n: 10, pts: 50 },
+    { id: 'l50', text: 'Ride 50 laps', stat: 'laps', n: 50, pts: 150 },
+    { id: 'l100', text: 'Ride 100 laps', stat: 'laps', n: 100, pts: 300 },
+  ],
+  // spend Aura: paint jobs and extras for the Bullet
+  rewards: {
+    maroon: { name: 'Maroon paint', icon: '🟥', cost: 150, paint: 0x7a1424 },
+    fauji: { name: 'Fauji green paint', icon: '🟩', cost: 150, paint: 0x4b5a2f },
+    royal: { name: 'Royal blue paint', icon: '🟦', cost: 200, paint: 0x1c3f94 },
+    chrome: { name: 'Chrome tank', icon: '🪩', cost: 350, paint: 0xd8dde3 },
+    ribbons: { name: 'Handlebar ribbons', icon: '🎀', cost: 100 },
+    horn: { name: 'Patiala pressure horn', icon: '📯', cost: 120 },
+    lamps: { name: 'Twin fog lamps', icon: '💡', cost: 180 },
+    title: { name: '"Gerhi Raja" title', icon: '👑', cost: 300 },
+  },
+};
 export const TANKER_CAP = 120;
 
 // Managers run a whole department on their own. Hire them at their desk in the world (stand on
@@ -219,7 +277,7 @@ export const QUESTS = [
   { type: 'build',   n: 1, key: 'chakki', text: 'Build the Atta Chakki', target: 'chakki', reward: 80 },
   { type: 'make',    n: 4, key: 'atta', text: 'Grind 4 atta at the chakki', target: 'chakki', reward: 80 },
   { type: 'hire',    n: 1, key: 'dukaandar', text: 'Hire a Dukaandar to run your Mandi stall', target: 'dukaandar', reward: 150 },
-  { type: 'build',   n: 1, key: 'tabela', text: 'Build the buffalo Tabela', target: 'tabela', reward: 120 },
+  { type: 'build',   n: 1, key: 'tabela', text: 'Build the Tabela for cows and buffaloes', target: 'tabela', reward: 120 },
   { type: 'vehicle', n: 1, key: 'tractor', text: 'Buy your first tractor (level 9)', target: 'garage', reward: 200 },
   { type: 'tractor', n: 12, text: 'Work 12 plots with the tractor', reward: 200 },
   { type: 'build',   n: 1, key: 'dairy', text: 'Build the Dairy', target: 'dairy', reward: 250 },
@@ -268,46 +326,66 @@ export const SELLER_REPLIES = [
 export const CUSTOMER_EMPTY = ['🤔 Kuj taaza?', 'Dukaan khulli, maal kithe?', 'Shelf khaali kyon aa?'];
 export const CUSTOMER_GIVEUP = ['Kujh nahi? Kal aavange', 'Gopal di dukaan chalde aan 🍥', 'Khaali haath ghar? Bebe gussa karegi!'];
 
-// Reviews customers leave as they walk away. stars 1–5; `for` ties a review to what they bought;
-// `when` ties it to how the visit went (wait = long queue, empty = stall ran out).
+// Reviews customers leave as they walk away (picked in reviews.js). stars 1–5; `for` ties a
+// review to what they bought; `when` ties it to how the visit went: wait = long queue,
+// empty = the shelf ran out, gaveup = left with nothing, price = prices well above normal.
+// Every bad review (1–2 stars) has a `when`, so a customer only complains with a reason.
 export const REVIEWS = [
-  // the funny bad ones
+  // a long queue
   { s: 1, when: 'wait', t: 'Line vich khade khade meri dadhi chitti ho gayi 👴' },
   { s: 1, when: 'wait', t: 'Inni der ch tan main aap kanak ugga laindi 🌾' },
   { s: 2, when: 'wait', t: 'Line inni lambi, PRTC bus jaldi aa jaandi 🚌' },
   { s: 2, when: 'wait', t: 'Intezaar karde karde do serial mukk gaye 📺' },
+  { s: 2, when: 'wait', t: 'Aadha ghanta line ch? Dukaandar ji, ik hor counter kholo 🙏' },
+  { s: 2, when: 'wait', t: 'Line ch khade khade gawandi naal rishta pakka ho gaya 💍' },
+  { s: 3, when: 'wait', t: 'Thodi line si, par maal vadhiya. Agli vaari jaldi karna ji 👍' },
+  { s: 3, when: 'wait', t: 'Intezaar karna peya, par taaze maal layi chalda ⏳' },
+  { s: 3, when: 'wait', t: 'Line lambi si, par dukaandar ne hass ke gal kitti 😊' },
+  // the shelf ran out before they got everything
   { s: 1, when: 'empty', t: 'Shelf khaali, dil khaali, jeb vi khaali 😢' },
-  { s: 1, when: 'empty', t: 'Khaali dukaan vekhan aaye si? Waah ji waah 👏' },
   { s: 2, when: 'empty', t: 'Adha samaan mileya. Adhi khushi. 2 star 😐' },
-  { s: 1, t: 'Dhaniya muft nahi dita. Rishta khatam 💔' },
-  { s: 2, t: 'Rate sun ke mera BP high ho gaya 🩺' },
-  { s: 1, t: 'Wifi password puchheya, dukaandar hass peya 📶' },
-  { s: 2, t: 'Dukaan te AC kyon nahi? Garmi ch main paneer ban gaya 🥵' },
-  { s: 2, t: 'Change nahi si, toffee de ditti. Main baccha nahi! 🍬' },
-  { s: 1, t: 'Zomato te vi 1 star pauga 😤' },
-  { s: 2, t: 'Mere kutte ne vi changa mol-bhaa karna si 🐕' },
-  { s: 2, t: 'Dukaandar ne smile nahi kitti. Do star, bas 😑' },
-  { s: 1, t: 'Tarazu thalle ungal si. Main sab vekh leya 👀' },
-  { s: 2, t: "Kiha 'taaza', par eh tan kal da lagda 🤨" },
-  { s: 2, t: 'Socheya si free sample milu. Sapne tutt gaye 🥲' },
-  { s: 1, t: 'Mummy ne bhejeya si, hun mummy di daant mainu paini 😬' },
-  { s: 2, t: 'Pichhli vaari vadhiya si. Is vaari? Pichhli vaari vadhiya si.' },
-  { s: 2, for: 'carrot', t: 'Gajar inni mehngi? Sone di bani aa? 🥕' },
-  { s: 2, for: 'tomato', t: 'Tamatar inne laal, sharma rahe ne ya mehngaai ton? 🍅' },
-  { s: 2, for: 'potato', t: 'Aloo vich mitti, mitti vich aloo. Kaun kis vich? 🥔' },
-  { s: 1, for: 'wheat', t: 'Kanak vich kankar! Daant hil gaya 🦷' },
-  { s: 2, for: 'sugarcane', t: 'Ganna mitha, dukaandar kaurha 😤' },
-  { s: 2, for: 'mustard', t: 'Sarson vekh ke DDLJ yaad aayi, rate vekh ke rona 🌼' },
+  { s: 2, when: 'empty', t: 'Jo chahida si oh mukk gaya. Bebe ne list vaapas bhej ditti 📝' },
+  { s: 2, when: 'empty', t: 'Shelf te ajj sirf hawa si. Hawa tan ghar vi hai 🌬️' },
+  { s: 3, when: 'empty', t: 'Mera pasandida maal mukk gaya, baaki theek si 🙂' },
+  { s: 3, when: 'empty', t: 'Thoda hi mileya, par jo mileya vadhiya si 👌' },
+  // left with nothing
+  { s: 1, when: 'gaveup', t: 'Kujh vi nahi mileya! Khaali haath ghar, Bebe gussa 😤' },
+  { s: 1, when: 'gaveup', t: 'Khaali dukaan vekhan aaye si? Waah ji waah 👏' },
+  { s: 2, when: 'gaveup', t: 'Gopal di dukaan chale gaye, othe ghatt ton ghatt jalebi tan si 🍥' },
+  { s: 2, when: 'gaveup', t: 'Inni door aaye, khaali mudde. Petrol de paise kaun dau? ⛽' },
+  { s: 3, when: 'gaveup', t: 'Ajj kujh nahi si, kal phir aavange. Umeed te duniya kaayam 🙏' },
+  { s: 3, when: 'gaveup', t: 'Maal mukk gaya si, par dukaandar ne paani pilaya. Changi gal 💧' },
+  // prices pushed well above normal
+  { s: 2, when: 'price', t: 'Rate sun ke mera BP high ho gaya 🩺' },
+  { s: 2, when: 'price', t: 'Ajj rate asmaan te! Mausam vaangu badalde 🌦️' },
+  { s: 2, when: 'price', t: 'Inne paise ch tan Bullet di service ho jaandi 🏍️' },
+  { s: 2, when: 'price', for: 'carrot', t: 'Gajar inni mehngi? Sone di bani aa? 🥕' },
+  { s: 2, when: 'price', for: 'tomato', t: 'Tamatar inne laal, sharma rahe ne ya mehngaai ton? 🍅' },
+  { s: 2, when: 'price', for: 'mustard', t: 'Sarson vekh ke DDLJ yaad aayi, rate vekh ke rona 🌼' },
+  { s: 3, when: 'price', t: 'Thoda mehnga, par maal ekdum A-one 👌' },
+  { s: 3, when: 'price', t: 'Rate vadh, par mithas vi vadh. Chalo theek aa 🍯' },
+  // friendly three stars
+  { s: 3, t: 'Theek-thaak. Agli vaari dhaniya vi rakhna 🌿' },
+  { s: 3, t: 'Maal changa, dukaandar thoda chup-chup. Smile karo ji 😄' },
+  { s: 3, t: 'Change di jagah toffee mili. Chalo, mooh mitha ho gaya 🍬' },
+  { s: 3, t: 'Free sample nahi mileya, par maal changa 🥲' },
   { s: 3, for: 'strawberry', t: 'Strawberry? Patiale ch? Jatt fancy ho gaye 🍓' },
-  { s: 2, for: 'egg', t: 'Anda tutt gaya. Naal mera dil vi 🥚' },
-  { s: 2, for: 'milk', t: 'Dudh ch paani ke paani ch dudh? Rabb jaane 🥛' },
-  { s: 2, for: 'cauliflower', t: 'Bebe kehndi ghar di gobhi vadhiya. Bebe hamesha sahi 🥦' },
+  { s: 3, for: 'potato', t: 'Aloo vich thodi mitti, par khet da taaza aa 🥔' },
+  { s: 3, for: 'egg', t: 'Ik anda tutt gaya, meri galti si. Baaki vadhiya 🥚' },
+  { s: 3, for: 'cauliflower', t: 'Bebe kehndi ghar di gobhi vadhiya. Bebe hamesha sahi 🥦' },
   { s: 3, for: 'maize', t: 'Makki tan le layi, hun saag kithon laiye? 🌽' },
   { s: 3, for: 'chilli', t: 'Hari mirch ne rula ditta. Akhaan vi, dil vi 😭' },
   { s: 3, for: 'ghee', t: 'Ghee vekh ke cholesterol ne chhutti lai layi 🍯' },
-  { s: 2, for: 'atta', t: 'Atta vadhiya, par rotiyan main hi pakauniyan? 🫓' },
+  { s: 3, for: 'atta', t: 'Atta vadhiya, par rotiyan main hi pakauniyan? 🫓' },
   { s: 3, for: 'mithai', t: "Gopal di mithai ithe? Gopal nu dassanga! 🍥" },
   // and the good ones
+  { s: 5, t: 'Dukaandar ne naam leke bulaya. Ghar wargi feeling ❤️' },
+  { s: 5, t: 'Saaf-suthri dukaan, taaza maal. Hor ki chahida? 👌' },
+  { s: 5, t: 'Bebe ne kiha, ehi dukaan ton leya kar. Hukam mann leya 🙏' },
+  { s: 5, t: 'Rate vi sahi, tolna vi sahi. Imaandaar dukaandar 🤝' },
+  { s: 4, t: 'Jaldi kamm, hass ke gal. Vadhiya! 😄' },
+  { s: 4, t: 'Maal changa, rate theek. Hafte ch do vaari aavange 🗓️' },
+  { s: 4, t: 'Wifi nahi si, par maal 4G di speed naal mileya 📶' },
   { s: 5, t: 'Ekdum taaza! Rabb tuhanu taraqqi deve 🙏' },
   { s: 5, t: 'Patiale di shaan, tuhadi dukaan! 👑' },
   { s: 4, t: 'Dukaandar bada hasmukh, rate vi theek 👍' },
@@ -375,6 +453,32 @@ export const BOOSTS = { speed: 0.3, price: 0.12, happy: 1 };
 export const GOPAL_LINES = ['Garam garam jalebiyan! 🍥', 'Patiale di sab ton mithi dukaan!', 'Ladoo khao, khushiyan manao!', 'Shudh desi ghee di mithai!', 'Gopal di mithai, mooh ch ghul jaave!'];
 export const GOPAL_BUYS = ['milk', 'gur', 'ghee', 'makkhan', 'paneer', 'atta', 'sugarcane', 'wheat', 'strawberry', 'egg'];
 export const GOPAL_RATE = 1.35;           // Gopal ji pays this much over the mandi price for his list
+
+// Crows raid growing crops now and then while you play. They never destroy a crop: pecked
+// plots lose some growth (setback = share of the grow time). Walk up to shoo them, or put up
+// scarecrows: each guards the plots within its radius (guard = chance a raid is turned away).
+export const CROWS = { level: 3, gap: [75, 150], peck: 8, setback: 0.3, plots: [1, 3], shoo: 3.4 };
+export const SCARECROW_DESIGNS = {
+  daravna: { name: 'Daravna', icon: '🧍', desc: 'The classic: matka head, old kurta and a pagg' },
+  fauji:   { name: 'Fauji', icon: '🪖', desc: 'Khaki uniform and a stern moustache' },
+  bhoot:   { name: 'Chitta Bhoot', icon: '👻', desc: 'A white sheet that flaps in the wind' },
+};
+export const SCARECROW_LEVELS = [
+  { name: 'Basic',  radius: 4.5, guard: 0.75, cost: 350,  level: 3 },
+  { name: 'Strong', radius: 6.5, guard: 0.9,  cost: 1200, level: 7,  adds: 'tin-can rattles and ribbons' },
+  { name: 'Ustad',  radius: 9,   guard: 1.0,  cost: 3600, level: 12, adds: 'a spinning phirki and shiny reflectors' },
+];
+export const SCARECROW_MAX = 8;
+
+// Online friends (live gifts, chat, guestbooks, riding together) use a Firebase Realtime
+// Database. Paste the web app's config here to switch them on (see docs/ONLINE-SETUP.md);
+// while it is null the game plays exactly as before and the online parts stay hidden.
+export const ONLINE = null;
+export const SOCIAL = {
+  giftsPerDay: 10, giftItems: (lvl) => Math.min(60, 8 + lvl * 2),       // per gift
+  chatLen: 160, chatPerMinute: 8, boardLen: 120, boardGap: 600,           // seconds between posts on one board
+  boardKeep: 30, historyKeep: 60, onlineFor: 90,                          // seconds since last seen = "online"
+};
 
 // Friends trade with share links. Limits keep trades fair: per link and per day.
 export const TRADE = {

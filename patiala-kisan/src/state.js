@@ -1,6 +1,7 @@
 // Save data: creation, versioned load/migrate, autosave and inventory helpers.
 // Pure module (no three.js) so it can be unit tested in tests/index.html.
-import { SAVE_KEY, SAVE_VERSION, START_MONEY, FIELDS, PENS, BUILDINGS, VEHICLES, BAGS, STORAGE, TANKER_CAP, MANAGERS, ITEMS, TRADE } from './config.js';
+import { SAVE_KEY, SAVE_VERSION, START_MONEY, FIELDS, PENS, BUILDINGS, VEHICLES, BAGS, STORAGE, TANKER_CAP, MANAGERS, ITEMS, TRADE, SCARECROW_DESIGNS, SCARECROW_LEVELS, SCARECROW_MAX, AURA } from './config.js';
+import { pack, unpack } from './codec.js';
 
 export function todayKey(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -44,7 +45,7 @@ export function newState(name = 'Guri', turban = '#e8590c') {
     guru: { last: '', streak: 0, langarDate: '', langarSoul: 0, blessDate: '' },
     day: { n: 1, t: 0, weather: 'sunny', rain: 0 },
     player: { x: 2.5, z: 6, rot: Math.PI, ride: null },
-    settings: { music: 0.45, sfx: 0.8, quality: 'auto', sens: 1, zoom: 1 },
+    settings: { music: 0.45, sfx: 0.8, quality: 'auto', sens: 1, zoom: 1, radio: 'fm', radioVol: 0.8, ownMusic: false },
     // added in the reviews / Gopal's Sweets / friends update (older saves get these filled in)
     pid: makeId(),
     reviews: [],
@@ -53,6 +54,10 @@ export function newState(name = 'Guri', turban = '#e8590c') {
     friends: {},
     trade: { redeemed: [], out: {}, replies: {}, day: '', sent: 0 },
     inbox: [],
+    // added in the scarecrows / ring road update
+    scarecrows: [],
+    social: { code: '', blocked: {}, history: [], giftDay: '', giftsToday: 0, posted: {} },
+    aura: { pts: 0, total: 0, laps: 0, best: 0, dist: 0, day: '', today: { laps: 0, distPts: 0, dist: 0, spots: {}, fast: 0, dusk: 0 }, goals: [], spots: {}, miles: {}, owned: {}, paint: '', title: false },
   };
 }
 
@@ -95,6 +100,10 @@ export function migrate(s) {
     while (arr.length < want) arr.push({ s: 0, c: null, w: 0 });
     arr.length = want;
   }
+  // scarecrows must be sane (they come back from backups and old files too)
+  if (!Array.isArray(s.scarecrows)) s.scarecrows = [];
+  s.scarecrows = s.scarecrows.filter((c) => c && Number.isFinite(c.x) && Number.isFinite(c.z) && SCARECROW_DESIGNS[c.d])
+    .slice(0, SCARECROW_MAX).map((c) => ({ ...c, lvl: Math.max(0, Math.min(SCARECROW_LEVELS.length - 1, c.lvl | 0)) }));
   return s;
 }
 
@@ -158,6 +167,21 @@ export function wipeSave() {
 
 export const saveWorks = () => storageOk;
 
+// ---------- farm backup codes: copy your whole farm out as text, restore it on any device
+const BACKUP_SALT = 'patiala-kisan-backup';
+export const RESTORE_KEY = SAVE_KEY + '-before-restore';
+export async function backupCode(s) { return 'PKB' + await pack(s, BACKUP_SALT); }
+export async function readBackup(text) {
+  const m = String(text || '').replace(/\s+/g, '').match(/PKB([zj][A-Za-z0-9_-]{20,})/);
+  if (!m) throw new Error('That is not a farm backup code');
+  return migrate(await unpack(m[1], BACKUP_SALT, 'This backup code is incomplete — copy all of it'));
+}
+// The farm on this device is kept under RESTORE_KEY before the backup replaces it
+export function restoreSave(s) {
+  try { const cur = localStorage.getItem(SAVE_KEY); if (cur) localStorage.setItem(RESTORE_KEY, cur); } catch { /* storage blocked */ }
+  return writeSave(s);
+}
+
 // ---------- inventory helpers ----------
 export const carryCap = (s) => BAGS[s.up.bag].cap;
 export const storageCap = (s) => STORAGE[s.up.storage].cap;
@@ -183,6 +207,33 @@ export function take(s, id, n) {
 
 export function canAfford(s, items) {
   return Object.entries(items).every(([id, n]) => have(s, id) >= n);
+}
+
+// ---------- scarecrows: the best guard (0..1) any scarecrow gives a spot
+export function scarecrowGuard(s, x, z) {
+  let g = 0;
+  for (const c of s.scarecrows) {
+    const L = SCARECROW_LEVELS[c.lvl];
+    if (L && Math.hypot(c.x - x, c.z - z) <= L.radius) g = Math.max(g, L.guard);
+  }
+  return g;
+}
+
+// three challenges a day, the same for everyone on the same date
+// (gerhi.js)
+export function goalsFor(day) {
+  let h = 0;
+  for (const c of day) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  const pool = AURA.goals.map((g) => g.id), out = [];
+  while (out.length < 3) {
+    h = (h * 1103515245 + 12345) >>> 0;
+    const id = pool.splice(h % pool.length, 1)[0];
+    // never two lap-count or two distance goals on the same day
+    const type = (x) => AURA.goals.find((g) => g.id === x).type;
+    if (out.some((o) => type(o) === type(id))) continue;
+    out.push(id);
+  }
+  return out.map((id) => ({ id, done: false }));
 }
 
 // ---------- reviews and trading

@@ -6,8 +6,9 @@ import { StackView, noteGeometry } from './cargo.js';
 import { POS } from './world.js';
 import {
   ITEMS, STALL, ARHTIYA_RATE, CANS, TANKER_CAP, CROPS, PENS, BUILDINGS, RECIPES, BOOSTS,
-  CUSTOMER_LINES, CUSTOMER_NAMES, CUSTOMER_BARGAIN, SELLER_REPLIES, CUSTOMER_EMPTY, CUSTOMER_GIVEUP, REVIEWS, REVIEW_KEEP,
+  CUSTOMER_LINES, CUSTOMER_NAMES, CUSTOMER_BARGAIN, SELLER_REPLIES, CUSTOMER_EMPTY, CUSTOMER_GIVEUP, REVIEW_KEEP,
 } from './config.js';
+import { chooseReview } from './reviews.js';
 import { carryCap, storageCap, storageUsed, addStorage, have, take, rating } from './state.js';
 import { fmt } from './pads.js';
 
@@ -269,7 +270,7 @@ export class Market {
           c.say = pick(haggle ? CUSTOMER_BARGAIN : CUSTOMER_LINES); c.sayT = 2.4;
           if (haggle && Math.random() < 0.6) c.replyIn = 1.5;
         } else if (c.wait > 18) {
-          c.say = pick(CUSTOMER_GIVEUP); c.sayT = 2.2; c.short = true;
+          c.say = pick(CUSTOMER_GIVEUP); c.sayT = 2.2; c.gaveUp = true;
           if (Math.random() < 0.5) c.reviewIn = 2.4;
           this.leave(c);
         } else if (!c.bubbled) { c.bubbled = true; c.say = pick(CUSTOMER_EMPTY); c.sayT = 3; }
@@ -282,7 +283,7 @@ export class Market {
           if (!ids.length || c.want <= 0) {
             if (c.want > 0) c.short = true;
             const paid = this.pay(c);
-            if (paid && Math.random() < 0.7) c.reviewIn = 1.8;
+            if (paid && Math.random() < 0.55) c.reviewIn = 1.8;
             this.leave(c);
           } else {
             const id = c.pick && st.stall[c.pick] > 0 ? c.pick : (c.pick = ids[Math.floor(Math.random() * ids.length)]);
@@ -302,7 +303,7 @@ export class Market {
         this.game.labels.remove(c.label);
         this.customers.splice(i, 1);
       }
-      if (c.sayT > 0) c.sayT -= dt;
+      if (c.sayT > 0) { if (!c.talked) { c.talked = true; c.w.h.talk?.(Math.min(1.8, c.sayT)); } c.sayT -= dt; } else c.talked = false;
       if (c.replyIn > 0 && (c.replyIn -= dt) <= 0) { this.reply.text = `🧑‍🌾 ${pick(SELLER_REPLIES)}`; this.reply.t = 2.6; }
       if (c.reviewIn > 0 && (c.reviewIn -= dt) <= 0) this.review(c);
     }
@@ -320,33 +321,20 @@ export class Market {
     return amt;
   }
 
-  // Pick a review from how the visit went: long queues and an empty shelf earn the
-  // funny bad ones, blessings and sweets tip the odds towards five stars.
-  pickReview(c) {
-    const g = this.game, st = g.state;
-    let score = 3.2 + (Math.random() * 3 - 1.5);
-    if (g.perks.blessed) score += 0.4;
-    if (st.boosts.happy > 0) score += 1.2;
-    if (c.queued > 14) score -= 1.3;
-    if (c.short) score -= 1.0;
-    const good = score >= 3.5;
-    const pool = REVIEWS.filter((r) => (good ? r.s >= 4 : r.s <= 3));
-    const item = c.got.length ? pick(c.got) : null;
-    const when = !good && c.queued > 14 ? 'wait' : !good && c.short ? 'empty' : good && g.perks.blessed && Math.random() < 0.3 ? 'blessed' : null;
-    let list = when ? pool.filter((r) => r.when === when) : [];
-    if (!list.length && item && Math.random() < 0.6) list = pool.filter((r) => r.for === item);
-    if (!list.length) list = pool.filter((r) => !r.for && !r.when);
-    return { ...pick(list), item };
-  }
-
+  // A review from how the visit really went (see reviews.js): complaints need a reason
   review(c) {
-    const g = this.game, st = g.state, r = this.pickReview(c);
-    st.reviews.unshift({ n: c.name, s: r.s, t: r.t, i: r.item, d: Date.now() });
+    const g = this.game, st = g.state;
+    const r = chooseReview({
+      waited: c.queued, short: c.short, gaveUp: c.gaveUp, priceUp: st.boosts.price > 0,
+      item: c.got.length ? pick(c.got) : null, happy: st.boosts.happy > 0, blessed: g.perks.blessed,
+    }, st.reviews.map((x) => x.s));
+    st.reviews.unshift({ n: c.name, s: r.s, t: r.t, i: r.item, d: Date.now(), ...(r.why ? { w: r.why } : {}) });
     if (st.reviews.length > REVIEW_KEEP) st.reviews.length = REVIEW_KEEP;
     c.say = `<span class="stars">${'★'.repeat(r.s)}<i>${'★'.repeat(5 - r.s)}</i></span><br>${r.t}`;
     c.sayT = 4.2;
     c.label.el.classList.add('review');
-    if (g.player.pos.distanceTo(c.w.pos) < 16) g.audio.play(r.s >= 4 ? 'yay' : 'womp');
+    c.w.h.expr?.(r.s >= 4 ? 'happy' : r.s <= 2 ? 'angry' : 'smile', 3.5);
+    if (g.player.pos.distanceTo(c.w.pos) < 16 && r.s !== 3) g.audio.play(r.s >= 4 ? 'yay' : 'womp');
     g.emit('review', { s: r.s });
   }
 

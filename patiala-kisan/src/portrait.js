@@ -1,7 +1,7 @@
 // Little 3D portraits of the staff for the menus: the same character models, rendered once
 // off-screen into an image (cached), so the Staff menu shows the real people who work the farm.
 import * as THREE from 'three';
-import { makeHuman } from './models.js';
+import { makeHuman, animateHuman } from './models.js';
 
 const cache = {};
 let rig = null;
@@ -15,8 +15,8 @@ function setup() {
   rim.position.set(-3, 2, -2);
   scene.add(key, rim);
   const cam = new THREE.PerspectiveCamera(24, 1, 0.1, 20);
-  cam.position.set(0.6, 1.95, 2.55);
-  cam.lookAt(0, 1.62, 0);
+  cam.position.set(0.48, 1.84, 2.0);
+  cam.lookAt(0, 1.6, 0);
   const S = 192;
   const rt = new THREE.WebGLRenderTarget(S, S);
   const canvas = document.createElement('canvas');
@@ -38,7 +38,10 @@ export function portrait(renderer, key, look, tool = null) {
     const h = makeHuman({ ...look, tools: true });
     h.blob.visible = false;
     for (const k in h.tools) h.tools[k].visible = k === tool;
-    h.armR.rotation.x = tool ? -0.5 : 0;
+    h.face.blink = 99; h.face.lookTo = h.face.look = 0;
+    h.expr('smile', 9);
+    animateHuman(h, 1, 0);
+    if (tool) { h.armR.rotation.x = -0.6; h.bones.foreR.rotation.x = -0.5; }
     h.group.rotation.y = 0.3;
     scene.add(h.group);
     const prevTarget = renderer.getRenderTarget(), prevColor = renderer.getClearColor(new THREE.Color()), prevAlpha = renderer.getClearAlpha();

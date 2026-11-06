@@ -1,7 +1,7 @@
 // The farmer: movement, auto-working nearby plots with the right tool, the visible
 // stack on their back, riding vehicles and bowing at the Gurdwara.
 import * as THREE from 'three';
-import { makeHuman, animateHuman } from './models.js';
+import { makeHuman, animateHuman, poseRide, poseBow } from './models.js';
 import { StackView } from './cargo.js';
 import { collide } from './world.js';
 import { CROPS, CANS, BAGS, BOOSTS } from './config.js';
@@ -28,9 +28,10 @@ export class Player {
     this.stepDist = 0;
     this.blockedAt = 0;
     game.scene.add(this.group);
+    // the carrying frame rides on the chest bone, so the stack bends and leans with the farmer
     const back = new THREE.Group();
-    back.position.set(0, 1.0, -0.36);
-    this.group.add(back);
+    back.position.set(0, -0.27, -0.2);
+    this.h.bones.chest.add(back);
     // wooden carrying frame
     const frame = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.06, 0.4), new THREE.MeshLambertMaterial({ color: 0x8b5a2b }));
     frame.position.y = -0.04;
@@ -47,7 +48,7 @@ export class Player {
     parent.remove(this.group);
     this.game.state.turban = hex;
     const h = makeHuman({ turban: new THREE.Color(hex).getHex(), shirt: 0xf7f3e8, pants: 0xf2eee2, vest: 0x2f5d8a, tools: true });
-    h.group.add(this.back);
+    h.bones.chest.add(this.back);
     this.h = h;
     this.group = h.group;
     this.pos = this.group.position;
@@ -81,7 +82,10 @@ export class Player {
       this.pos.y -= 0.0;
       this.rot = v.rot;
       this.group.rotation.y = this.rot;
+      this.group.rotation.z = v.kind === 'bike' ? v.lean : 0;
       animateHuman(this.h, t, 0, 0, true);
+      // hands on the handlebar, leaning into the ride (and a touch more when braking)
+      if (v.kind === 'bike') { poseRide(this.h, v.braking ? 1 : 0, v.throttle || 0); this.riding = true; }
       this.setTool(null);
       this.back.visible = v.kind === 'bike';
       this.stack.update(dt, 0);
@@ -89,6 +93,7 @@ export class Player {
     }
     this.back.visible = true;
     this.group.position.y = 0;
+    if (this.riding) { this.riding = false; this.group.rotation.z = 0; }
 
     if (this.bow > 0) { this.updateBow(dt); return; }
 
@@ -190,6 +195,7 @@ export class Player {
         g.carryDirty = true;
         fx.leaves(best.x, best.z, CROPS[crop].leaf);
         au.play('harvest');
+        this.h.expr?.('smile', 1.2);
         st.stats.harvested += n;
         g.addXP(CROPS[crop].xp * (double ? 2 : 1));
         g.ui.float(`+${n} ${CROPS[crop].icon}${double ? ' ✨' : ''}`, best.x, 1.2, best.z, double ? 'gold' : '');
@@ -231,14 +237,11 @@ export class Player {
     const h = this.h, k = this.bow;
     const kneel = Math.min(1, k * 4, (1 - k) * 4);
     const bend = Math.max(0, Math.sin(Math.min(1, Math.max(0, (k - 0.2) / 0.6)) * Math.PI));
-    h.legL.rotation.x = h.legR.rotation.x = -1.4 * kneel;
-    this.group.position.y = -0.4 * kneel;
+    animateHuman(h, this.game.clock, 0);
+    poseBow(h, kneel, bend);
     this.group.rotation.y = this.rot;
-    h.body.rotation.x = bend * 0.45;
-    h.armL.rotation.x = h.armR.rotation.x = -0.6 * kneel - bend * 0.9;
     if (this.bow >= 1) {
       this.bow = 0;
-      h.body.rotation.x = 0;
       this.group.position.y = 0;
       const d = this.bowDone; this.bowDone = null;
       d && d();

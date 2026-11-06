@@ -101,6 +101,7 @@ export class Life {
     const g = this.game, k = this.mask;
     const i = Math.floor((x - k.x0) / k.C), j = Math.floor((z - k.z0) / k.C);
     if (i < 0 || j < 0 || i >= k.W || j >= k.H || k.m[j * k.W + i]) return false;
+    if (g.ring?.covers(x, z)) return false;
     return !(g.surface('dirt', x, z) > 0.22 || g.surface('marble', x, z) > 0.05);
   }
 

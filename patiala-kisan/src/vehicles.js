@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { makeTractor, makeAttachment, makeTrolley, makeCombine, makeBike } from './models.js';
 import { StackView } from './cargo.js';
 import { collide, POS } from './world.js';
-import { VEHICLES, ATTACHMENTS, TRACTOR_HP, COMBINE_RADIUS, TANKER_CAP, CROPS } from './config.js';
+import { VEHICLES, ATTACHMENTS, TRACTOR_HP, COMBINE_RADIUS, TANKER_CAP, CROPS, BIKE_ENGINES, AURA } from './config.js';
 import { addStorage } from './state.js';
 
 const PARK = { bike: [12.6, 8.2, 0], tractor: [15.2, 10.5, Math.PI], combine: [21.5, 10.5, Math.PI] };
@@ -38,6 +38,7 @@ class Vehicle {
       this.cargoView = new StackView(this.trolley.bed, { cap: 60, layout: 'grid', gx: 3, gz: 5, dx: 0.55, dz: 0.5, dy: 0.21 });
       this.setAttachment(this.data.att);
     }
+    if (kind === 'bike') { this.lean = 0; this.dressBike(); }
     if (kind === 'combine') this.cargoView = new StackView(this.group, { cap: 45, layout: 'grid', gx: 3, gz: 3, dx: 0.55, dz: 0.45, dy: 0.21 });
     if (this.cargoView && kind === 'combine') { this.cargoView.crate.position.set(0, 3.38, -1.2); this.cargoView.top.position.set(0, 3.38, -1.2); }
     this.label = game.labels.add(() => game.player.vehicle === this ? '' : `${kind === 'bike' ? '🏍️' : kind === 'tractor' ? '🚜' : '🌾'} ${this.cfg.name}`, () => _lp.set(this.pos.x, kind === 'combine' ? 4.4 : 2.6, this.pos.z), 'veh', 18);
@@ -92,12 +93,62 @@ class Vehicle {
     g.save(true);
   }
 
+  // paint and extras bought with Aura: swap the model's parts into the same group
+  dressBike() {
+    const a = this.game.state.aura, R = AURA.rewards;
+    const m = makeBike({ tank: R[a.paint]?.paint, ribbons: !!a.owned.ribbons, lamps: !!a.owned.lamps });
+    for (const c of [...this.group.children]) this.group.remove(c);
+    for (const c of [...m.group.children]) this.group.add(c);
+    this.wheels = m.wheels; this.seat = m.seat;
+    for (const w of this.wheels) w.rotation.order = 'YXZ';
+    this.group.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+  }
+
   maxSpeed() {
+    if (this.kind === 'bike') return (BIKE_ENGINES[this.data.hp] || BIKE_ENGINES[0]).top;
     if (this.kind === 'tractor') return TRACTOR_HP[this.data.hp].speed;
     return this.cfg.speed;
   }
 
+  // The Bullet: throttle eases off near top speed, pull the stick back to brake, it leans into
+  // turns (lean = speed × turn rate / g) and steers tighter at walking pace than at speed.
+  driveBike(dt) {
+    const g = this.game, v = g.input.vector(), eng = BIKE_ENGINES[this.data.hp] || BIKE_ENGINES[0];
+    const sp = this.speed, oldRot = this.rot;
+    let throttle = 0, brake = 0, d = 0;
+    if (v.len > 0.12) {
+      const want = Math.atan2(v.x, v.y), fwd = wrap(want - this.rot);
+      if (Math.abs(fwd) > 2.3 && sp > 0.6) brake = 1;
+      else if (Math.abs(fwd) > 2.3) { d = wrap(want + Math.PI - this.rot); throttle = -0.35 * v.len; }
+      else { d = fwd; throttle = v.len * Math.max(0.25, Math.cos(fwd)); }
+      const turn = Math.min(2.8, 10 / Math.max(3, Math.abs(sp))) * Math.min(1, 0.3 + Math.abs(sp) / 2.5);
+      this.rot += Math.max(-turn * dt, Math.min(turn * dt, d));
+    }
+    let acc;
+    if (brake) acc = -9.5;
+    else if (throttle > 0) acc = eng.accel * throttle * Math.pow(Math.max(0, 1 - sp / eng.top), 0.55) - (sp > eng.top * throttle ? 2.5 : 0);
+    else if (throttle < 0) acc = (throttle * 1.4 - sp) * 2.5;
+    else acc = -Math.sign(sp) * Math.min(Math.abs(sp) / dt, 1.3 + Math.abs(sp) * 0.07);
+    this.speed += acc * dt;
+    if (brake && this.speed < 0) this.speed = 0;
+    const yaw = wrap(this.rot - oldRot) / Math.max(dt, 1e-4);
+    this.lean += (Math.max(-0.5, Math.min(0.5, -Math.atan(this.speed * yaw / 9.8))) - this.lean) * Math.min(1, dt * 7);
+    const ox = this.pos.x, oz = this.pos.z;
+    this.pos.x += Math.sin(this.rot) * this.speed * dt;
+    this.pos.z += Math.cos(this.rot) * this.speed * dt;
+    collide(g.colliders, this.pos, this.radius);
+    const bx = this.pos.x, bz = this.pos.z;
+    collide(g.vehicleColliders, this.pos, this.radius);
+    if (bx !== this.pos.x || bz !== this.pos.z) this.warn('🙏 Please park outside the Gurdwara and walk in barefoot');
+    const moved = Math.hypot(this.pos.x - ox, this.pos.z - oz);
+    if (Math.abs(this.speed) * dt > 0.001 && moved < Math.abs(this.speed) * dt * 0.3) this.speed *= 0.5;
+    this.throttle = throttle; this.braking = brake;
+    g.audio.setEngine(true, Math.abs(this.speed), 1.7, { bike: true, throttle, top: eng.top });
+    this.steer = d;
+  }
+
   drive(dt) {
+    if (this.kind === 'bike') return this.driveBike(dt);
     const g = this.game, v = g.input.vector();
     const max = this.maxSpeed();
     let target = 0, d = 0;
@@ -117,6 +168,9 @@ class Vehicle {
     this.pos.x += Math.sin(this.rot) * this.speed * dt;
     this.pos.z += Math.cos(this.rot) * this.speed * dt;
     collide(g.colliders, this.pos, this.radius);
+    const bx = this.pos.x, bz = this.pos.z;
+    collide(g.vehicleColliders, this.pos, this.radius);
+    if (bx !== this.pos.x || bz !== this.pos.z) this.warn('🙏 Please park outside the Gurdwara and walk in barefoot');
     const moved = Math.hypot(this.pos.x - ox, this.pos.z - oz);
     if (Math.abs(this.speed) * dt > 0.001 && moved < Math.abs(this.speed) * dt * 0.3) this.speed *= 0.6;
     g.audio.setEngine(true, Math.abs(this.speed), this.kind === 'bike' ? 1.7 : this.kind === 'combine' ? 0.8 : 1);
@@ -133,7 +187,7 @@ class Vehicle {
       const s = Math.max(-0.5, Math.min(0.5, this.steer || 0)) * (g.player.vehicle === this ? 1 : 0);
       if (this.kind === 'tractor') { this.wheels[2].rotation.y = s; this.wheels[3].rotation.y = s; }
     }
-    if (this.kind === 'bike') this.group.rotation.z = -Math.max(-0.25, Math.min(0.25, (this.steer || 0) * Math.abs(this.speed) * 0.05));
+    if (this.kind === 'bike') { if (g.player.vehicle !== this) this.lean *= 0.9; this.group.rotation.z = this.lean; }
     if (this.kind === 'tractor') this.updateTrolley(dt);
     if (this.kind === 'combine' && Math.abs(this.speed) > 0.1) this.reel.rotation.x += dt * 5;
     if (this.kind === 'tractor' && this.data.att === 'reaper') this.attMeshes.reaper.userData.spin.rotation.x += dt * (Math.abs(this.speed) > 0.1 ? 6 : 0);

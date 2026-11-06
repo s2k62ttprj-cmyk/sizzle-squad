@@ -9,6 +9,8 @@ const _m = new THREE.Matrix4(), _nm = new THREE.Matrix3(), _q = new THREE.Quater
 const _s = new THREE.Vector3(), _p = new THREE.Vector3(), _c = new THREE.Color();
 
 export const vcMaterial = enhance(new THREE.MeshLambertMaterial({ vertexColors: true }));
+// for buildings, roofs and trees: dissolves where it hides the farmer (see seethrough.js)
+export const vcMaterialCut = enhance(new THREE.MeshLambertMaterial({ vertexColors: true }), { cut: true });
 export const vcMaterialFlat = enhance(new THREE.MeshLambertMaterial({ vertexColors: true }), { rim: 0, detail: 0.1 });
 
 export class Builder {

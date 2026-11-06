@@ -80,7 +80,7 @@ export class Sweets {
     return '';
   }
 
-  speak(text, secs = 3) { this.say.text = `🧑‍🍳 ${text}`; this.say.t = secs; this.say.next = 9 + Math.random() * 6; }
+  speak(text, secs = 3) { this.say.text = `🧑‍🍳 ${text}`; this.say.t = secs; this.say.next = 9 + Math.random() * 6; this.gopal.talk?.(Math.min(2, secs)); this.gopal.expr?.('smile', secs); }
 
   update(dt) {
     const g = this.game, t = (this.t += dt);

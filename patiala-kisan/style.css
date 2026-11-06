@@ -115,6 +115,7 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 .tag { display: inline-block; padding: 1px 8px; border-radius: 9px; background: #f1e2c4; font-size: 12px; font-weight: 800; }
 .tag.ok { background: #d3f9d8; color: #2b8a3e; }
 .tag.gold { background: var(--sun); }
+.tag.why { background: #ffe3e3; color: #a61e1e; font-weight: 700; }
 .mini { padding: 6px 10px 4px; border-radius: 11px; background: var(--leaf); color: #fff; font-weight: 800; font-size: 13px; box-shadow: 0 3px 0 var(--leaf-d); white-space: nowrap; }
 .mini.ghost { background: #f1e2c4; color: var(--ink); box-shadow: 0 3px 0 #d9c29a; }
 .mini.on { background: var(--sun); color: var(--ink); box-shadow: 0 3px 0 var(--sun-d); }
@@ -217,6 +218,36 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 .boosts:empty { display: none; }
 .visitbar { position: absolute; top: calc(var(--sat) + 62px); left: 50%; transform: translateX(-50%); width: max-content; line-height: 1.2; display: flex; align-items: center; gap: 10px; max-width: calc(100% - 24px); padding: 6px 8px 6px 12px; border-radius: 14px; background: rgba(28, 79, 209, .94); color: #fff; font-size: 13px; font-weight: 700; box-shadow: 0 3px 0 rgba(0, 0, 0, .25); }
 .visitbar small { display: block; font-size: 11px; opacity: .8; }
+.placebar { position: absolute; left: 50%; bottom: calc(var(--sab) + 18px); transform: translateX(-50%); width: min(340px, calc(100% - 24px)); padding: 10px 12px; border-radius: 16px; background: rgba(255, 253, 246, .97); box-shadow: 0 4px 0 rgba(59, 36, 20, .3); text-align: center; font-weight: 700; font-size: 14px; }
+.placebar .row2 { margin-top: 8px; }
+.placebar .btn:disabled { opacity: .45; }
+.vehbar .row { display: flex; gap: 8px; }
+.pill.gerhi { font-size: 13px; white-space: nowrap; }
+.stations { display: grid; gap: 8px; margin-bottom: 10px; }
+.station { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 12px; border: 0; border-radius: 14px; background: var(--paper); box-shadow: 0 3px 0 var(--line); font: inherit; color: var(--ink); text-align: left; }
+.station.on { background: var(--sun); }
+.station small { color: var(--ink2); font-size: 12px; }
+.card2.aura .big { font-size: 22px; }
+/* online friends */
+.code { font-family: ui-monospace, Menlo, monospace; letter-spacing: 2px; background: #fff; padding: 1px 8px; border-radius: 8px; }
+.addrow { display: flex; gap: 8px; margin: 8px 0; }
+.addrow input { flex: 1; min-width: 0; padding: 10px 12px; border: 2px solid var(--line); border-radius: 12px; font: inherit; font-size: 16px; background: #fff; }
+.fav { position: relative; }
+.fav .dot { position: absolute; right: -2px; bottom: -2px; width: 11px; height: 11px; border-radius: 50%; background: #adb5bd; border: 2px solid #fff; }
+.fav .dot.on { background: #37b24d; }
+#btnFriends.badge::after { content: ''; position: absolute; top: 4px; right: 6px; width: 10px; height: 10px; border-radius: 50%; background: #e03131; border: 2px solid #fff; }
+#btnFriends { position: relative; }
+.chips.gift .chip { display: flex; flex-direction: column; align-items: flex-start; }
+.chips.gift .chip small { font-size: 11px; opacity: .75; }
+.chatlist { max-height: 46vh; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding: 4px 2px 8px; }
+.msg { align-self: flex-start; max-width: 80%; background: var(--paper); border-radius: 14px 14px 14px 4px; padding: 6px 10px; box-shadow: 0 2px 0 var(--line); }
+.msg.me { align-self: flex-end; background: #d3f9d8; border-radius: 14px 14px 4px 14px; }
+.msg p { margin: 0; font-size: 14px; word-wrap: break-word; }
+.msg small { font-size: 10px; color: var(--ink2); }
+.post { display: flex; gap: 8px; align-items: flex-start; background: var(--paper); border-radius: 12px; padding: 8px 10px; margin-bottom: 6px; box-shadow: 0 2px 0 var(--line); }
+.post .fav { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 800; background: var(--c); }
+.post .fi { flex: 1; min-width: 0; }
+.post p { margin: 2px 0 0; font-size: 13px; word-wrap: break-word; }
 .review { background: var(--paper); border-radius: 12px; padding: 8px 10px; margin-bottom: 6px; box-shadow: 0 2px 0 var(--line); }
 .review small { float: right; color: var(--ink2); font-size: 11px; }
 .review p { margin: 2px 0 0; font-size: 13px; line-height: 1.3; }

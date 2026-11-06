@@ -140,8 +140,8 @@ export class Actions {
   update() {
     const pl = this.game.player;
     let best = null, bd = 1e9;
-    if (this.game.visit) { this.best = null; return null; }
     for (const a of this.list) {
+      if (this.game.visit && !a.visitOk) continue;          // a friend's farm: only look around (and sign the guestbook)
       if (!a.visible()) continue;
       if (pl.vehicle && !a.vehicleOk) continue;
       const p = typeof a.pos === 'function' ? a.pos() : a;
