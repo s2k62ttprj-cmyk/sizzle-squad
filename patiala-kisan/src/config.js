@@ -471,9 +471,17 @@ export const SCARECROW_LEVELS = [
 export const SCARECROW_MAX = 8;
 
 // Online friends (live gifts, chat, guestbooks, riding together) use a Firebase Realtime
-// Database. Paste the web app's config here to switch them on (see docs/ONLINE-SETUP.md);
-// while it is null the game plays exactly as before and the online parts stay hidden.
-export const ONLINE = null;
+// Database (see docs/ONLINE-SETUP.md); set this to null to switch them off again.
+// A Firebase web config is not a secret: the database rules decide what anyone can do.
+export const ONLINE = {
+  apiKey: 'AIzaSyClSc_72fejViiVheHzyEl_FoPql_cH95E',
+  authDomain: 'patiala-kisan.firebaseapp.com',
+  databaseURL: 'https://patiala-kisan-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId: 'patiala-kisan',
+  storageBucket: 'patiala-kisan.firebasestorage.app',
+  messagingSenderId: '124247591228',
+  appId: '1:124247591228:web:d14eee8988067d22c7b639',
+};
 export const SOCIAL = {
   giftsPerDay: 10, giftItems: (lvl) => Math.min(60, 8 + lvl * 2),       // per gift
   chatLen: 160, chatPerMinute: 8, boardLen: 120, boardGap: 600,           // seconds between posts on one board
