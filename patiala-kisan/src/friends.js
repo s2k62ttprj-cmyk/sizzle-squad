@@ -6,7 +6,8 @@
 //  - a trade link offers goods for goods: your side is set aside when you make it, your
 //    friend accepts and sends back a reply link that pays you.
 // Limits per link and per day (config TRADE) keep the trading fair.
-import { CROPS, FIELDS, PENS, BUILDINGS, VEHICLES, MANAGERS, ITEMS, SOUL_PERKS, BAGS, CANS, STORAGE, STALL, QUESTS, TRADE, TURBAN_COLORS, SCARECROW_DESIGNS, SCARECROW_LEVELS, SCARECROW_MAX } from './config.js';
+import { CROPS, FIELDS, PENS, BUILDINGS, VEHICLES, MANAGERS, ITEMS, SOUL_PERKS, BAGS, CANS, STORAGE, STALL, QUESTS, TRADE, TURBAN_COLORS, SCARECROW_DESIGNS, SCARECROW_LEVELS, SCARECROW_MAX,
+  BUILDING_UPGRADES, TRACTOR_HP, MANAGER_RANKS } from './config.js';
 import { newState, makeId, tradeLimitError, noteTradeSent, redeemOnce, roomFor, receive, take, have, rating, itemCount, itemsValue } from './state.js';
 import { pack, unpack } from './codec.js';
 
@@ -118,11 +119,12 @@ export function visitState(snap, mine = null) {
     const capLvl = num(v[1], 0, PENS[id].caps.length - 1);
     Object.assign(s.pens[id], { owned: true, n: num(v[0], 0, PENS[id].caps[capLvl]), capLvl, pipe: !!v[2], feed: 20, water: 30, t: now });
   }
-  for (const [id, lvl] of Object.entries(snap.b || {})) if (BUILDINGS[id]) Object.assign(s.buildings[id], { owned: true, lvl: num(lvl, 0, 3), t: now });
+  for (const [id, lvl] of Object.entries(snap.b || {})) if (BUILDINGS[id]) Object.assign(s.buildings[id], { owned: true, lvl: num(lvl, 0, BUILDING_UPGRADES.length - 1), t: now });
   for (const id of Array.isArray(snap.vh) ? snap.vh : []) if (VEHICLES[id]) s.vehicles[id].owned = true;
-  s.vehicles.tractor.hp = num(snap.hp, 0, 2);
-  for (const [id, r] of Object.entries(snap.mg || {})) if (MANAGERS[id]) Object.assign(s.managers[id], { on: true, rank: num(r, 0, 4) });
-  s.seeriRank = num(snap.sr, 0, 4);
+  s.vehicles.tractor.hp = num(snap.hp, 0, TRACTOR_HP.length - 1);
+  const topRank = MANAGER_RANKS.length - 1;
+  for (const [id, r] of Object.entries(snap.mg || {})) if (MANAGERS[id]) Object.assign(s.managers[id], { on: true, rank: num(r, 0, topRank) });
+  s.seeriRank = num(snap.sr, 0, topRank);
   const u = Array.isArray(snap.u) ? snap.u : [];
   s.up = { bag: num(u[0], 0, BAGS.length - 1), can: num(u[1], 0, CANS.length - 1), storage: num(u[2], 0, STORAGE.length - 1), stall: num(u[3], 0, STALL.length - 1) };
   s.stall = cleanItems(snap.sl);

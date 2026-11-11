@@ -194,6 +194,7 @@ export class Scarecrows {
       m.top.rotation.z = Math.sin(t * 1.3 + m.ph) * 0.035 * wind + Math.sin(t * 22) * 0.06 * m.shake;
       m.top.rotation.x = Math.sin(t * 0.9 + m.ph * 2) * 0.02 * wind;
       if (m.phirki) m.phirki.rotation.z -= dt * (5 + Math.sin(t * 0.7 + m.ph) * 2) * wind;
+      if (m.phirki2) m.phirki2.rotation.z += dt * (5 + Math.cos(t * 0.6 + m.ph) * 2) * wind;
       // the protected circle shows while you stand near it (and while placing another)
       const show = this.placing ? 0.45 : d < SCARECROW_LEVELS[m.data.lvl].radius + 1.5 && !g.player.vehicle ? 0.4 : 0;
       const mats = m.ring.userData.mats;

@@ -114,14 +114,14 @@ class Pen {
     // animals with soft contact shadows; the tabela keeps desi cows alongside the buffaloes
     this.kinds = this.id === 'tabela' ? ['buffalo', 'cow'] : [this.cfg.animal];
     this.insts = this.kinds.map((k) => {
-      const m = new THREE.InstancedMesh(animalGeometry(k), vcMaterial, 16);
+      const m = new THREE.InstancedMesh(animalGeometry(k), vcMaterial, 32);
       m.castShadow = true;
       m.count = 0;
       m.frustumCulled = false;
       g.scene.add(m);
       return m;
     });
-    this.blobs = new THREE.InstancedMesh(blobGeo, blobMaterial, 16);
+    this.blobs = new THREE.InstancedMesh(blobGeo, blobMaterial, 32);
     this.blobs.count = 0;
     this.blobs.frustumCulled = false;
     this.blobs.renderOrder = -1;

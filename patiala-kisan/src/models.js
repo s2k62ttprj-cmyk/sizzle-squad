@@ -117,8 +117,9 @@ export function animalGeometry(kind) {
 }
 
 // ---------------------------------------------------------------- scarecrow (daravna)
-// design: daravna | fauji | bhoot; lvl 0..2 adds tin cans and ribbons, then a phirki.
-// Returns { group, top (sways), sleeves, phirki }
+// design: daravna | fauji | bhoot; lvl 0..4 adds tin cans and ribbons, a phirki, bells and a
+// pennant, then a golden kalgi and a second phirki.
+// Returns { group, top (sways), sleeves, phirki, phirki2 }
 export function makeScarecrow(design = 'daravna', lvl = 0) {
   const group = new THREE.Group();
   const pole = new Builder(0.03, { ao: 0.25, aoH: 0.6 });
@@ -175,23 +176,45 @@ export function makeScarecrow(design = 'daravna', lvl = 0) {
     }
     for (let i = 0; i < 4; i++) b.box([0xe03131, 0xf2c200, 0x2b8a3e, 0x1c7ed6][i], { x: -0.75 + i * 0.5, y: 0.45, z: 0.05, sx: 0.04, sy: 0.4, sz: 0.01, rz: (i - 1.5) * 0.15, ao: false });
   }
+  if (lvl >= 3) {
+    // brass bells at the crossbar ends and a bright pennant on a tall stick
+    for (const s of [-1, 1]) {
+      b.box(0x666666, { x: s * 0.82, y: 0.52, sx: 0.006, sy: 0.22, sz: 0.006, ao: false });
+      b.cone(0xd4a017, { x: s * 0.82, y: 0.36, sx: 0.14, sy: 0.16, sz: 0.14 }, 8);
+      b.sph(0x8a6a10, { x: s * 0.82, y: 0.28, s: 0.04, ao: false }, 5, 3);
+    }
+    b.cyl(0x7a5230, { x: -0.35, y: 1.75, sy: 1.3 }, 0.015, 0.015, 4);
+    b.prism(0xff8c1a, { x: -0.23, y: 2.25, rz: -Math.PI / 2, sx: 0.32, sy: 0.24, sz: 0.01 });
+  }
+  if (lvl >= 4) {
+    // a golden kalgi (turban plume) and a little gold necklace
+    b.cyl(0xf2c94c, { y: 1.5, z: 0.12, sy: 0.18, rx: -0.3 }, 0.015, 0.03, 6);
+    b.cone(0xfff3bf, { y: 1.66, z: 0.07, sx: 0.07, sy: 0.22, sz: 0.04, rx: -0.4, ao: false }, 6);
+    b.torus(0xf2c94c, { y: 0.84, z: 0.02, rx: Math.PI / 2 - 0.2, s: 1, ao: false }, 0.2, 0.018, 4, 14);
+  }
   const sleeves = b.mesh(vcMaterial, true);
   top.add(sleeves);
-  let phirki = null;
+  let phirki = null, phirki2 = null;
+  const makePhirki = (x) => {
+    const pb = new Builder(0.02, { ao: 0 });
+    for (let i = 0; i < 4; i++) pb.cone([0xe03131, 0xf2c200, 0x2b8a3e, 0x1c7ed6][i], { x: Math.cos(i * Math.PI / 2) * 0.12, y: Math.sin(i * Math.PI / 2) * 0.12, rz: i * Math.PI / 2 - Math.PI / 2, sx: 0.16, sy: 0.26, sz: 0.02 }, 3);
+    const p = pb.mesh();
+    p.position.set(x, 2.08, 0.05);
+    top.add(p);
+    return p;
+  };
   if (lvl >= 2) {
-    // reflectors (old CDs) and a spinning paper phirki on a stick
+    // reflectors (old CDs) and a spinning paper phirki on a stick (a second one at the top level)
     const r = new Builder(0.02, { ao: 0 });
     for (const s of [-1, 1]) r.cyl(0xe9f3ff, { x: s * 0.95, y: 0.82, rx: Math.PI / 2, sy: 0.01 }, 0.07, 0.07, 12);
     r.cyl(0x7a5230, { x: 0.42, y: 1.55, sy: 1.1, rz: -0.25 }, 0.015, 0.015, 4);
+    if (lvl >= 4) r.cyl(0x7a5230, { x: -0.6, y: 1.55, sy: 1.1, rz: 0.25 }, 0.015, 0.015, 4);
     top.add(r.mesh());
-    const pb = new Builder(0.02, { ao: 0 });
-    for (let i = 0; i < 4; i++) pb.cone([0xe03131, 0xf2c200, 0x2b8a3e, 0x1c7ed6][i], { x: Math.cos(i * Math.PI / 2) * 0.12, y: Math.sin(i * Math.PI / 2) * 0.12, rz: i * Math.PI / 2 - Math.PI / 2, sx: 0.16, sy: 0.26, sz: 0.02 }, 3);
-    phirki = pb.mesh();
-    phirki.position.set(0.56, 2.08, 0.05);
-    top.add(phirki);
+    phirki = makePhirki(0.56);
+    if (lvl >= 4) phirki2 = makePhirki(-0.74);
   }
   group.add(makeBlob(0.9, 0.7));
-  return { group, top, sleeves, phirki };
+  return { group, top, sleeves, phirki, phirki2 };
 }
 
 // ---------------------------------------------------------------- vehicles

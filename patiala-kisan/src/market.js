@@ -246,7 +246,7 @@ export class Market {
     const every = STALL[st.up.stall].every * (r >= 4 ? 0.88 : r && r < 2.2 ? 1.1 : 1);
     if (this.spawnT <= 0) {
       this.spawnT = every * (0.7 + Math.random() * 0.6);
-      const max = 4 + st.up.stall;
+      const max = Math.min(7, 4 + st.up.stall);       // the queue has room for seven
       if (this.customers.length < max && (this.stock() > 0 || this.customers.length < 1)) this.spawn();
     }
     if (this.reply.t > 0) this.reply.t -= dt;

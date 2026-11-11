@@ -1,11 +1,11 @@
 // Workers and managers. Seeris farm a field each; the Dukaandar keeps the Mandi stall stocked and
 // banks the cash, the Pali looks after the animals, the Mistri runs the workshops and the Munshi
-// handles orders and surplus sales. All of them walk the farm, can be trained through five ranks
-// and keep working (up to OFFLINE_HOURS) while the game is closed.
+// handles orders and surplus sales. All of them walk the farm, can be trained through eight ranks
+// and keep working (up to OFFLINE_HOURS) while the game is closed. Seeris work at SEERI.work pace.
 import * as THREE from 'three';
 import { Walker } from './market.js';
 import { StackView } from './cargo.js';
-import { MANAGERS, SEERI, MANAGER_RANKS, wage, FIELDS, CROPS, ITEMS, STALL, MUNSHI_KEEP, MUNSHI_RATE, DUKAANDAR_KEEP, OFFLINE_HOURS, PLOT } from './config.js';
+import { MANAGERS, SEERI, MANAGER_RANKS, WALK_MAX, wage, FIELDS, CROPS, ITEMS, STALL, MUNSHI_KEEP, MUNSHI_RATE, DUKAANDAR_KEEP, OFFLINE_HOURS, PLOT } from './config.js';
 import { addStorage, storageUsed } from './state.js';
 import { POS } from './world.js';
 import { fmt } from './pads.js';
@@ -26,10 +26,10 @@ class Seeri {
     this.label = this.game.labels.add(() => this.note, () => _l.set(this.w.pos.x, 2.5, this.w.pos.z), 'bubble', 14);
     this.note = '';
   }
-  speed() { return MANAGER_RANKS[this.game.state.seeriRank].speed; }
+  speed() { return MANAGER_RANKS[this.game.state.seeriRank].speed * SEERI.work; }
   update(dt) {
     const g = this.game, st = g.state, farm = g.farm, fd = st.fields[this.f.id];
-    this.w.maxSpeed = 3.2 * this.speed();
+    this.w.maxSpeed = 3.2 * Math.min(WALK_MAX, this.speed());
     const workT = 0.7 / this.speed();
     if (this.busy > 0) {
       this.busy -= dt;
@@ -112,7 +112,7 @@ class Manager {
   update(dt) {
     const sp = this.speed();
     if (sp <= 0) { this.note = '😴 Wages unpaid'; this.w.update(dt); return; }
-    this.w.maxSpeed = 3.2 * sp;
+    this.w.maxSpeed = 3.2 * Math.min(WALK_MAX, sp);
     this.tick(dt, sp);
   }
   remove() { this.w.remove(); this.game.labels.remove(this.label); }
@@ -431,9 +431,10 @@ export class Staff {
     const before = { money: st.money, harvested: st.stats.harvested, made: st.stats.made, products: st.stats.products };
     const sum = { stall: 0, stallItems: 0, harvested: 0, products: 0, made: 0 };
     const STEP = 30e3, start = st.saved, end = st.saved + away;
-    let munshiT = 0;
+    let munshiT = 0, seeriT = 0;
     for (let t = start; t < end; t += STEP) {
-      for (const f of seeriFields) sum.harvested += this.simField(f, t);
+      // a Seeri gets through a step's work only SEERI.work of the time
+      if ((seeriT += SEERI.work) >= 1) { seeriT -= 1; for (const f of seeriFields) sum.harvested += this.simField(f, t); }
       for (const id in g.animals.pens) {
         const pen = g.animals.pens[id];
         if (M.pali.on) { const r = pen.data.ready; pen.autoCare(); sum.products += r - pen.data.ready; }

@@ -16,51 +16,51 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Baloo+Paaji+2:wght@700;800&display=swap">
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js">
-<link rel="stylesheet" href="style.css?v=5">
+<link rel="stylesheet" href="style.css?v=6">
 <!-- Every game file carries the release number (?v=) so phones never mix files from two
      releases out of their cache. Bump it on every release, here and on main.js below. -->
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
-  "./src/animals.js": "./src/animals.js?v=5",
-  "./src/audio.js": "./src/audio.js?v=5",
-  "./src/cargo.js": "./src/cargo.js?v=5",
-  "./src/codec.js": "./src/codec.js?v=5",
-  "./src/config.js": "./src/config.js?v=5",
-  "./src/crops.js": "./src/crops.js?v=5",
-  "./src/crows.js": "./src/crows.js?v=5",
-  "./src/farm.js": "./src/farm.js?v=5",
-  "./src/flyover.js": "./src/flyover.js?v=5",
-  "./src/friends.js": "./src/friends.js?v=5",
-  "./src/fx.js": "./src/fx.js?v=5",
-  "./src/geo.js": "./src/geo.js?v=5",
-  "./src/gerhi.js": "./src/gerhi.js?v=5",
-  "./src/guru.js": "./src/guru.js?v=5",
-  "./src/input.js": "./src/input.js?v=5",
-  "./src/life.js": "./src/life.js?v=5",
-  "./src/main.js": "./src/main.js?v=5",
-  "./src/market.js": "./src/market.js?v=5",
-  "./src/models.js": "./src/models.js?v=5",
-  "./src/moderation.js": "./src/moderation.js?v=5",
-  "./src/net.js": "./src/net.js?v=5",
-  "./src/pads.js": "./src/pads.js?v=5",
-  "./src/people.js": "./src/people.js?v=5",
-  "./src/player.js": "./src/player.js?v=5",
-  "./src/portrait.js": "./src/portrait.js?v=5",
-  "./src/production.js": "./src/production.js?v=5",
-  "./src/progression.js": "./src/progression.js?v=5",
-  "./src/reviews.js": "./src/reviews.js?v=5",
-  "./src/ring.js": "./src/ring.js?v=5",
-  "./src/seethrough.js": "./src/seethrough.js?v=5",
-  "./src/shading.js": "./src/shading.js?v=5",
-  "./src/staff.js": "./src/staff.js?v=5",
-  "./src/state.js": "./src/state.js?v=5",
-  "./src/sweets.js": "./src/sweets.js?v=5",
-  "./src/ui.js": "./src/ui.js?v=5",
-  "./src/vehicles.js": "./src/vehicles.js?v=5",
-  "./src/vendors.js": "./src/vendors.js?v=5",
-  "./src/world.js": "./src/world.js?v=5"
+  "./src/animals.js": "./src/animals.js?v=6",
+  "./src/audio.js": "./src/audio.js?v=6",
+  "./src/cargo.js": "./src/cargo.js?v=6",
+  "./src/codec.js": "./src/codec.js?v=6",
+  "./src/config.js": "./src/config.js?v=6",
+  "./src/crops.js": "./src/crops.js?v=6",
+  "./src/crows.js": "./src/crows.js?v=6",
+  "./src/farm.js": "./src/farm.js?v=6",
+  "./src/flyover.js": "./src/flyover.js?v=6",
+  "./src/friends.js": "./src/friends.js?v=6",
+  "./src/fx.js": "./src/fx.js?v=6",
+  "./src/geo.js": "./src/geo.js?v=6",
+  "./src/gerhi.js": "./src/gerhi.js?v=6",
+  "./src/guru.js": "./src/guru.js?v=6",
+  "./src/input.js": "./src/input.js?v=6",
+  "./src/life.js": "./src/life.js?v=6",
+  "./src/main.js": "./src/main.js?v=6",
+  "./src/market.js": "./src/market.js?v=6",
+  "./src/models.js": "./src/models.js?v=6",
+  "./src/moderation.js": "./src/moderation.js?v=6",
+  "./src/net.js": "./src/net.js?v=6",
+  "./src/pads.js": "./src/pads.js?v=6",
+  "./src/people.js": "./src/people.js?v=6",
+  "./src/player.js": "./src/player.js?v=6",
+  "./src/portrait.js": "./src/portrait.js?v=6",
+  "./src/production.js": "./src/production.js?v=6",
+  "./src/progression.js": "./src/progression.js?v=6",
+  "./src/reviews.js": "./src/reviews.js?v=6",
+  "./src/ring.js": "./src/ring.js?v=6",
+  "./src/seethrough.js": "./src/seethrough.js?v=6",
+  "./src/shading.js": "./src/shading.js?v=6",
+  "./src/staff.js": "./src/staff.js?v=6",
+  "./src/state.js": "./src/state.js?v=6",
+  "./src/sweets.js": "./src/sweets.js?v=6",
+  "./src/ui.js": "./src/ui.js?v=6",
+  "./src/vehicles.js": "./src/vehicles.js?v=6",
+  "./src/vendors.js": "./src/vendors.js?v=6",
+  "./src/world.js": "./src/world.js?v=6"
 } }
 </script>
 </head>
@@ -162,6 +162,6 @@
     if (!document.getElementById('loading').hidden && document.getElementById('start').hidden && m.textContent === 'Loading Patiala…') m.textContent = 'Still loading… this needs Safari 16.4 or newer and an internet connection.';
   }, 12000);
 </script>
-<script type="module" src="src/main.js?v=5"></script>
+<script type="module" src="src/main.js?v=6"></script>
 </body>
 </html>

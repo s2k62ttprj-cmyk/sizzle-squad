@@ -654,7 +654,7 @@ export class UI {
     return `<div class="mgr ${hired ? 'on' : ''} ${locked ? 'locked' : ''} ${this.focusRole === role ? 'focus' : ''}">
       <div class="pt" style="--c:#${new THREE.Color(cfg.look.turban).getHexString()}">${img ? `<img src="${img}" alt="">` : cfg.icon}</div>
       <div class="mi"><div class="mn"><b>${cfg.icon} ${cfg.name}</b><span class="pa">${cfg.role}</span></div>
-        <div class="stars">${starsHtml}<em>${r.name} · speed ×${r.speed}</em></div>
+        <div class="stars">${starsHtml}<em>${r.name} · speed ×${role === 'seeri' ? +(r.speed * SEERI.work).toFixed(2) : r.speed}</em></div>
         <small>${cfg.desc}</small>
         <small class="st">${hired ? '🟢 ' : ''}${status}</small>
         <div class="ctrl">${ctrl}</div></div></div>`;

@@ -27,6 +27,10 @@ export const CROPS = {
   watermelon:  { name: 'Watermelon',  pa: 'Hadwana',    icon: '🍉', level: 14, seed: 40, sell: 120, grow: 200, yield: 1, xp: 8, shape: 'melon', leaf: 0x4f9c3a, ripe: 0x2f7d32 },
   chilli:      { name: 'Green Chilli', pa: 'Hari Mirch', icon: '🌶️', level: 16, seed: 35, sell: 18, grow: 160, yield: 7, xp: 8, shape: 'bush',  leaf: 0x3e8f33, ripe: 0x2fae2a },
   cotton:      { name: 'Cotton',      pa: 'Narma',      icon: '☁️', level: 18, seed: 45, sell: 70,  grow: 220, yield: 2, xp: 9, shape: 'puff',  leaf: 0x5b8f3a, ripe: 0xffffff },
+  peas:        { name: 'Peas',        pa: 'Matar',      icon: '🫛', level: 20, seed: 50, sell: 40,  grow: 180, yield: 4, xp: 10, shape: 'bush', leaf: 0x3f8a32, ripe: 0xb8e986 },
+  onion:       { name: 'Onion',       pa: 'Pyaaz',      icon: '🧅', level: 22, seed: 55, sell: 48,  grow: 200, yield: 4, xp: 11, shape: 'root', leaf: 0x5fae3f, ripe: 0xa8466a },
+  garlic:      { name: 'Garlic',      pa: 'Lehsun',     icon: '🧄', level: 24, seed: 60, sell: 75,  grow: 220, yield: 3, xp: 12, shape: 'root', leaf: 0x6fb34a, ripe: 0xf1ece0 },
+  peanut:      { name: 'Peanut',      pa: 'Moongphali', icon: '🥜', level: 26, seed: 80, sell: 55,  grow: 240, yield: 5, xp: 13, shape: 'bush', leaf: 0x4f9a3a, ripe: 0xc8995a, low: true },
 };
 
 export const PRODUCTS = {
@@ -81,19 +85,22 @@ export const BUILDINGS = {
   halwai: { name: 'Halwai Shop',       pa: 'ਹਲਵਾਈ',      level: 17, cost: 22000, recipes: ['pinni', 'jam'] },
   khaddi: { name: 'Phulkari Workshop', pa: 'ਫੁਲਕਾਰੀ',    level: 19, cost: 30000, recipes: ['phulkari', 'khes'] },
 };
-// upgrade level n (0..3): speed and queue length
+// upgrade level n (0..6): speed and queue length
 export const BUILDING_UPGRADES = [
   { speed: 1.0,  slots: 2 },
   { speed: 1.35, slots: 3, costMul: 0.6 },
   { speed: 1.7,  slots: 4, costMul: 1.2 },
   { speed: 2.1,  slots: 5, costMul: 2.2 },
+  { speed: 2.6,  slots: 6, costMul: 3.5 },
+  { speed: 3.2,  slots: 7, costMul: 5.5 },
+  { speed: 4.0,  slots: 8, costMul: 8.5 },
 ];
 
 export const PENS = {
-  coop:    { name: 'Murgi Khana',  en: 'Chicken coop', animal: 'chicken', animalName: 'Chicken', plural: 'Chickens', level: 5,  cost: 1000, animalCost: 120, caps: [6, 10, 14], capCosts: [1500, 4000], product: 'egg',  cycle: 45,  feeds: ['wheat', 'maize'], xp: 1 },
-  tabela:  { name: 'Tabela', en: 'Cow & buffalo shed', animal: 'buffalo', animalName: 'Cow or buffalo', plural: 'Cows & buffaloes', level: 8,  cost: 3500, animalCost: 900, caps: [3, 5, 8], capCosts: [4000, 9000], product: 'milk', cycle: 90, feeds: ['wheat', 'maize', 'sugarcane'], xp: 3 },
-  bakri:   { name: 'Bakriyan da Vada', en: 'Goat pen', animal: 'goat', animalName: 'Beetal goat', plural: 'Beetal goats', level: 11, cost: 5000, animalCost: 500, caps: [4, 7, 10], capCosts: [5000, 11000], product: 'milk', cycle: 60, feeds: ['carrot', 'cauliflower', 'wheat'], xp: 2 },
-  bhed:    { name: 'Bhedan da Vada', en: 'Sheep pen', animal: 'sheep', animalName: 'Sheep', plural: 'Sheep', level: 13, cost: 6000, animalCost: 650, caps: [4, 7, 10], capCosts: [6000, 12000], product: 'wool', cycle: 120, feeds: ['wheat', 'maize'], xp: 3 },
+  coop:    { name: 'Murgi Khana',  en: 'Chicken coop', animal: 'chicken', animalName: 'Chicken', plural: 'Chickens', level: 5,  cost: 1000, animalCost: 120, caps: [6, 10, 14, 18, 24], capCosts: [1500, 4000, 9000, 16000], product: 'egg',  cycle: 45,  feeds: ['wheat', 'maize'], xp: 1 },
+  tabela:  { name: 'Tabela', en: 'Cow & buffalo shed', animal: 'buffalo', animalName: 'Cow or buffalo', plural: 'Cows & buffaloes', level: 8,  cost: 3500, animalCost: 900, caps: [3, 5, 8, 10, 12], capCosts: [4000, 9000, 16000, 26000], product: 'milk', cycle: 90, feeds: ['wheat', 'maize', 'sugarcane'], xp: 3 },
+  bakri:   { name: 'Bakriyan da Vada', en: 'Goat pen', animal: 'goat', animalName: 'Beetal goat', plural: 'Beetal goats', level: 11, cost: 5000, animalCost: 500, caps: [4, 7, 10, 13, 16], capCosts: [5000, 11000, 18000, 28000], product: 'milk', cycle: 60, feeds: ['carrot', 'cauliflower', 'wheat'], xp: 2 },
+  bhed:    { name: 'Bhedan da Vada', en: 'Sheep pen', animal: 'sheep', animalName: 'Sheep', plural: 'Sheep', level: 13, cost: 6000, animalCost: 650, caps: [4, 7, 10, 13, 16], capCosts: [6000, 12000, 20000, 30000], product: 'wool', cycle: 120, feeds: ['wheat', 'maize'], xp: 3 },
 };
 export const PEN_PIPE_COST = 800;     // tubewell pipe: animals never run out of water
 export const PEN_WATER_CAP = 30;
@@ -116,12 +123,16 @@ export const BAGS = [
   { name: 'Tokri (basket)',  cap: 22, cost: 450,  level: 4 },
   { name: 'Rehri (cart)',    cap: 35, cost: 1600, level: 7 },
   { name: 'Vaddi Rehri',     cap: 55, cost: 5000, level: 11 },
+  { name: 'Gadda (ox cart)', cap: 75, cost: 14000, level: 16 },
+  { name: 'Lohe di Rehri (steel cart)', cap: 100, cost: 30000, level: 22 },
 ];
 export const CANS = [
   { name: 'Baalti (bucket)',   cap: 8,  cost: 0,    level: 1 },
   { name: 'Watering can',      cap: 16, cost: 200,  level: 2 },
   { name: 'Big watering can',  cap: 30, cost: 900,  level: 5 },
   { name: 'Backpack sprayer',  cap: 50, cost: 3000, level: 9 },
+  { name: 'Tanki (water drum)', cap: 75, cost: 8000, level: 14 },
+  { name: 'Pump sprayer',      cap: 110, cost: 20000, level: 20 },
 ];
 export const STORAGE = [
   { name: 'Kotha',        cap: 60,   cost: 0,     level: 1 },
@@ -129,12 +140,16 @@ export const STORAGE = [
   { name: 'Big Godown',   cap: 300,  cost: 3000,  level: 6 },
   { name: 'Warehouse',    cap: 600,  cost: 9000,  level: 10 },
   { name: 'Cold Store',   cap: 1200, cost: 25000, level: 15 },
+  { name: 'Mega Cold Store', cap: 2400, cost: 60000, level: 21 },
+  { name: 'Patiala Cold Chain', cap: 4000, cost: 120000, level: 27 },
 ];
 export const STALL = [
   { name: 'Phatta (plank stall)', shelf: 30,  every: 7.0, cost: 0,    level: 1 },
   { name: 'Mandi Stall',          shelf: 60,  every: 5.0, cost: 1500, level: 5 },
   { name: 'Sabzi Dukaan',         shelf: 120, every: 3.5, cost: 6000, level: 10 },
   { name: 'Vaddi Dukaan',         shelf: 240, every: 2.5, cost: 18000, level: 16 },
+  { name: 'Mandi Showroom',       shelf: 400, every: 1.9, cost: 45000, level: 21 },
+  { name: 'Patiala Super Store',  shelf: 600, every: 1.5, cost: 90000, level: 27 },
 ];
 export const ARHTIYA_RATE = 0.7;     // wholesale buys instantly but pays less
 
@@ -153,6 +168,8 @@ export const TRACTOR_HP = [
   { name: '35 HP', radius: 1.5, speed: 8.5 },
   { name: '50 HP', radius: 2.3, speed: 9.5,  cost: 8000,  level: 13 },
   { name: '75 HP', radius: 3.1, speed: 10.5, cost: 18000, level: 17 },
+  { name: '90 HP', radius: 3.8, speed: 11.5, cost: 32000, level: 21 },
+  { name: '120 HP', radius: 4.5, speed: 12.5, cost: 55000, level: 26 },
 ];
 export const COMBINE_RADIUS = 3.4;
 // Bullet engines (stored in vehicles.bike.hp): top speed m/s, acceleration m/s²
@@ -160,12 +177,14 @@ export const BIKE_ENGINES = [
   { name: 'Bullet 350', top: 13, accel: 5.0 },
   { name: 'Bullet 500', top: 15.5, accel: 6.2, cost: 6000, level: 8 },
   { name: 'Classic 650 · Gerhi Special', top: 18.5, accel: 7.6, cost: 16000, level: 14 },
+  { name: 'Thunder 750', top: 20.5, accel: 8.6, cost: 30000, level: 20 },
+  { name: 'Shahi 900 · Maharaja Edition', top: 22, accel: 9.6, cost: 52000, level: 26 },
 ];
 
 // Aura Points: earned on the Bullet round the ring road (gerhi) and by finding the sights of
 // Patiala, spent on paint jobs and extras. Daily caps keep it from being farmed.
 export const AURA = {
-  lap: 15, lapBest: 10, lapMin: 18, lapsPerDay: 8,          // a lap pays 15 (best lap +10), 8 laps a day; under 18 s is a glitch
+  lap: 15, lapBest: 10, lapMin: 16, lapsPerDay: 8,          // a lap pays 15 (best lap +10), 8 laps a day; under 16 s is a glitch
   distEvery: 200, distPerDay: 60,                            // +1 per 200 m ridden on the ring, 60 a day
   goal: 25,                                                  // each daily challenge
   spots: [
@@ -213,7 +232,7 @@ export const AURA = {
 export const TANKER_CAP = 120;
 
 // Managers run a whole department on their own. Hire them at their desk in the world (stand on
-// the white ring) or from the 👔 Staff menu, then train them through five ranks.
+// the white ring) or from the 👔 Staff menu, then train them through eight ranks.
 // look: how they are dressed; tool: what they carry around.
 export const MANAGERS = {
   dukaandar: { name: 'Dukaandar', role: 'Shop manager', icon: '🧺', level: 5, hire: 1200, salary: 80, tool: 'book',
@@ -225,7 +244,8 @@ export const MANAGERS = {
   mistri: { name: 'Mistri', role: 'Workshop manager', icon: '🔧', level: 15, hire: 7000, salary: 260, tool: 'wrench',
     look: { turban: 0x1c4fd1, shirt: 0xadb5bd, pants: 0x343a40, apron: 0x5c4033 }, desc: 'Keeps every workshop busy from godown stock and stores the finished goods.' },
 };
-export const SEERI = { name: 'Seeri', role: 'Field manager', icon: '🧑‍🌾', level: 10, hire: 2500, salary: 120, tool: 'hoe',
+// work: share of a full worker's pace (walking and each job, and offline work too)
+export const SEERI = { name: 'Seeri', role: 'Field manager', icon: '🧑‍🌾', level: 10, hire: 2500, salary: 120, tool: 'hoe', work: 0.5,
   look: { turban: 0xf2c400, shirt: 0xe9ecef, pants: 0x495057 }, desc: 'Tills, plants, waters and harvests one field. Buys seeds and sends crops to the godown.' };
 export const STAFF = { seeri: SEERI, ...MANAGERS };
 // Ranks: speed multiplies walking and working; training costs hire × costMul; wages grow 30% a rank
@@ -235,7 +255,11 @@ export const MANAGER_RANKS = [
   { name: 'Mahir', speed: 1.65, costMul: 3 },
   { name: 'Ustad', speed: 2.1, costMul: 7 },
   { name: 'Sardar', speed: 2.7, costMul: 15 },
+  { name: 'Numberdar', speed: 3.2, costMul: 26 },
+  { name: 'Zaildar', speed: 3.7, costMul: 45 },
+  { name: 'Maharaja', speed: 4.3, costMul: 75 },
 ];
+export const WALK_MAX = 3;            // fast ranks work quicker but never walk faster than ×3
 export const wage = (base, rank) => Math.round(base * (1 + rank * 0.3));
 export const MUNSHI_KEEP = 15;
 export const MUNSHI_RATE = 0.9;
@@ -255,6 +279,9 @@ export const SOUL_PERKS = [
   { at: 250, id: 'mehar',  name: 'Mehar',       desc: '+5% double harvest luck',      luck: 0.05 },
   { at: 500, id: 'chardi', name: 'Chardi Kala', desc: 'Crops grow 10% more faster',   grow: 0.10 },
   { at: 900, id: 'sarbat', name: 'Sarbat da Bhala', desc: '+10% mandi prices',        price: 0.10 },
+  { at: 1500, id: 'nimrata', name: 'Nimrata',   desc: '+5% double harvest luck',      luck: 0.05 },
+  { at: 2500, id: 'anand',   name: 'Anand',     desc: 'Crops grow 10% more faster',   grow: 0.10 },
+  { at: 4000, id: 'sehaj',   name: 'Sehaj',     desc: '+10% mandi prices',            price: 0.10 },
 ];
 
 // Tutorial / story missions, completed in order. `target` names a guide-arrow location.
@@ -290,6 +317,16 @@ export const QUESTS = [
   { type: 'build',   n: 1, key: 'khaddi', text: 'Open the Phulkari workshop', target: 'khaddi', reward: 2000 },
   { type: 'fields',  n: 8, text: 'Own all 8 fields', reward: 3000 },
   { type: 'level',   n: 30, text: 'Reach level 30 — a true Patiala zamindar', reward: 5000 },
+  { type: 'buySeed', n: 1, key: 'peas', text: 'Buy matar (pea) seeds in the Shop', reward: 3000 },
+  { type: 'make',    n: 10, key: 'khes', text: 'Weave 10 khes blankets', target: 'khaddi', reward: 4000 },
+  { type: 'order',   n: 15, text: 'Complete 15 customer orders', target: 'board', reward: 5000 },
+  { type: 'level',   n: 35, text: 'Reach level 35', reward: 8000 },
+  { type: 'make',    n: 12, key: 'achaar', text: 'Make 12 jars of achaar at the Dhaba', target: 'dhaba', reward: 8000 },
+  { type: 'langar',  n: 100, text: 'Give 100 items to the Langar', target: 'langar', reward: 6000 },
+  { type: 'buySeed', n: 1, key: 'peanut', text: 'Buy moongphali (peanut) seeds in the Shop', reward: 8000 },
+  { type: 'level',   n: 40, text: 'Reach level 40', reward: 12000 },
+  { type: 'make',    n: 20, key: 'phulkari', text: 'Embroider 20 phulkaris', target: 'khaddi', reward: 15000 },
+  { type: 'level',   n: 50, text: 'Reach level 50 — the Maharaja of Patiala farming', reward: 25000 },
 ];
 
 export const ACHIEVEMENTS = [
@@ -307,6 +344,12 @@ export const ACHIEVEMENTS = [
   { id: 'soul100', text: 'Earn 100 soul points',        stat: 'soul', n: 100 },
   { id: 'orders25', text: 'Complete 25 orders',         stat: 'orders', n: 25 },
   { id: 'langar100', text: 'Give 100 items to the Langar', stat: 'langar', n: 100 },
+  { id: 'h10k',   text: 'Harvest 10,000 crops',         stat: 'harvested', n: 10000 },
+  { id: 'e10l',   text: 'Earn ₹10,00,000',              stat: 'earned', n: 1000000 },
+  { id: 'rank8',  text: 'Train a manager to Maharaja rank', stat: 'topRank', n: 7 },
+  { id: 'orders100', text: 'Complete 100 orders',       stat: 'orders', n: 100 },
+  { id: 'soul1000', text: 'Earn 1,000 soul points',     stat: 'soul', n: 1000 },
+  { id: 'langar1000', text: 'Give 1,000 items to the Langar', stat: 'langar', n: 1000 },
 ];
 
 export const CUSTOMER_LINES = [
@@ -413,6 +456,10 @@ export const REVIEWS = [
   { s: 5, for: 'makkhan', t: 'Makkhan inna changa, roti vi sharma gayi 🧈' },
   { s: 5, for: 'egg', t: 'Desi anda, desi taakat 💪' },
   { s: 5, for: 'mithai', t: 'Mithai da dabba! Rishta pakka 😍🎁' },
+  { s: 5, for: 'peas', t: 'Taaze matar! Ajj matar-paneer banega 🫛' },
+  { s: 3, for: 'onion', t: 'Pyaaz kattde hoye rona aa gaya, par maal vadhiya 🧅' },
+  { s: 5, for: 'garlic', t: 'Lehsun di tadka, poore mohalle nu khushboo 🧄' },
+  { s: 5, for: 'peanut', t: 'Garam moongphali te sardi di dhupp. Swaad aa gaya 🥜' },
   { s: 5, when: 'blessed', t: 'Dukh Niwaran Sahib di kirpa, maal vich barkat 🙏' },
 ];
 export const REVIEW_KEEP = 40;            // reviews kept in the save (newest first)
@@ -467,6 +514,8 @@ export const SCARECROW_LEVELS = [
   { name: 'Basic',  radius: 4.5, guard: 0.75, cost: 350,  level: 3 },
   { name: 'Strong', radius: 6.5, guard: 0.9,  cost: 1200, level: 7,  adds: 'tin-can rattles and ribbons' },
   { name: 'Ustad',  radius: 9,   guard: 1.0,  cost: 3600, level: 12, adds: 'a spinning phirki and shiny reflectors' },
+  { name: 'Sardar', radius: 11.5, guard: 1.0, cost: 8000, level: 17, adds: 'brass bells and a bright pennant' },
+  { name: 'Maharaja', radius: 14, guard: 1.0, cost: 16000, level: 22, adds: 'a golden kalgi and a second phirki' },
 ];
 export const SCARECROW_MAX = 8;
 
