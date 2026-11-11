@@ -1,6 +1,6 @@
 // Patiala Kisan — boot, game loop, camera, lighting, day/weather cycle and saving.
 import * as THREE from 'three';
-import { DAY_SECONDS, FIELDS, PLOT, xpNeed, TURBAN_COLORS, CANS } from './config.js';
+import { DAY_SECONDS, FIELDS, PLOT, xpNeed, TURBAN_COLORS, CANS, levelGift } from './config.js';
 import { newState, loadSave, hasSave, writeSave, wipeSave, rescueSave, restoreSave, carryCap, todayKey } from './state.js';
 import { buildWorld, POS, areaAt } from './world.js';
 import { Farm } from './farm.js';
@@ -29,6 +29,10 @@ import { Social } from './net.js';
 import { Sweets } from './sweets.js';
 import { Vendors } from './vendors.js';
 import { Friends, decode, findCode, visitState, describe, INBOX_KEY } from './friends.js';
+import { Weather } from './weather.js';
+import { Decor } from './decor.js';
+import { Baradari, buildBaradari } from './baradari.js';
+import { Police } from './police.js';
 
 const $ = (id) => document.getElementById(id);
 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
@@ -48,6 +52,7 @@ class Guide {
     if (POS.buildings[name]) return [POS.buildings[name][0], POS.buildings[name][1] + 3.6];
     if (POS.desks[name]) return [POS.desks[name][0], POS.desks[name][1] + 1.35];
     const map = { tubewell: POS.tankPad, stall: POS.stallPad, pile: POS.pile, arhtiya: POS.arhtiyaPad, board: [POS.board[0], POS.board[1] + 1.2], godown: POS.godownPad, darbar: POS.darbar, langar: POS.langarPad, garage: POS.garage, farmhouse: [POS.farmhouse[0], POS.farmhouse[1] + 3],
+      baradari: [29.5, -35], mali: [36.3, -36.8], police: [-31, 43.4],
       gopal: POS.gopalAct, vendor: [POS.vendor[0] - 1.6, POS.vendor[1] + 1.2], flyover: [0, POS.flyZ + 3], canal: [POS.canalX + 4.5, -6] };
     return map[name] || null;
   }
@@ -76,7 +81,6 @@ class Game {
     this.me = opts.me || null;             // who is visiting (their own name and pagg), for guestbooks
     this.listeners = {};
     this.carryDirty = true;
-    this.weather = { raining: false };
     this.perks = computePerks(state);
     this.clock = 0;
     this.saveT = 10;
@@ -98,6 +102,7 @@ class Game {
     this.sun.shadow.bias = -0.0005;
     this.sun.shadow.normalBias = 0.035;
     this.scene.add(this.hemi, this.sun, this.sun.target);
+    this.weather = new Weather(this);
     this.dusk = 0;
 
     this.audio = new Audio(this);
@@ -120,6 +125,8 @@ class Game {
     this.farm = new Farm(this);
     this.scarecrows = new Scarecrows(this);
     this.crows = new Crows(this);
+    this.decor = new Decor(this, this.state.decor, { view: !!this.visit });
+    buildBaradari(this);
     this.player = new Player(this);
     this.input = new Input(this);
     this.guide = new Guide(this);
@@ -132,6 +139,8 @@ class Game {
     this.vehicles = new Vehicles(this);
     this.gerhi = new Gerhi(this);
     this.staff = new Staff(this);
+    this.baradari = new Baradari(this);
+    this.police = new Police(this);
     this.guru = new Guru(this);
     this.progression = new Progression(this);
     this.setupFieldPads();
@@ -175,13 +184,24 @@ class Game {
     let up = false;
     while (st.xp >= xpNeed(st.level)) { st.xp -= xpNeed(st.level); st.level++; up = true; }
     if (up) {
+      const gift = this.levelGifts();
       this.audio.play('level');
       this.player?.h.expr?.('happy', 3);
       this.fx.sparkle(this.player.pos.x, 2, this.player.pos.z, 0xffd43b, 30);
-      this.ui?.levelUp(st.level);
+      this.ui?.levelUp(st.level, gift);
       this.emit('level', {});
       this.save(true);
     }
+  }
+  // Every level from the update on pays a gift (rupees, and Baradari roses at every fifth level). Each level pays once.
+  levelGifts() {
+    const st = this.state, out = { money: 0, tokens: 0 };
+    if (this.visit) return out;
+    for (let l = Math.max(1, st.lvlGift | 0) + 1; l <= st.level; l++) { const g = levelGift(l); out.money += g.money; out.tokens += g.tokens; }
+    st.lvlGift = Math.max(st.lvlGift | 0, st.level);
+    st.money += out.money; st.garden.tokens += out.tokens; st.garden.total += out.tokens;
+    this.ui?.money();
+    return out;
   }
   refreshPerks() { this.perks = computePerks(this.state); this.ui?.blessBadge(); this.farm.dirty = true; }
   activeCargo() {
@@ -222,18 +242,16 @@ class Game {
     if (d.t >= DAY_SECONDS) {
       d.t -= DAY_SECONDS;
       d.n++;
-      const r = Math.random();
-      d.weather = r < 0.55 ? 'sunny' : r < 0.8 ? 'cloudy' : 'rain';
+      this.weather.newDay();
       this.staff.payDay();
-      this.ui.toast(`🌅 Day ${d.n} · ${{ sunny: 'Sunny ☀️', cloudy: 'Cloudy ⛅', rain: 'Rain on the way 🌧️' }[d.weather]}`, 2.5);
+      this.ui.toast(`🌅 Day ${d.n} · ${{ sunny: 'Sunny ☀️', cloudy: 'Cloudy ⛅', rain: 'Rain on the way 🌧️', storm: 'Thunderstorm expected ⛈️' }[d.weather]}`, 2.5);
+      if (d.next === 'storm') this.ui.toast('🔮 Tomorrow: a thunderstorm is forecast', 3);
     }
     const f = d.t / DAY_SECONDS;
-    const raining = d.weather === 'rain' && f > 0.25 && f < 0.6;
-    if (raining !== this.weather.raining) {
-      this.weather.raining = raining;
-      if (raining) this.ui.toast('🌧️ Barish! Rain is watering your crops', 2.5);
-    }
-    if (raining) { this.rainT = (this.rainT || 0) - dt; if (this.rainT <= 0) { this.rainT = 1; this.farm.rainAll(); } }
+    const W = this.weather;
+    W.update(dt, f);
+    const raining = W.raining;
+    if (W.rain > 0.3) { this.rainT = (this.rainT || 0) - dt; if (this.rainT <= 0) { this.rainT = 1; this.farm.rainAll(); } }
     // sunrise → day → golden sunset → blue dusk (lamps on) → dawn; never fully dark
     const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
     const sunset = sm(0.74, 0.83, f) * (1 - sm(0.89, 0.94, f));
@@ -242,23 +260,24 @@ class Game {
     const warm = Math.max(sunset, sunrise);
     const sunA = f * Math.PI * 2 * 0.92 - 0.3;
     const elev = Math.sin(Math.min(Math.PI, Math.max(0, f / 0.9 * Math.PI)));
-    const cloud = d.weather === 'sunny' ? 0 : raining ? 0.6 : 0.32;
-    this.sun.intensity = (2.6 + elev * 0.7) * (1 - cloud * 0.55) * (1 - night * 0.72) * (1 - warm * 0.22);
-    this.hemi.intensity = (1.42 + elev * 0.12) * (1 - night * 0.42) * (1 - cloud * 0.08) + cloud * 0.25;
+    const cloud = W.cloud, fl = W.flash;
+    this.sun.intensity = (2.6 + elev * 0.7) * (1 - cloud * 0.55) * (1 - night * 0.72) * (1 - warm * 0.22) * (1 - W.dark * 0.4) + fl * 1.6;
+    this.hemi.intensity = (1.42 + elev * 0.12) * (1 - night * 0.42) * (1 - cloud * 0.08) * (1 - W.dark * 0.22) + cloud * 0.25 + fl * 2.6;
     // inside the Gurdwara the light turns softer and a little golden
     const calm = this.calm || 0;
     this.sun.intensity *= 1 - calm * 0.14;
     this.sun.color.set(0xfff1d6).lerp(_dusk.set(0xffa35a), warm * 0.85).lerp(_gray.set(0x9fb0ff), night * 0.8).lerp(_dusk.set(0xffe2a8), calm * 0.25);
     this.hemi.color.set(0xdcefff).lerp(_dusk.set(0xffd0b0), warm * 0.6).lerp(_gray.set(0x7d8fd8), night * 0.8).lerp(_dusk.set(0xfff0d0), calm * 0.3);
-    _sky.set(0xbfe3f5).lerp(_gray.set(0xc6ced4), cloud).lerp(_dusk.set(0xffbe8f), warm * 0.75).lerp(_ngt.set(0x55639a), night * 0.85);
+    _sky.set(0xbfe3f5).lerp(_gray.set(0xc6ced4), Math.min(1, cloud)).lerp(_dusk.set(0xffbe8f), warm * 0.75).lerp(_ngt.set(0x55639a), night * 0.85).lerp(_gray.set(0x5d6873), W.dark * 0.55).lerp(_dusk.set(0xf2f6ff), fl * 0.6);
     this.scene.background.copy(_sky);
     this.scene.fog.color.copy(_sky);
+    this.scene.fog.near = 44 - 14 * W.dark; this.scene.fog.far = 120 - 36 * W.dark;
     this.sunDir = [Math.cos(sunA) * 0.6 + 0.3, 0.55 + elev * 0.45, 0.45];
     this.dusk = Math.max(night, sunset * 0.35);
-    SH.uCloud.value = d.weather === 'sunny' ? 0.16 : raining ? 0.05 : 0.3;
+    SH.uCloud.value = (0.16 * (1 - cloud) + 0.3 * cloud) * (1 - W.rain) + 0.05 * W.rain;
     SH.uRimColor.value.set(0xfff1d2).lerp(_dusk.set(0xffb070), warm * 0.8).lerp(_gray.set(0xaab8ff), night * 0.7);
-    SH.uWind.value = raining ? 2.2 : d.weather === 'cloudy' ? 1.4 : 1;
-    SH.uLight.value = (1 - night * 0.5) * (1 - cloud * 0.25) * (1 - warm * 0.1);
+    SH.uWind.value = W.wind;
+    SH.uLight.value = (1 - night * 0.5) * (1 - cloud * 0.25) * (1 - warm * 0.1) * (1 - W.dark * 0.15);
   }
 
   applyQuality() {
@@ -343,6 +362,9 @@ class Game {
       this.farm.update(dt, t);
       this.scarecrows.update(dt, t);
       this.crows.update(dt);
+      this.decor.update(dt, t);
+      this.baradari.update(dt, t);
+      this.police.update(dt, t);
       this.market.update(dt);
       this.sweets.update(dt);
       this.vendors?.update(dt);
@@ -359,7 +381,7 @@ class Game {
       for (const k in bo) if (bo[k] > 0) bo[k] = Math.max(0, bo[k] - dt);
       this.guide.update(dt, t);
       this.flyers.update(dt);
-      this.fx.update(dt, this.player.pos, this.weather.raining);
+      this.fx.update(dt, this.player.pos, this.weather);
       this.life.update(dt, t, this.dusk);
       for (const a of this.anim) a(t);
       this.smokeT = (this.smokeT || 0) - dt;

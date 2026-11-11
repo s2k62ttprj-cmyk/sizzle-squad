@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { Walker } from './market.js';
 import { StackView } from './cargo.js';
 import { MANAGERS, SEERI, MANAGER_RANKS, WALK_MAX, wage, FIELDS, CROPS, ITEMS, STALL, MUNSHI_KEEP, MUNSHI_RATE, DUKAANDAR_KEEP, OFFLINE_HOURS, PLOT } from './config.js';
-import { addStorage, storageUsed } from './state.js';
+import { addStorage, storageUsed, fieldCrops } from './state.js';
 import { POS } from './world.js';
 import { fmt } from './pads.js';
 
@@ -47,7 +47,7 @@ class Seeri {
       for (const p of farm.byField[this.f.id]) {
         const a = farm.nextAction(p);
         if (!a) continue;
-        if (a === 'plant' && !this.staff.seedReady(fd.crop)) { this.note = this.staff.seedNote(fd.crop); continue; }
+        if (a === 'plant' && !this.staff.pickCrop(this.f)) { this.note = this.staff.seedNote(fieldCrops(fd)[0]); continue; }
         const d = Math.hypot(p.x - this.w.pos.x, p.z - this.w.pos.z) - (a === 'harvest' ? 3 : 0);
         if (d < bd) { bd = d; best = p; }
       }
@@ -67,7 +67,7 @@ class Seeri {
     this.plot = null;
     const a = farm.nextAction(p);
     if (a === 'till') { farm.till(p); g.fx.soil(p.x, p.z); }
-    else if (a === 'plant' && this.staff.seedReady(fd.crop)) farm.plant(p, fd.crop);
+    else if (a === 'plant') { const c = this.staff.pickCrop(this.f); if (c && farm.plant(p, c)) this.staff.advance(this.f); }
     else if (a === 'water') { farm.water(p); g.fx.water(p.x, p.z); }
     else if (a === 'harvest') {
       const n = farm.harvest(p);
@@ -251,6 +251,7 @@ export class Staff {
   constructor(game) {
     this.game = game;
     this.seeris = {};
+    this.rot = {};                      // field id → which of its crops is sown next
     this.managers = {};
     this.log = {};
     this.unpaid = 0;
@@ -277,6 +278,13 @@ export class Staff {
     if (st.money >= c.seed) { st.money -= c.seed; st.seeds[crop] = 1; return true; }
     return false;
   }
+  // The crop to sow next on a field: its chosen crops in turn, skipping any that are locked or unaffordable
+  pickCrop(f) {
+    const st = this.game.state, list = fieldCrops(st.fields[f.id]).filter((c) => CROPS[c] && st.level >= CROPS[c].level);
+    for (let i = 0; i < list.length; i++) { const c = list[((this.rot[f.id] || 0) + i) % list.length]; if (this.seedReady(c)) { this.rot[f.id] = ((this.rot[f.id] || 0) + i) % list.length; return c; } }
+    return null;
+  }
+  advance(f) { this.rot[f.id] = (this.rot[f.id] || 0) + 1; }
   seedNote(crop) { return this.game.state.level < CROPS[crop].level ? '🔒 Crop locked' : '🪙 Need money for seeds'; }
 
   hireCost(role) { return (MANAGERS[role] || SEERI).hire; }
@@ -483,7 +491,7 @@ export class Staff {
     for (const p of farm.byField[f.id]) {
       const d = farm.data(p), s = farm.stage(p, t);
       if (s === 0) d.s = 1;
-      else if (s === 1) { if (this.seedReady(fd.crop) && st.seeds[fd.crop] > 0) { st.seeds[fd.crop]--; if (!st.seeds[fd.crop]) delete st.seeds[fd.crop]; d.s = 2; d.c = fd.crop; d.w = 0; } }
+      else if (s === 1) { const c = this.pickCrop(f); if (c && st.seeds[c] > 0) { st.seeds[c]--; if (!st.seeds[c]) delete st.seeds[c]; d.s = 2; d.c = c; d.w = 0; this.advance(f); } }
       else if (s === 2 && !d.w) d.w = t;
       else if (s === 4) {
         const n = CROPS[d.c].yield;

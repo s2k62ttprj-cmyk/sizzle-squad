@@ -96,6 +96,19 @@ export class Player {
     if (this.riding) { this.riding = false; this.group.rotation.z = 0; }
 
     if (this.bow > 0) { this.updateBow(dt); return; }
+    if (this.frozen) { this.speed = 0; this.group.rotation.y = this.rot; animateHuman(this.h, t, 0, 0); this.punchPose(dt); this.stack.update(dt, 0); return; }
+    // a scripted pose (sitting on a bench): hold the spot until the time is up or the stick moves
+    if (this.sit) {
+      const s = this.sit, mv = g.input.vector();
+      s.t -= dt;
+      if (s.t <= 0 || mv.len > 0.5) { this.sit = null; this.group.position.y = 0; s.done?.(s.t <= 0); }
+      else {
+        this.pos.set(s.x, s.y || 0, s.z); this.rot = s.rot; this.group.rotation.y = this.rot; this.speed = 0;
+        animateHuman(this.h, t, 0, 0, true);
+        this.stack.update(dt, 0);
+        return;
+      }
+    }
 
     const v = g.input.vector();
     const slow = (g.guru.inside ? 0.62 : 1) * (st.boosts.speed > 0 ? 1 + BOOSTS.speed : 1);
@@ -129,7 +142,17 @@ export class Player {
     if (this.workCd <= 0) this.tryWork();
     if (this.work === 0 && this.workCd < -0.6) this.setTool(null);
     animateHuman(this.h, t, this.speed, this.work);
+    // a quick punch swing (the confrontation at the police station)
+    this.punchPose(dt);
     this.stack.update(dt, this.speed * 0.9);
+  }
+
+  // a quick punch swing (the confrontation at the police station)
+  punchPose(dt) {
+    if (!(this.punchT > 0)) return;
+    this.punchT -= dt;
+    const k = Math.sin(Math.max(0, this.punchT) / 0.3 * Math.PI);
+    this.h.armR.rotation.x = -1.7 * k; this.h.armR.rotation.z = 0.2 * k; this.h.bones.chest.rotation.y += 0.35 * k;
   }
 
   tryWork() {

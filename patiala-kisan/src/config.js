@@ -27,11 +27,36 @@ export const CROPS = {
   watermelon:  { name: 'Watermelon',  pa: 'Hadwana',    icon: '🍉', level: 14, seed: 40, sell: 120, grow: 200, yield: 1, xp: 8, shape: 'melon', leaf: 0x4f9c3a, ripe: 0x2f7d32 },
   chilli:      { name: 'Green Chilli', pa: 'Hari Mirch', icon: '🌶️', level: 16, seed: 35, sell: 18, grow: 160, yield: 7, xp: 8, shape: 'bush',  leaf: 0x3e8f33, ripe: 0x2fae2a },
   cotton:      { name: 'Cotton',      pa: 'Narma',      icon: '☁️', level: 18, seed: 45, sell: 70,  grow: 220, yield: 2, xp: 9, shape: 'puff',  leaf: 0x5b8f3a, ripe: 0xffffff },
-  peas:        { name: 'Peas',        pa: 'Matar',      icon: '🫛', level: 20, seed: 50, sell: 40,  grow: 180, yield: 4, xp: 10, shape: 'bush', leaf: 0x3f8a32, ripe: 0xb8e986 },
-  onion:       { name: 'Onion',       pa: 'Pyaaz',      icon: '🧅', level: 22, seed: 55, sell: 48,  grow: 200, yield: 4, xp: 11, shape: 'root', leaf: 0x5fae3f, ripe: 0xa8466a },
-  garlic:      { name: 'Garlic',      pa: 'Lehsun',     icon: '🧄', level: 24, seed: 60, sell: 75,  grow: 220, yield: 3, xp: 12, shape: 'root', leaf: 0x6fb34a, ripe: 0xf1ece0 },
-  peanut:      { name: 'Peanut',      pa: 'Moongphali', icon: '🥜', level: 26, seed: 80, sell: 55,  grow: 240, yield: 5, xp: 13, shape: 'bush', leaf: 0x4f9a3a, ripe: 0xc8995a, low: true },
+  peas:        { name: 'Peas',        pa: 'Matar',      icon: '🫛', level: 20, grow: 180, yield: 4, xp: 10, shape: 'bush', leaf: 0x3f8a32, ripe: 0xb8e986 },
+  onion:       { name: 'Onion',       pa: 'Pyaaz',      icon: '🧅', level: 22, grow: 200, yield: 4, xp: 11, shape: 'root', leaf: 0x5fae3f, ripe: 0xa8466a },
+  garlic:      { name: 'Garlic',      pa: 'Lehsun',     icon: '🧄', level: 24, grow: 220, yield: 3, xp: 12, shape: 'root', leaf: 0x6fb34a, ripe: 0xf1ece0 },
+  peanut:      { name: 'Peanut',      pa: 'Moongphali', icon: '🥜', level: 26, grow: 240, yield: 5, xp: 13, shape: 'bush', leaf: 0x4f9a3a, ripe: 0xc8995a, low: true },
+  sunflower:   { name: 'Sunflower',   pa: 'Suraj-mukhi', icon: '🌻', level: 28, grow: 260, yield: 3, xp: 14, shape: 'flower', leaf: 0x5a9a33, ripe: 0xffc400 },
+  pumpkin:     { name: 'Pumpkin',     pa: 'Kaddu',      icon: '🎃', level: 31, grow: 280, yield: 2, xp: 15, shape: 'melon', leaf: 0x4f9c3a, ripe: 0xf08a1c },
+  turmeric:    { name: 'Turmeric',    pa: 'Haldi',      icon: '🟡', level: 35, grow: 320, yield: 3, xp: 17, shape: 'root',  leaf: 0x4fae3a, ripe: 0xf2a900 },
+  saffron:     { name: 'Saffron',     pa: 'Kesar',      icon: '🌸', level: 40, grow: 400, yield: 1, xp: 22, shape: 'low',   leaf: 0x6aa83c, ripe: 0xa05bd6 },
 };
+// Seed and selling prices come from one formula, so no crop can cost more to sow than it earns.
+// gross = what one plant is worth = rate(level) × tier × (grow time + 8 s of work); the crop's
+// yield splits it into a price per item, and the seed costs a tier-based share of it (rare
+// crops cost more to sow but pay back more). The twelve crops from before keep their old price
+// whenever it was better for the player, so no farm is nerfed: sells only go up, seeds only
+// go down, and a seed never costs more than half of one crop's selling price.
+export const CROP_TIER = { wheat: 0, carrot: 0, potato: 0, tomato: 0, maize: 0, peas: 0, mustard: 1, strawberry: 1, sugarcane: 1, rice: 1, cauliflower: 1, chilli: 1, onion: 1, garlic: 1, peanut: 1, sunflower: 1, pumpkin: 1, watermelon: 2, cotton: 2, turmeric: 2, saffron: 3 };
+export const TIER_NAMES = ['Staple', 'Cash crop', 'Premium', 'Rare'];
+export const TIER_SHARE = [0.12, 0.16, 0.2, 0.26];
+const TIER_MUL = [1, 1.08, 1.2, 1.5];
+export const cropRate = (level, tier) => (0.4 + 0.006 * level) * TIER_MUL[tier];
+export const cropGross = (c) => cropRate(c.level, c.tier) * (c.grow + 8);
+for (const [id, c] of Object.entries(CROPS)) {
+  c.tier = CROP_TIER[id] ?? 1;
+  const gross = cropGross(c);
+  const sell = Math.max(c.sell || 0, Math.round(gross / c.yield));
+  let seed = Math.max(1, Math.round(gross * TIER_SHARE[c.tier]));
+  if (c.seed) seed = Math.min(seed, c.seed);
+  c.sell = sell;
+  c.seed = Math.max(1, Math.min(seed, Math.floor(sell / 2)));
+}
 
 export const PRODUCTS = {
   egg:      { name: 'Egg',       pa: 'Anda',     icon: '🥚', price: 14,  color: 0xfff1d6 },
@@ -51,7 +76,11 @@ export const PRODUCTS = {
   jam:      { name: 'Strawberry Jam', pa: 'Jam', icon: '🥫', price: 135, color: 0xc0182a },
   phulkari: { name: 'Phulkari',  pa: 'Phulkari', icon: '🧣', price: 330, color: 0xff6a1a },
   khes:     { name: 'Khes Blanket', pa: 'Khes',  icon: '🛏️', price: 300, color: 0x3a6fd8 },
-  mithai:   { name: "Gopal's Mithai Box", pa: 'Mithai da Dabba', icon: '🎁', price: 300, color: 0xff6fae },
+  mango:    { name: 'Mango',     pa: 'Amb',      icon: '🥭', price: 46,  color: 0xffb627 },
+  guava:    { name: 'Guava',     pa: 'Amrood',   icon: '🍐', price: 30,  color: 0xb9e07a },
+  orange:   { name: 'Orange',    pa: 'Santra',   icon: '🍊', price: 40,  color: 0xff9f1c },
+  jamun:    { name: 'Jamun',     pa: 'Jamun',    icon: '🫐', price: 36,  color: 0x5b2a86 },
+  ber:      { name: 'Ber',       pa: 'Ber',      icon: '🍒', price: 24,  color: 0xc9893a },  mithai:   { name: "Gopal's Mithai Box", pa: 'Mithai da Dabba', icon: '🎁', price: 300, color: 0xff6fae },
 };
 
 // Unified item table: crops sell at their crop price.
@@ -327,6 +356,14 @@ export const QUESTS = [
   { type: 'level',   n: 40, text: 'Reach level 40', reward: 12000 },
   { type: 'make',    n: 20, key: 'phulkari', text: 'Embroider 20 phulkaris', target: 'khaddi', reward: 15000 },
   { type: 'level',   n: 50, text: 'Reach level 50 — the Maharaja of Patiala farming', reward: 25000 },
+  { type: 'rose',    n: 8, text: 'Find 8 hidden roses in Baradari Gardens', target: 'baradari', reward: 6000 },
+  { type: 'wish',    n: 1, text: 'Make a wish at the Baradari fountain', target: 'baradari', reward: 3000 },
+  { type: 'decorPlaced', n: 5, text: 'Decorate your farm: place 5 items from Shop → Garden', reward: 8000 },
+  { type: 'fruit',   n: 12, text: 'Pick 12 fruits from your own fruit trees', reward: 10000 },
+  { type: 'caseClosed', n: 1, text: 'Settle a theft case with the police (if a thief strikes)', target: 'police', reward: 12000 },
+  { type: 'gardenDone', n: 3, text: 'Complete the Baradari rose challenge 3 days', target: 'baradari', reward: 20000 },
+  { type: 'level',   n: 55, text: 'Reach level 55', reward: 40000 },
+  { type: 'level',   n: 60, text: 'Reach level 60 — Maharaja of the whole of Punjab', reward: 80000 },
 ];
 
 export const ACHIEVEMENTS = [
@@ -350,6 +387,9 @@ export const ACHIEVEMENTS = [
   { id: 'orders100', text: 'Complete 100 orders',       stat: 'orders', n: 100 },
   { id: 'soul1000', text: 'Earn 1,000 soul points',     stat: 'soul', n: 1000 },
   { id: 'langar1000', text: 'Give 1,000 items to the Langar', stat: 'langar', n: 1000 },
+  { id: 'roses50', text: 'Collect 50 Baradari roses', stat: 'roses', n: 50 },
+  { id: 'decor25', text: 'Place 25 decorations', stat: 'decor', n: 25 },
+  { id: 'caught1', text: 'Get your goods back from a thief', stat: 'caught', n: 1 },
 ];
 
 export const CUSTOMER_LINES = [
@@ -537,6 +577,108 @@ export const SOCIAL = {
   boardKeep: 30, historyKeep: 60, onlineFor: 90,                          // seconds since last seen = "online"
 };
 
+// ---------------------------------------------------------------- level rewards
+// Every level from the update on pays a gift (older levels were passed before it existed).
+// Levels carry on without end; the content (crops, decorations, statues) runs up to level 60.
+export const levelGift = (level) => ({
+  money: Math.round(30 * Math.pow(level, 1.4) / 10) * 10,
+  tokens: level >= 10 && level % 5 === 0 ? 2 + Math.floor((level - 10) / 5) : 0,
+});
+
+// ---------------------------------------------------------------- farm decoration shop
+// cat: tree | flower | light | water | seat | path | fence | gate | statue | orn | season | royal
+// r: room it needs (m); solid: collision radius (0 = walk through); tokens: costs Baradari
+// roses instead of rupees; fruit: a tree that ripens (every s seconds, n pieces) and is picked by hand;
+// glow: [height, size] lamp glow at dusk; spray: a fountain that sprays.
+export const DECOR_MAX = 120;
+export const DECOR_REFUND = 0.5;
+export const DECOR_CATS = [['tree', '🌳 Trees'], ['flower', '🌼 Flowers'], ['light', '💡 Lights'], ['water', '⛲ Water'], ['seat', '🪑 Seating'], ['path', '🟫 Paths'], ['fence', '🚧 Fences & gates'], ['statue', '🗿 Statues'], ['orn', '🏺 Ornaments'], ['season', '🪔 Seasonal'], ['royal', '👑 Baradari specials']];
+export const DECOR = {
+  neem:      { name: 'Neem tree', icon: '🌳', cat: 'tree', cost: 250, level: 3, r: 1.3, solid: 0.35, desc: 'Cool shade, the village favourite' },
+  ashoka:    { name: 'Ashoka tree', icon: '🌲', cat: 'tree', cost: 350, level: 5, r: 1.0, solid: 0.3, desc: 'Tall and slim, lines a path well' },
+  peepal:    { name: 'Peepal tree', icon: '🌳', cat: 'tree', cost: 400, level: 6, r: 1.7, solid: 0.45, desc: 'Heart-shaped leaves that rustle' },
+  mango:     { name: 'Mango tree', icon: '🥭', cat: 'tree', cost: 900, level: 8, r: 1.6, solid: 0.4, fruit: { item: 'mango', every: 420, n: 4 }, desc: 'Ripens mangoes you pick by hand' },
+  guava:     { name: 'Guava tree', icon: '🍐', cat: 'tree', cost: 700, level: 8, r: 1.3, solid: 0.3, fruit: { item: 'guava', every: 360, n: 4 }, desc: 'Ripens guavas you pick by hand' },
+  ber:       { name: 'Ber tree', icon: '🍒', cat: 'tree', cost: 600, level: 10, r: 1.2, solid: 0.3, fruit: { item: 'ber', every: 300, n: 5 }, desc: 'Ripens sweet ber you pick by hand' },
+  gulmohar:  { name: 'Gulmohar', icon: '🌺', cat: 'tree', cost: 800, level: 10, r: 1.8, solid: 0.4, desc: 'A red umbrella of flowers' },
+  orange:    { name: 'Orange tree', icon: '🍊', cat: 'tree', cost: 1100, level: 12, r: 1.4, solid: 0.35, fruit: { item: 'orange', every: 480, n: 4 }, desc: 'Ripens santre you pick by hand' },
+  palm:      { name: 'Date palm', icon: '🌴', cat: 'tree', cost: 700, level: 12, r: 1.2, solid: 0.25, desc: 'Sways in the breeze' },
+  jamun:     { name: 'Jamun tree', icon: '🫐', cat: 'tree', cost: 1000, level: 14, r: 1.6, solid: 0.4, fruit: { item: 'jamun', every: 480, n: 4 }, desc: 'Ripens purple jamun you pick by hand' },
+  bamboo:    { name: 'Bamboo clump', icon: '🎋', cat: 'tree', cost: 500, level: 15, r: 1.2, solid: 0.5, desc: 'Green stalks, gentle wind sounds' },
+  banyan:    { name: 'Banyan tree', icon: '🌳', cat: 'tree', cost: 6000, level: 30, r: 3.4, solid: 1.0, desc: 'A grand tree with hanging roots' },
+  pot:       { name: 'Potted plant', icon: '🪴', cat: 'flower', cost: 80, level: 2, r: 0.6, desc: 'A matka with a green plant' },
+  marigold:  { name: 'Marigold bed', icon: '🌼', cat: 'flower', cost: 120, level: 2, r: 1.0, desc: 'Orange genda flowers' },
+  rose:      { name: 'Rose bed', icon: '🌹', cat: 'flower', cost: 160, level: 3, r: 1.0, desc: 'Red and pink gulab' },
+  mogra:     { name: 'Mogra bush', icon: '🤍', cat: 'flower', cost: 140, level: 4, r: 0.8, desc: 'White jasmine, sweet at dusk' },
+  tulsi:     { name: 'Tulsi chaura', icon: '🌱', cat: 'flower', cost: 300, level: 4, r: 0.9, solid: 0.45, desc: 'Holy basil on a brick platform' },
+  hedge:     { name: 'Topiary hedge', icon: '🌿', cat: 'flower', cost: 200, level: 5, r: 0.9, solid: 0.5, desc: 'A trimmed round hedge' },
+  sunflowers: { name: 'Sunflower patch', icon: '🌻', cat: 'flower', cost: 180, level: 6, r: 1.0, desc: 'Faces the sun' },
+  lotus:     { name: 'Lotus pot', icon: '🪷', cat: 'flower', cost: 260, level: 8, r: 0.9, desc: 'A pink kamal on still water' },
+  diya:      { name: 'Diya stand', icon: '🪔', cat: 'light', cost: 150, level: 3, r: 0.5, glow: [0.7, 0.7], desc: 'A little flame that glows at dusk' },
+  lamp:      { name: 'Garden lamp', icon: '💡', cat: 'light', cost: 300, level: 4, r: 0.5, solid: 0.12, glow: [2.5, 1.5], desc: 'A lamp post that lights up at dusk' },
+  lantern:   { name: 'Stone lantern', icon: '🏮', cat: 'light', cost: 450, level: 9, r: 0.6, solid: 0.25, glow: [1.2, 1.0], desc: 'Warm light from carved stone' },
+  birdbath:  { name: 'Bird bath', icon: '🐦', cat: 'water', cost: 600, level: 7, r: 0.9, solid: 0.35, desc: 'Birds come to splash' },
+  pond:      { name: 'Lily pond', icon: '💧', cat: 'water', cost: 2200, level: 10, r: 2.2, solid: 1.5, desc: 'Water lilies and stepping stones' },
+  fountain:  { name: 'Fountain', icon: '⛲', cat: 'water', cost: 4500, level: 12, r: 2.6, solid: 1.35, spray: true, desc: 'A tiered fountain with a spray' },
+  bench:     { name: 'Bench', icon: '🪑', cat: 'seat', cost: 350, level: 3, r: 1.1, desc: 'A wooden bench, sit and chat' },
+  charpai:   { name: 'Charpai', icon: '🛏️', cat: 'seat', cost: 450, level: 4, r: 1.3, desc: 'A rope cot for the afternoon' },
+  picnic:    { name: 'Picnic table', icon: '🍽️', cat: 'seat', cost: 600, level: 6, r: 1.5, solid: 0.7, desc: 'Table with two benches' },
+  stoneseats: { name: 'Stone seating', icon: '🪨', cat: 'seat', cost: 700, level: 7, r: 1.3, desc: 'Three round stone stools' },
+  jhoola:    { name: 'Jhoola (swing)', icon: '🎠', cat: 'seat', cost: 1200, level: 9, r: 1.6, solid: 0.3, desc: 'A wooden swing that sways' },
+  brick:     { name: 'Brick path', icon: '🧱', cat: 'path', cost: 30, level: 2, r: 0.8, desc: 'Red brick paving' },
+  slab:      { name: 'Stone slab', icon: '⬜', cat: 'path', cost: 40, level: 2, r: 0.8, desc: 'Grey stone paving' },
+  marble:    { name: 'Marble tile', icon: '🤍', cat: 'path', cost: 90, level: 10, r: 0.8, desc: 'Polished white marble' },
+  fence:     { name: 'Wooden fence', icon: '🚧', cat: 'fence', cost: 60, level: 2, r: 1.3, desc: 'A short run of wooden fence' },
+  ironfence: { name: 'Iron railing', icon: '⛓️', cat: 'fence', cost: 140, level: 8, r: 1.3, desc: 'Black iron with gold tips' },
+  gate:      { name: 'Wooden gate', icon: '🚪', cat: 'fence', cost: 400, level: 5, r: 1.5, desc: 'A gate between two posts' },
+  arch:      { name: 'Phulkari arch', icon: '🌈', cat: 'fence', cost: 1400, level: 11, r: 1.6, desc: 'A bright archway to walk under' },
+  horse:     { name: 'Horse statue', icon: '🐎', cat: 'statue', cost: 5000, level: 15, r: 1.6, solid: 0.7, desc: 'Patiala is proud of its horses' },
+  lion:      { name: 'Lion statue', icon: '🦁', cat: 'statue', cost: 6000, level: 18, r: 1.4, solid: 0.6, desc: 'A stone sher on a plinth' },
+  maharaja:  { name: 'Maharaja bust', icon: '👑', cat: 'statue', cost: 9000, level: 22, r: 1.2, solid: 0.5, desc: 'A turbaned royal on a marble pillar' },
+  matkas:    { name: 'Matka stack', icon: '🏺', cat: 'orn', cost: 120, level: 3, r: 0.8, solid: 0.3, desc: 'Clay pots in a pile' },
+  charkha:   { name: 'Charkha', icon: '🧵', cat: 'orn', cost: 350, level: 7, r: 0.8, solid: 0.3, desc: 'A spinning wheel for the veranda' },
+  cart:      { name: 'Bullock cart', icon: '🛒', cat: 'orn', cost: 900, level: 9, r: 1.8, solid: 0.9, desc: 'An old wooden gaddi' },
+  rangoli:   { name: 'Rangoli', icon: '🎨', cat: 'season', cost: 90, level: 5, r: 1.0, desc: 'Coloured patterns on the ground' },
+  bonfire:   { name: 'Lohri bonfire', icon: '🔥', cat: 'season', cost: 300, level: 5, r: 1.1, glow: [0.8, 2.2], desc: 'A crackling fire for Lohri nights' },
+  diyaring:  { name: 'Diwali diyas', icon: '🪔', cat: 'season', cost: 250, level: 5, r: 1.0, glow: [0.4, 1.4], desc: 'A ring of lit diyas' },
+  flags:     { name: 'Baisakhi flags', icon: '🚩', cat: 'season', cost: 180, level: 5, r: 0.9, solid: 0.12, desc: 'A saffron nishan on a pole' },
+  royalfountain: { name: 'Royal fountain', icon: '⛲', cat: 'royal', tokens: 60, level: 5, r: 3.0, solid: 1.6, spray: true, desc: 'The Baradari fountain: marble, gold and a tall spray' },
+  marblebench: { name: 'Marble bench', icon: '🪑', cat: 'royal', tokens: 20, level: 5, r: 1.3, desc: 'Carved white marble with lion arms' },
+  rosearch:  { name: 'Rose arch', icon: '🌹', cat: 'royal', tokens: 30, level: 5, r: 1.6, desc: 'An arch covered in climbing roses' },
+  goldlamp:  { name: 'Golden lamp', icon: '✨', cat: 'royal', tokens: 25, level: 5, r: 0.6, solid: 0.15, glow: [3.0, 1.9], desc: 'A royal lamp post with a golden crown' },
+  peacock:   { name: 'Peacock statue', icon: '🦚', cat: 'royal', tokens: 45, level: 5, r: 1.3, solid: 0.5, desc: 'A proud mor with a jewelled tail' },
+  royalpond: { name: 'Royal lotus pond', icon: '🪷', cat: 'royal', tokens: 50, level: 5, r: 2.6, solid: 1.6, desc: 'Marble-edged pond full of lotuses' },
+  minibaradari: { name: 'Mini baradari', icon: '🏛️', cat: 'royal', tokens: 120, level: 5, r: 3.2, solid: 1.5, desc: 'A small arched pavilion of your own' },
+};
+
+// ---------------------------------------------------------------- Baradari Gardens
+export const GARDEN = {
+  level: 5, centre: [29.5, -49.5], w: 21, d: 27,
+  wishCost: 10, roses: 8, rosesBonus: { tokens: 5 }, sitSecs: 7, sitBonus: 12,
+};
+
+// ---------------------------------------------------------------- Police Station and thieves
+// Every `every` seconds of play there is a 10% chance of a thief. He takes 10% of every kind of
+// goods in the godown that you hold at least `minStack` of. One case at a time, a cooldown after
+// each theft, and the goods are kept safe in the case until the thief is caught.
+export const POLICE = {
+  level: 6, every: 240, chance: 0.1, take: 0.1, minStack: 10, minTotal: 3, minGodown: 30, cooldown: 1500,
+  probeSecs: [240, 420], trustCut: 0.1, trustMax: 4,
+  rewards: {
+    confront: { xp: 8, trust: -1 },
+    forgive: { soul: 15, thanks: 0.15 },
+    police: { reward: 0.05, trust: 1 },
+  },
+  spot: [-31, 37],
+};
+
+// ---------------------------------------------------------------- weather
+export const WEATHER = {
+  odds: { sunny: 0.46, cloudy: 0.24, rain: 0.18, storm: 0.12 },
+  stormWindow: [0.42, 0.64],             // the thunderstorm part of the day
+  warnAt: 0.3,                           // a last warning this far into a storm day
+  maxRain: 380,
+};
 // Friends trade with share links. Limits keep trades fair: per link and per day.
 export const TRADE = {
   linksPerDay: 5,

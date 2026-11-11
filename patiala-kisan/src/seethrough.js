@@ -16,6 +16,7 @@ export class SeeThrough {
   constructor(game) {
     this.game = game;
     this.h = new Float32Array(N * N);
+    this.dh = new Float32Array(N * N);        // movable things (decorations), redone whenever they change
     this.amount = 0;
   }
 
@@ -45,7 +46,12 @@ export class SeeThrough {
   addBox(x0, z0, x1, z1, top) {
     for (let z = cell(z0); z <= cell(z1); z++) for (let x = cell(x0); x <= cell(x1); x++) { const k = z * N + x; if (top > this.h[k]) this.h[k] = top; }
   }
-  height(x, z) { return this.h[cell(z) * N + cell(x)]; }
+  // boxes [x0, z0, x1, z1, top] for trees and statues that can be placed, moved and taken down
+  setDynamic(list) {
+    this.dh.fill(0);
+    for (const [x0, z0, x1, z1, top] of list) for (let z = cell(z0); z <= cell(z1); z++) for (let x = cell(x0); x <= cell(x1); x++) { const k = z * N + x; if (top > this.dh[k]) this.dh[k] = top; }
+  }
+  height(x, z) { const k = cell(z) * N + cell(x); return Math.max(this.h[k], this.dh[k]); }
 
   // Is something between the camera and this point? March towards the camera.
   blocked(p, y, cam) {

@@ -7,7 +7,7 @@
 //    friend accepts and sends back a reply link that pays you.
 // Limits per link and per day (config TRADE) keep the trading fair.
 import { CROPS, FIELDS, PENS, BUILDINGS, VEHICLES, MANAGERS, ITEMS, SOUL_PERKS, BAGS, CANS, STORAGE, STALL, QUESTS, TRADE, TURBAN_COLORS, SCARECROW_DESIGNS, SCARECROW_LEVELS, SCARECROW_MAX,
-  BUILDING_UPGRADES, TRACTOR_HP, MANAGER_RANKS } from './config.js';
+  BUILDING_UPGRADES, TRACTOR_HP, MANAGER_RANKS, DECOR, DECOR_MAX } from './config.js';
 import { newState, makeId, tradeLimitError, noteTradeSent, redeemOnce, roomFor, receive, take, have, rating, itemCount, itemsValue } from './state.js';
 import { pack, unpack } from './codec.js';
 
@@ -51,7 +51,8 @@ function clean(o) {
 
 // ---------------------------------------------------------------- farm snapshots
 const growMul = (st) => 1 + SOUL_PERKS.reduce((a, p) => a + (st.soul >= p.at ? p.grow || 0 : 0), 0);
-const PLOT_CHARS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+// 0 and 1 mean untilled and tilled; the rest spell crop × stage (the first 52 are what older links use)
+const PLOT_CHARS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ23456789-_.~';
 
 export function snapshot(st) {
   const cl = [], now = Date.now(), gm = growMul(st);
@@ -78,6 +79,8 @@ export function snapshot(st) {
     mg: Object.fromEntries(Object.entries(st.managers).filter(([, m]) => m.on).map(([id, m]) => [id, m.rank])), sr: st.seeriRank,
     u: [st.up.bag, st.up.can, st.up.storage, st.up.stall], sl: stall,
     g: [st.guru.streak, Object.keys(st.ach).length], ts: Date.now(),
+    // decorations: [kind index (DECOR keys only ever grow at the end), x×10, z×10, turn×10], at most 80
+    dc: (st.decor || []).slice(0, 80).map((d) => [Object.keys(DECOR).indexOf(d.k), Math.round(d.x * 10), Math.round(d.z * 10), Math.round((d.ry || 0) * 10)]),
     sc: (st.scarecrows || []).map((c) => [Math.round(c.x * 10), Math.round(c.z * 10), c.lvl, Object.keys(SCARECROW_DESIGNS).indexOf(c.d)]),
   };
 }
@@ -132,6 +135,9 @@ export function visitState(snap, mine = null) {
   const designs = Object.keys(SCARECROW_DESIGNS);
   s.scarecrows = (Array.isArray(snap.sc) ? snap.sc : []).slice(0, SCARECROW_MAX).filter((c) => Array.isArray(c) && designs[c[3]])
     .map((c, i) => ({ id: 'v' + i, x: num(c[0], -600, 600) / 10, z: num(c[1], -600, 600) / 10, lvl: num(c[2], 0, SCARECROW_LEVELS.length - 1), d: designs[c[3]] }));
+  const dkeys = Object.keys(DECOR);
+  s.decor = (Array.isArray(snap.dc) ? snap.dc : []).slice(0, DECOR_MAX).filter((c) => Array.isArray(c) && dkeys[c[0]])
+    .map((c, i) => ({ id: 'd' + i, k: dkeys[c[0]], x: num(c[1], -800, 800) / 10, z: num(c[2], -1000, 800) / 10, ry: num(c[3], -70, 70) / 10, t: 0 }));
   s.saved = now;
   return s;
 }

@@ -6,6 +6,7 @@ const EVENT_FOR = {
   till: 'till', plant: 'plant', water: 'water', harvest: 'harvest', stock: 'stock', collect: 'collect', bow: 'bow',
   buySeed: 'buySeed', upgrade: 'upgrade', buyField: 'buyField', order: 'order', langar: 'langar', build: 'build',
   product: 'product', make: 'make', vehicle: 'vehicle', tractor: 'tractorWork', hire: 'hire',
+  rose: 'rose', wish: 'wish', decorPlaced: 'decorPlaced', fruit: 'fruit', caseClosed: 'caseClosed', gardenDone: 'gardenDone',
 };
 
 const DAILY_POOL = [
@@ -40,7 +41,7 @@ export class Progression {
     const g = this.game, st = g.state, q = this.quest;
     if (g.visit) return;
     if (q && EVENT_FOR[q.type] === ev && (!q.key || q.key === d.key)) {
-      st.questProg += d.n && (ev === 'make' || ev === 'product') ? d.n : 1;
+      st.questProg += d.n && (ev === 'make' || ev === 'product' || ev === 'fruit') ? d.n : 1;
       g.ui.questBar();
     }
     // daily goals
@@ -114,6 +115,7 @@ export class Progression {
     const g = this.game, st = g.state;
     st.stats.soul = st.soul;
     st.stats.streak = Math.max(st.stats.streak || 0, st.guru.streak);
+    st.stats.roses = st.garden.total; st.stats.decor = st.decor.length; st.stats.caught = st.police.stats.caught;
     for (const a of ACHIEVEMENTS) {
       if (st.ach[a.id]) continue;
       if ((st.stats[a.stat] || 0) >= a.n) {

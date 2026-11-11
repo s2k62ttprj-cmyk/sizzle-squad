@@ -5,6 +5,8 @@
 //  - chat one to one, see who is online and when they were last seen; block and report
 //  - leave messages on each other's farm guestbook (the owner can delete any of them)
 //  - ride the ring road together: friends riding at the same time appear on their Bullets
+//  - meet on the farm: when you visit a friend who is online (or they visit you), your two characters
+//    appear in the same farm, walk up to each other, talk in speech bubbles and chat in real time
 // Everything is limited and filtered (config SOCIAL, moderation.js), and the database rules in
 // database.rules.json only let friends gift and chat, and only owners change their own data.
 import * as THREE from 'three';
@@ -33,10 +35,14 @@ export class Social {
     this.msgs = {};          // uid → [{ id, from, text, at }]
     this.unread = {};        // uid → count
     this.board = [];         // posts on the guestbook being looked at
-    this.riders = {};        // uid → a friend's Bullet on the ring road
+    this.riders = {};        // uid → a friend''s Bullet on the ring road
+    this.others = {};        // uid → a friend's character walking in the farm you are in (a visitor, or the host)
+    this.nearOther = null;
     this.subs = [];
     this.sent = { t: 0, n: 0 };
     if (this.on) this.start().catch((e) => { console.warn('online', e); this.error = e.message; game.ui.socialChanged?.(); });
+    if (this.on) game.labels.add(() => (this.myBubble ? esc(this.myBubble.text) : ''), () => _lp.set(game.player.pos.x, 2.7, game.player.pos.z), 'bubble', 40);
+    if (this.on) game.actions.add({ label: () => `💬 Talk to ${clean(this.friends[this.nearOther]?.name || 'your friend', 14)}`, pos: () => this.others[this.nearOther]?.pos || { x: 1e5, z: 1e5 }, r: 3.6, visitOk: true, visible: () => !!this.nearOther && !!this.others[this.nearOther], onPress: () => this.talk(this.nearOther) });
     if (this.on) game.actions.add({ label: () => '📝 Guestbook', x: POS.guestbook[0], z: POS.guestbook[1] + 1.2, r: 1.8, visitOk: true, onPress: () => this.openBoard() });
   }
   get st() { return this.game.state; }
@@ -51,6 +57,7 @@ export class Social {
     this.uid = (user || (await A.signInAnonymously(this.auth)).user).uid;
     if (!this.game.visit) { await this.register(); this.listen(); }
     this.ready = true;
+    if (this.game.visit) this.visitLive().catch((e) => console.warn('visit live', e));
     this.game.ui.socialChanged?.();
   }
   ref(path) { return this.D.ref(this.db, path); }
@@ -116,6 +123,7 @@ export class Social {
       const m = s.val();
       if (!m) return;
       (this.msgs[id] ||= []).push({ id: s.key, from: m.from, text: clean(m.text, SOCIAL.chatLen), at: m.at });
+      if (Date.now() - (m.at || 0) < 20000) this.bubble(m.from === me ? 'me' : id, clean(m.text, 70));
       if (m.from !== me && this.game.ui.chatWith !== id && Date.now() - (m.at || 0) < 120000) {
         this.unread[id] = (this.unread[id] || 0) + 1;
         this.game.audio.play('pop');
@@ -128,7 +136,7 @@ export class Social {
   unfollow(id) {
     for (const off of this.friends[id]?.subs || []) off();
     delete this.friends[id];
-    this.dropRider(id);
+    this.dropRider(id); this.dropOther(id);
   }
   changed() { this.game.ui.socialChanged?.(); }
 
@@ -269,24 +277,115 @@ export class Social {
   }
   async unpost(owner, id) { await this.D.remove(this.ref(`boards/${owner}/${id}`)); }
 
-  // ---------- riding together: share where I am while on the ring road, show friends who ride
+  // ---------- being in the same farm: a visitor and the host (when both are online) see each other
+  // The visit page works out who owns the farm and follows them; both sides then share their position
+  // a few times a second through presence/{uid} (friends can read it, only the owner can write it).
+  async visitLive() {
+    const g = this.game, D = this.D, me = this.uid;
+    const owner = await this.ownerOf(g.visit.from);
+    if (!owner || owner === me) return;
+    this.host = owner;
+    const [a, b] = await Promise.all([D.get(this.ref(`friends/${me}/${owner}`)), D.get(this.ref(`friends/${owner}/${me}`))]);
+    this.hostMutual = a.exists() && b.exists();
+    if (this.hostMutual) this.follow(owner);
+    else this.subs.push(D.onValue(this.ref(`players/${owner}`), (s) => { this.hostProfile = s.val() || {}; this.changed(); }));
+    D.onDisconnect(this.ref(`presence/${me}`)).remove();
+    // a visitor is online too: keep their profile fresh while they are in a friend's farm
+    const beat = () => D.update(this.ref(`players/${me}`), { online: true, at: D.serverTimestamp() }).catch(() => {});
+    beat();
+    D.onDisconnect(this.ref(`players/${me}/online`)).set(false);
+    this.beat = setInterval(beat, 60000);
+    this.changed();
+  }
+  // a line for the visit bar: is the friend here right now?
+  hostStatus() {
+    if (!this.host) return '';
+    const f = this.hostMutual ? this.friends[this.host] : this.hostProfile;
+    if (!f) return '';
+    const on = isOnline(f);
+    if (!on) return '⚪ Offline · the farm is as they left it';
+    if (!this.hostMutual) return '🟢 Online · add each other as friends to meet';
+    return this.others[this.host] ? '🟢 Here with you · walk up to say hi' : '🟢 Online · waiting for them to appear…';
+  }
+  talk(id) {
+    const g = this.game;
+    if (!id || !this.friends[id]?.mutual) return;
+    g.ui.chatWith = id; this.read(id);
+    g.ui.open('chat');
+  }
+  bubble(id, text) { const o = this.others[id] || (id === 'me' ? { me: true } : null); if (!o) return; if (id === 'me') { this.myBubble = { text, t: 6 }; return; } o.bubble = { text, t: 6 }; }
+
+  // ---------- each frame: share where I am, show friends who ride or walk in this farm
   update(dt) {
-    if (!this.ready || this.game.visit) return;
-    const g = this.game, v = g.player.vehicle;
+    if (!this.ready) return;
+    const g = this.game, v = g.player.vehicle, p = g.player.pos, now = Date.now();
     this.presT = (this.presT || 0) - dt;
-    const riding = v?.kind === 'bike';
-    if (this.presT <= 0 && (riding || this.wasRiding)) {
+    if (this.myBubble) { this.myBubble.t -= dt; if (this.myBubble.t <= 0) this.myBubble = null; }
+    const visiting = !!g.visit && !!this.host;
+    const riding = !g.visit && v?.kind === 'bike';
+    const hosting = !g.visit && Object.keys(this.others).length > 0;
+    const sending = visiting || riding || hosting;
+    if (this.presT <= 0 && (sending || this.wasSending)) {
       this.presT = 0.3;
-      const p = g.player.pos;
-      this.D.set(this.ref(`presence/${this.uid}`), riding ? { x: +p.x.toFixed(2), z: +p.z.toFixed(2), r: +v.rot.toFixed(2), s: +v.speed.toFixed(1), at: Date.now(), paint: this.st.aura.paint || '' } : null).catch(() => {});
-      this.wasRiding = riding;
+      let data = null;
+      if (visiting || (hosting && !riding)) data = { m: 'walk', x: +p.x.toFixed(2), z: +p.z.toFixed(2), r: +g.player.rot.toFixed(2), s: +(g.player.speed || 0).toFixed(1), at: now, n: this.st.name, t: this.st.turban, v: visiting ? this.host : null, f: visiting ? null : this.uid };
+      else if (riding) data = { x: +p.x.toFixed(2), z: +p.z.toFixed(2), r: +v.rot.toFixed(2), s: +v.speed.toFixed(1), at: now, paint: this.st.aura.paint || '', f: hosting ? this.uid : null };
+      this.D.set(this.ref(`presence/${this.uid}`), data).catch(() => {});
+      this.wasSending = sending;
     }
-    const now = Date.now();
+    let near = null, nd = 3.6;
     for (const [id, f] of Object.entries(this.friends)) {
-      const r = f.ride;
-      if (r && now - r.at < 5000 && f.mutual) this.showRider(id, f, r, dt);
-      else this.dropRider(id);
+      const r = f.ride, fresh = r && now - r.at < 6000 && f.mutual;
+      const walking = fresh && r.m === 'walk' && (g.visit ? id === this.host && r.f === id : r.v === this.uid);
+      const riding2 = fresh && r.m !== 'walk' && !g.visit;
+      const hostRiding = fresh && r.m !== 'walk' && g.visit && id === this.host && r.f === id;
+      if (walking) {
+        const o = this.showOther(id, f, r, dt);
+        const d = Math.hypot(o.x - p.x, o.z - p.z);
+        if (d < nd) { nd = d; near = id; }
+      } else this.dropOther(id);
+      if (riding2 || hostRiding) this.showRider(id, f, r, dt); else this.dropRider(id);
     }
+    this.nearOther = near;
+    if (g.visit && this.host && !this.friends[this.host]) this.dropOther(this.host);
+  }
+  // a friend's character walking about in this farm
+  showOther(id, f, r, dt) {
+    const g = this.game;
+    let o = this.others[id];
+    if (!o) {
+      const h = makeHuman({ turban: new THREE.Color(r.t || f.turban || '#e8590c').getHex(), shirt: 0xf7f3e8, pants: 0xf2eee2, vest: 0x2f5d8a });
+      h.group.traverse((m) => { if (m.isMesh && m !== h.blob) m.castShadow = true; });
+      g.scene.add(h.group);
+      o = this.others[id] = { h, pos: h.group.position, x: r.x, z: r.z, rot: r.r, t: Math.random() * 9, spd: 0 };
+      o.pos.set(r.x, 0, r.z);
+      o.label = g.labels.add(() => {
+        const live = this.friends[id];
+        return `<b>${live && isOnline(live) ? '🟢' : '⚪'} ${clean(live?.name || r.n || 'Friend', 14)}</b>${o.bubble ? `<br><small>${esc(o.bubble.text)}</small>` : ''}`;
+      }, () => _lp.set(o.x, 2.55, o.z), 'mgr', 40);
+      g.audio.play('tring');
+      g.ui.toast(g.visit ? `👋 ${clean(f.name, 14)} is here! Walk up to say hi` : `👋 ${clean(f.name, 14)} is visiting your farm!`, 3.2);
+      g.ui.socialChanged?.();
+    }
+    const k = Math.min(1, dt * 7), ox = o.x, oz = o.z;
+    o.x += (r.x - o.x) * k; o.z += (r.z - o.z) * k;
+    let d = (r.r ?? o.rot) - o.rot; d = Math.atan2(Math.sin(d), Math.cos(d)); o.rot += d * Math.min(1, dt * 9);
+    const sp = Math.hypot(o.x - ox, o.z - oz) / Math.max(dt, 1e-3);
+    o.spd += (Math.min(6.2, sp) - o.spd) * Math.min(1, dt * 8);
+    o.pos.set(o.x, 0, o.z);
+    o.h.group.rotation.y = o.rot;
+    o.t += dt;
+    animateHuman(o.h, o.t, o.spd);
+    if (o.bubble) { o.bubble.t -= dt; if (o.bubble.t <= 0) o.bubble = null; }
+    return o;
+  }
+  dropOther(id) {
+    const o = this.others[id];
+    if (!o) return;
+    this.game.scene.remove(o.h.group);
+    this.game.labels.remove(o.label);
+    delete this.others[id];
+    this.game.ui.socialChanged?.();
   }
   showRider(id, f, r, dt) {
     const g = this.game;
@@ -317,4 +416,4 @@ export class Social {
     delete this.riders[id];
   }
 }
-const _lp = new THREE.Vector3();
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));const _lp = new THREE.Vector3();

@@ -4,6 +4,8 @@
 import * as THREE from 'three';
 import { Builder } from './geo.js';
 import { TEX } from './shading.js';
+import { WEATHER } from './config.js';
+const RAIN_MAX = WEATHER.maxRain;
 
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _p = new THREE.Vector3(), _c = new THREE.Color();
 const _e = new THREE.Euler();
@@ -66,11 +68,11 @@ export class FX {
 
     // rain streaks
     const rg = new THREE.BoxGeometry(0.02, 0.55, 0.02);
-    this.rain = new THREE.InstancedMesh(rg, new THREE.MeshBasicMaterial({ color: 0xd4ecff, transparent: true, opacity: 0.55 }), 300);
+    this.rain = new THREE.InstancedMesh(rg, new THREE.MeshBasicMaterial({ color: 0xd4ecff, transparent: true, opacity: 0.55 }), RAIN_MAX);
     this.rain.frustumCulled = false;
     this.rain.count = 0;
     scene.add(this.rain);
-    this.drops = Array.from({ length: 300 }, () => ({ x: (Math.random() - 0.5) * 30, y: Math.random() * 14, z: (Math.random() - 0.5) * 30 }));
+    this.drops = Array.from({ length: RAIN_MAX }, () => ({ x: (Math.random() - 0.5) * 30, y: Math.random() * 14, z: (Math.random() - 0.5) * 30 }));
   }
 
   emit(x, y, z, { n = 8, color = 0x8a5a32, speed = 2.5, up = 3, life = 0.6, size = 1, gravity = 9, spread = 0.3 } = {}) {
@@ -97,7 +99,9 @@ export class FX {
   smoke(x, y, z, color = 0xbdbdbd) { this.puff(x, y, z, { color, size: 0.7, grow: 2.4, life: 2.6, rise: 0.8, drift: 0.25, alpha: 0.5 }); }
   dust(x, z, k = 1) { this.puff(x + (Math.random() - 0.5) * 0.4, 0.2, z + (Math.random() - 0.5) * 0.4, { color: 0xd8c09a, size: 0.5 * k, grow: 1.8, life: 0.9, rise: 0.25, drift: 0.35, alpha: 0.45 }); }
 
-  update(dt, center, raining) {
+  // weather: { rain 0..1, wind } (how many streaks fall, how fast, and how slanted)
+  update(dt, center, weather) {
+    const rainI = typeof weather === 'object' ? weather.rain : weather ? 0.6 : 0, wind = typeof weather === 'object' ? weather.wind : 1;
     let n = 0;
     for (let i = this.p.length - 1; i >= 0; i--) {
       const q = this.p[i];
@@ -144,12 +148,16 @@ export class FX {
     if (this.puffMesh.instanceColor) this.puffMesh.instanceColor.needsUpdate = true;
     al.needsUpdate = true;
 
-    if (raining) {
+    if (rainI > 0.04) {
       let i = 0;
+      const n = Math.floor(RAIN_MAX * Math.min(1, rainI)), slant = Math.min(0.45, (wind - 1) * 0.16 + rainI * 0.1), fall = 15 + rainI * 10;
+      _q.setFromEuler(_e.set(0, 0, slant));
       for (const d of this.drops) {
-        d.y -= dt * 17;
-        if (d.y < 0) { d.y = 12 + Math.random() * 3; d.x = (Math.random() - 0.5) * 32; d.z = (Math.random() - 0.5) * 36; }
-        _m.makeTranslation(center.x + d.x, d.y, center.z + d.z - 4);
+        if (i >= n) break;
+        d.y -= dt * fall;
+        d.x += dt * fall * slant;
+        if (d.y < 0) { d.y = 12 + Math.random() * 3; d.x = (Math.random() - 0.5) * 32 - slant * 8; d.z = (Math.random() - 0.5) * 36; }
+        _m.compose(_p.set(center.x + d.x, d.y, center.z + d.z - 4), _q, _s.set(1, 1, 1));
         this.rain.setMatrixAt(i++, _m);
       }
       this.rain.count = i;

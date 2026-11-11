@@ -12,14 +12,15 @@ export const BOUNDS = { x0: -56, x1: 51, z0: -76, z1: 57 };
 export const POS = {
   spawn: [2.5, 6],
   tubewell: [-4.5, -4.2], tank: [-4.5, -1.9], tankPad: [-4.5, -0.25],
-  stall: [10, -2], stallPad: [10, -4.9], pile: [14.2, -1.4],
+  stall: [10, -2], stallPad: [10, 1.9],        // the stock pad sits in front of (below) the stall
+   pile: [14.2, -1.4],
   arhtiya: [5.2, -6.6], arhtiyaPad: [5.2, -3.8], board: [14.6, 3.2],
   godown: [7, -18], godownPad: [7, -14.6],
   farmhouse: [5, 10], garage: [15, 10],
   guestbook: [7.7, 15.7],
   gate: [0, -30], sarovar: [0, -40], darbar: [0, -48.4], gurdwara: [0, -55], jodaGhar: [6.6, -27.6], footbath: [0, -28.4],
   langar: [-16, -47.5], langarPad: [-16, -43.2], nishan: [11, -47],
-  queue: [10, 0.4], customerSpawn: [10, 46],
+  queue: [12.7, 0.5], customerSpawn: [10, 46],    // customers line up beside the pad, at the counter's right end
   pens: { coop: [16, -20], tabela: [26, -20], bakri: [20, -8], bhed: [29, -8] },
   buildings: { chakki: [-11, 18.5], kohlu: [-4.5, 18.5], dairy: [5.5, 18.5], belna: [14.5, 18.5], dhaba: [21.5, 18.5], halwai: [28.5, 18.5], khaddi: [35.5, 18.5] },
   // manager desks (hire spot, and where each manager waits when idle)
@@ -32,6 +33,7 @@ export const FLY_Z = POS.flyZ, FLY_Y = 5.6;
 // Which part of the village a spot belongs to (music and place names follow it)
 export function areaAt(x, z) {
   if (z < -28.5 && z > -63.6 && x > -23 && x < 17) return 'gurdwara';
+  if (Math.abs(x - 29.5) < 11.5 && Math.abs(z + 49.5) < 14.5) return 'baradari';
   if (x < -35) return 'canal';
   if (Math.abs(z - FLY_Z) < 4.5) return 'flyover';
   if (Math.hypot(x - POS.gopal[0], z - POS.gopal[1] - 1.5) < 6.5) return 'sweets';
@@ -44,7 +46,7 @@ export function areaAt(x, z) {
 export function ambienceAt(x, z) {
   const near = (d, r) => Math.max(0, Math.min(1, 1 - d / r));
   return {
-    water: Math.max(near(Math.abs(x - POS.canalX) - 2, 13), near(Math.hypot(x - POS.sarovar[0], z - POS.sarovar[1]) - 7, 7) * 0.45),
+    water: Math.max(near(Math.abs(x - POS.canalX) - 2, 13), near(Math.hypot(x - POS.sarovar[0], z - POS.sarovar[1]) - 7, 7) * 0.45, near(Math.hypot(x - 29.5, z + 47.3) - 3, 9) * 0.6),
     crowd: near(Math.hypot(x - 10, z + 1), 15),
     traffic: near(Math.abs(z - FLY_Z) - 1, 16),
     sizzle: near(Math.hypot(x - POS.gopal[0], z - POS.gopal[1] - 2), 9),
@@ -547,7 +549,7 @@ export function buildWorld(game) {
   }
   const kikars = [[-33, -22], [-20, -22], [-8.5, -20.6], [-55, 6], [-33, 19], [-20, 19.6], [33.5, -28.5], [38, -19], [38, 2], [28.6, 6], [32, 10], [-55.5, -30], [20, 33], [-10, 33], [30, 34], [-30, 32]];
   for (const [x, z] of kikars) { props.kikar(b, x, z, 0.9 + Math.abs(Math.sin(x * z)) * 0.4); circ(x, z, 0.4); }
-  const trees = [[-6, 35], [4, 37], [17, 36], [-24, 34], [37, -30], [36, -40], [22, -32], [-30, -34], [-40, -40], [-28, -44], [20, -44], [-24, -56], [17, -60], [-55.5, 30], [40, 26], [-12, 40], [26, 42]];
+  const trees = [[-6, 35], [4, 37], [17, 36], [-24, 34], [37, -30], [22, -32], [-30, -34], [-40, -40], [-28, -44], [-24, -56], [17, -60], [-55.5, 30], [40, 26], [-12, 40], [26, 42]];
   for (const [x, z] of trees) { props.tree(b, x, z, 0.9 + Math.abs(Math.cos(x + z)) * 0.5, LEAVES[Math.abs(x | 0) % 3]); circ(x, z, 0.5); }
   for (const [x, z] of [[-36, 38], [33, 40], [-40, 12]]) { props.mango(b, x, z, 1); circ(x, z, 0.5); }
   for (const [x, z, s] of [[-5.2, -11, 0.8], [-31, -2.5, 1], [-36, -2.2, 0.85], [-40, 21, 1], [33, 30, 1]]) { props.kup(b, x, z, s); circ(x, z, 1.1 * s); }

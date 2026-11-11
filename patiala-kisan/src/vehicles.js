@@ -6,8 +6,11 @@ import { StackView } from './cargo.js';
 import { collide, POS } from './world.js';
 import { VEHICLES, ATTACHMENTS, TRACTOR_HP, COMBINE_RADIUS, TANKER_CAP, CROPS, BIKE_ENGINES, AURA } from './config.js';
 import { addStorage } from './state.js';
+import { onRing } from './ring.js';
 
 const PARK = { bike: [12.6, 8.2, 0], tractor: [15.2, 10.5, Math.PI], combine: [21.5, 10.5, Math.PI] };
+// grip: how hard the bike can turn; top: share of top speed; drag: extra rolling resistance (m/s²)
+const SURFACE = { road: { grip: 1, top: 1, drag: 0 }, ground: { grip: 0.85, top: 0.92, drag: 0.5 }, field: { grip: 0.68, top: 0.72, drag: 1.6 } };
 const _w = new THREE.Vector3(), tmp = [];
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 
@@ -83,7 +86,7 @@ class Vehicle {
   exit() {
     const g = this.game, pl = g.player;
     pl.vehicle = null;
-    this.speed = 0;
+    this.speed = 0; this.thr = 0; this.yaw = 0;
     const side = this.kind === 'combine' ? 2.6 : 1.5;
     pl.pos.set(this.pos.x + Math.cos(this.rot) * side, 0, this.pos.z - Math.sin(this.rot) * side);
     collide(g.colliders, pl.pos, 0.38);
@@ -110,43 +113,75 @@ class Vehicle {
     return this.cfg.speed;
   }
 
-  // The Bullet: throttle eases off near top speed, pull the stick back to brake, it leans into
-  // turns (lean = speed × turn rate / g) and steers tighter at walking pace than at speed.
+  // What the wheels are on: the ring road grips best, open ground a little less, a tilled field least.
+  surfaceAt(x, z) {
+    if (onRing(x, z)) return SURFACE.road;
+    return this.game.farm.fieldAt(x, z, 0) ? SURFACE.field : SURFACE.ground;
+  }
+
+  // The Bullet. Handling model:
+  //  - the stick sets a wanted heading and how hard to pull; power builds up smoothly (no instant
+  //    full throttle) and fades towards top speed along a curve instead of cutting off
+  //  - steering is a yaw rate that follows the stick with a little lag, limited by grip / speed:
+  //    sharp at walking pace, calmer and steadier at speed, never sliding sideways
+  //  - pull the stick back to brake: it bites harder the faster you go (ABS-like), and stopped it reverses
+  //  - the bike leans into turns; rough ground and fields cost grip, top speed and a little drag
+  //  - hitting something keeps only the speed made along the heading: a glancing blow slows you a
+  //    little, a head-on one stops you
   driveBike(dt) {
     const g = this.game, v = g.input.vector(), eng = BIKE_ENGINES[this.data.hp] || BIKE_ENGINES[0];
-    const sp = this.speed, oldRot = this.rot;
-    let throttle = 0, brake = 0, d = 0;
+    const wet = 1 - 0.22 * (g.weather?.rain || 0);                          // rain makes every surface a little slippery
+    const s0 = this.surfaceAt(this.pos.x, this.pos.z), sf = this.surf = { grip: s0.grip * wet, top: s0.top, drag: s0.drag }, top = eng.top * sf.top;
+    this.thr ??= 0; this.yaw ??= 0;
+    const sp = this.speed, abs = Math.abs(sp);
+    let want = 0, brake = 0, err = 0, steering = false;
     if (v.len > 0.12) {
-      const want = Math.atan2(v.x, v.y), fwd = wrap(want - this.rot);
-      if (Math.abs(fwd) > 2.3 && sp > 0.6) brake = 1;
-      else if (Math.abs(fwd) > 2.3) { d = wrap(want + Math.PI - this.rot); throttle = -0.35 * v.len; }
-      else { d = fwd; throttle = v.len * Math.max(0.25, Math.cos(fwd)); }
-      const turn = Math.min(2.8, 10 / Math.max(3, Math.abs(sp))) * Math.min(1, 0.3 + Math.abs(sp) / 2.5);
-      this.rot += Math.max(-turn * dt, Math.min(turn * dt, d));
+      const heading = Math.atan2(v.x, v.y), e = wrap(heading - this.rot), a = Math.abs(e);
+      steering = true;
+      if (a > 2.3 && sp > 0.8) { brake = Math.min(1, 0.4 + (a - 2.3) * 1.4); err = 0; }
+      else if (a > 2.3) { err = wrap(heading + Math.PI - this.rot); want = -0.35 * v.len; }
+      else { err = e; want = v.len * Math.max(0.2, Math.cos(e)); }
     }
+    this.thr += (want - this.thr) * Math.min(1, dt * (want > this.thr ? 5 : 9));
+    const thr = this.thr;
+    // steering
+    const maxYaw = Math.min(3, 10.5 * sf.grip / Math.max(abs, 3.5)) * Math.min(1, 0.25 + abs / 2.2);
+    const yawWant = steering ? Math.max(-maxYaw, Math.min(maxYaw, err * (abs > 9 ? 3.4 : 4.6))) : 0;
+    this.yaw += (yawWant - this.yaw) * Math.min(1, dt * (Math.abs(yawWant) > Math.abs(this.yaw) ? 8 : 12));
+    this.rot += this.yaw * dt;
+    // speed
     let acc;
-    if (brake) acc = -9.5;
-    else if (throttle > 0) acc = eng.accel * throttle * Math.pow(Math.max(0, 1 - sp / eng.top), 0.55) - (sp > eng.top * throttle ? 2.5 : 0);
-    else if (throttle < 0) acc = (throttle * 1.4 - sp) * 2.5;
-    else acc = -Math.sign(sp) * Math.min(Math.abs(sp) / dt, 1.3 + Math.abs(sp) * 0.07);
+    if (brake) acc = -(5.5 + abs * 0.45) * brake * Math.min(1, sf.grip + 0.2);
+    else if (thr > 0.02) {
+      const cap = top * Math.max(thr, 0.15);
+      acc = sp < cap ? eng.accel * thr * (1 - Math.pow(Math.min(1, Math.max(0, sp) / top), 1.6)) * (0.6 + 0.4 * sf.grip) : -(1.6 + (sp - cap) * 0.5);
+    } else if (thr < -0.02) acc = (thr * 1.4 - sp) * 2.5;
+    else acc = -Math.sign(sp) * Math.min(abs / dt, 1.3 + abs * 0.07 + sf.drag);
+    if (thr > 0.02 && sf.drag) acc -= sf.drag * Math.min(1, abs / 6);
+    acc -= Math.sign(sp) * abs * Math.abs(this.yaw) * 0.1;                 // tyres scrub speed in a hard turn
     this.speed += acc * dt;
     if (brake && this.speed < 0) this.speed = 0;
-    const yaw = wrap(this.rot - oldRot) / Math.max(dt, 1e-4);
-    this.lean += (Math.max(-0.5, Math.min(0.5, -Math.atan(this.speed * yaw / 9.8))) - this.lean) * Math.min(1, dt * 7);
-    const ox = this.pos.x, oz = this.pos.z;
-    this.pos.x += Math.sin(this.rot) * this.speed * dt;
-    this.pos.z += Math.cos(this.rot) * this.speed * dt;
+    this.lean += (Math.max(-0.5, Math.min(0.5, -Math.atan(this.speed * this.yaw / 9.8))) - this.lean) * Math.min(1, dt * 7);
+    // move and collide
+    const ox = this.pos.x, oz = this.pos.z, fx = Math.sin(this.rot), fz = Math.cos(this.rot);
+    this.pos.x += fx * this.speed * dt;
+    this.pos.z += fz * this.speed * dt;
     collide(g.colliders, this.pos, this.radius);
     const bx = this.pos.x, bz = this.pos.z;
     collide(g.vehicleColliders, this.pos, this.radius);
     if (bx !== this.pos.x || bz !== this.pos.z) this.warn('🙏 Please park outside the Gurdwara and walk in barefoot');
-    const moved = Math.hypot(this.pos.x - ox, this.pos.z - oz);
-    if (Math.abs(this.speed) * dt > 0.001 && moved < Math.abs(this.speed) * dt * 0.3) this.speed *= 0.5;
-    this.throttle = throttle; this.braking = brake;
-    g.audio.setEngine(true, Math.abs(this.speed), 1.7, { bike: true, throttle, top: eng.top });
-    this.steer = d;
+    const along = ((this.pos.x - ox) * fx + (this.pos.z - oz) * fz) / dt;
+    if (abs > 0.5 && Math.abs(along) < Math.abs(this.speed) - 0.2) {
+      const lost = Math.abs(this.speed) - Math.abs(along);
+      this.speed = Math.sign(this.speed) * Math.max(0, Math.abs(along) * 0.85);
+      this.yaw *= 0.5;
+      if (lost > 4 && (this.bumpT ?? 0) <= 0) { this.bumpT = 0.4; g.fx.dust(this.pos.x, this.pos.z, 1.1); }
+    }
+    this.bumpT = (this.bumpT ?? 0) - dt;
+    this.throttle = Math.max(0, thr); this.braking = brake;
+    g.audio.setEngine(true, Math.abs(this.speed), 1.7, { bike: true, throttle: Math.max(0, thr), top: eng.top });
+    this.steer = this.yaw;
   }
-
   drive(dt) {
     if (this.kind === 'bike') return this.driveBike(dt);
     const g = this.game, v = g.input.vector();

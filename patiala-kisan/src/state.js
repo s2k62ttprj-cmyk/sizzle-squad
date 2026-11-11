@@ -1,6 +1,6 @@
 // Save data: creation, versioned load/migrate, autosave and inventory helpers.
 // Pure module (no three.js) so it can be unit tested in tests/index.html.
-import { SAVE_KEY, SAVE_VERSION, START_MONEY, FIELDS, PENS, BUILDINGS, VEHICLES, BAGS, STORAGE, TANKER_CAP, MANAGERS, ITEMS, TRADE, SCARECROW_DESIGNS, SCARECROW_LEVELS, SCARECROW_MAX, AURA } from './config.js';
+import { SAVE_KEY, SAVE_VERSION, START_MONEY, FIELDS, PENS, BUILDINGS, VEHICLES, BAGS, STORAGE, TANKER_CAP, MANAGERS, ITEMS, TRADE, SCARECROW_DESIGNS, SCARECROW_LEVELS, SCARECROW_MAX, AURA, CROPS, DECOR, DECOR_MAX } from './config.js';
 import { pack, unpack } from './codec.js';
 
 export function todayKey(d = new Date()) {
@@ -17,7 +17,7 @@ export function makeId(n = 10) {
 export function newState(name = 'Guri', turban = '#e8590c') {
   const fields = {}, plots = {};
   for (const f of FIELDS) {
-    fields[f.id] = { owned: f.cost === 0, paid: 0, crop: 'wheat', seeri: false };
+    fields[f.id] = { owned: f.cost === 0, paid: 0, crop: 'wheat', crops: [], seeri: false };
     plots[f.id] = Array.from({ length: f.cols * f.rows }, () => ({ s: 0, c: null, w: 0 }));
   }
   const pens = {};
@@ -43,7 +43,7 @@ export function newState(name = 'Guri', turban = '#e8590c') {
     ach: {},
     daily: { date: '', goals: [] },
     guru: { last: '', streak: 0, langarDate: '', langarSoul: 0, blessDate: '' },
-    day: { n: 1, t: 0, weather: 'sunny', rain: 0 },
+    day: { n: 1, t: 0, weather: 'sunny', rain: 0, next: '', rainI: 0.5 },
     player: { x: 2.5, z: 6, rot: Math.PI, ride: null },
     settings: { music: 0.45, sfx: 0.8, quality: 'auto', sens: 1, zoom: 1, radio: 'fm', radioVol: 0.8, ownMusic: false },
     // added in the reviews / Gopal's Sweets / friends update (older saves get these filled in)
@@ -57,6 +57,11 @@ export function newState(name = 'Guri', turban = '#e8590c') {
     // added in the scarecrows / ring road update
     scarecrows: [],
     social: { code: '', blocked: {}, history: [], giftDay: '', giftsToday: 0, posted: {} },
+    // added in the Baradari / police / weather / decoration update
+    lvlGift: 1,                       // the highest level that has been paid its gift
+    decor: [],                        // placed decorations and trees: { id, k, x, z, ry, t }
+    garden: { tokens: 0, total: 0, day: '', found: [], bonus: false, wished: '', sat: {}, relax: 0 },
+    police: { cases: [], seq: 0, t: 0, last: 0, trust: 0, stats: { thefts: 0, caught: 0, recovered: 0 } },
     aura: { pts: 0, total: 0, laps: 0, best: 0, dist: 0, day: '', today: { laps: 0, distPts: 0, dist: 0, spots: {}, fast: 0, dusk: 0 }, goals: [], spots: {}, miles: {}, owned: {}, paint: '', title: false },
   };
 }
@@ -92,8 +97,10 @@ export function migrate(s) {
     if (!m) throw new Error('no migration from v' + s.v);
     s = m(s);
   }
+  const hadGift = 'lvlGift' in s;
   const fresh = newState(s.name, s.turban);
   fillDefaults(s, fresh);
+  if (!hadGift) s.lvlGift = Math.max(1, s.level | 0);       // levels passed before the update get no gift
   // plot arrays must match field sizes even if a field was resized
   for (const f of FIELDS) {
     const want = f.cols * f.rows, arr = s.plots[f.id];
@@ -104,7 +111,20 @@ export function migrate(s) {
   if (!Array.isArray(s.scarecrows)) s.scarecrows = [];
   s.scarecrows = s.scarecrows.filter((c) => c && Number.isFinite(c.x) && Number.isFinite(c.z) && SCARECROW_DESIGNS[c.d])
     .slice(0, SCARECROW_MAX).map((c) => ({ ...c, lvl: Math.max(0, Math.min(SCARECROW_LEVELS.length - 1, c.lvl | 0)) }));
+  s.decor = cleanDecor(s.decor);
+  s.police.cases = cleanCases(s.police.cases);
   return s;
+}
+
+// decorations and police cases come back from backups and old files too: keep only sane ones
+export function cleanDecor(list) {
+  const n = (v, lo, hi) => Number.isFinite(+v) ? Math.max(lo, Math.min(hi, +v)) : 0;
+  return (Array.isArray(list) ? list : []).filter((d) => d && DECOR[d.k] && Number.isFinite(+d.x) && Number.isFinite(+d.z)).slice(0, DECOR_MAX)
+    .map((d) => ({ id: String(d.id || makeId(6)).slice(0, 12), k: d.k, x: n(d.x, -80, 80), z: n(d.z, -100, 80), ry: n(d.ry, -7, 7), t: Math.max(0, +d.t || 0) }));
+}
+export function cleanCases(list) {
+  return (Array.isArray(list) ? list : []).filter((c) => c && c.items && typeof c.items === 'object' && ['open', 'reported', 'caught', 'closed'].includes(c.status)).slice(-12)
+    .map((c) => ({ ...c, items: Object.fromEntries(Object.entries(c.items).filter(([k, q]) => ITEMS[k] && Number.isInteger(q) && q > 0)) }));
 }
 
 export function parseSave(text) {
@@ -183,6 +203,10 @@ export function restoreSave(s) {
 }
 
 // ---------- inventory helpers ----------
+// The crops a Seeri sows on a field, in turn. Older saves only have crop; crops stays empty until the picker is used.
+export const fieldCrops = (fd) => { const l = (Array.isArray(fd.crops) ? fd.crops : []).filter((c, i, a) => CROPS[c] && a.indexOf(c) === i); return l.length ? l : [fd.crop]; };
+// Goods coming back (a recovered theft) go into the godown even when it is over its limit, so nothing is lost
+export function restoreStorage(s, items) { for (const [k, q] of Object.entries(items)) if (ITEMS[k] && q > 0) s.storage[k] = (s.storage[k] || 0) + q; }
 export const carryCap = (s) => BAGS[s.up.bag].cap;
 export const storageCap = (s) => STORAGE[s.up.storage].cap;
 export const storageUsed = (s) => Object.values(s.storage).reduce((a, b) => a + b, 0);

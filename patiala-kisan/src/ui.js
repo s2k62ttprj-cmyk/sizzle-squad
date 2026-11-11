@@ -4,9 +4,9 @@ import * as THREE from 'three';
 import {
   CROPS, ITEMS, BAGS, CANS, STORAGE, STALL, FIELDS, PENS, BUILDINGS, RECIPES, VEHICLES, ATTACHMENTS, TRACTOR_HP,
   STAFF, MANAGERS, SEERI, MANAGER_RANKS, wage, OFFLINE_HOURS, SOUL_PERKS, QUESTS, ACHIEVEMENTS, BUILDING_UPGRADES, PEN_PIPE_COST, PEN_WATER_CAP, TANKER_CAP, xpNeed, TURBAN_COLORS, PLOT,
-  SWEETS, GOPAL_RATE, VENDORS, TRADE, SCARECROW_DESIGNS, SCARECROW_LEVELS, SCARECROW_MAX, AURA, BIKE_ENGINES, SOCIAL,
+  SWEETS, GOPAL_RATE, VENDORS, TRADE, SCARECROW_DESIGNS, SCARECROW_LEVELS, SCARECROW_MAX, AURA, BIKE_ENGINES, SOCIAL, DECOR, GARDEN, POLICE,
 } from './config.js';
-import { carryCap, storageCap, storageUsed, have, saveWorks, rating, todayKey, tradeLimitError, itemCount, itemsValue, backupCode, readBackup } from './state.js';
+import { carryCap, storageCap, storageUsed, have, fieldCrops, saveWorks, rating, todayKey, tradeLimitError, itemCount, itemsValue, backupCode, readBackup } from './state.js';
 import { POS, FLY_Z } from './world.js';
 import { fmt } from './pads.js';
 import { portrait } from './portrait.js';
@@ -16,6 +16,7 @@ import { isOnline } from './net.js';
 import { clean } from './moderation.js';
 import { fmtT } from './gerhi.js';
 import { RADIO } from './audio.js';
+import { decorShopHTML, decorItemHTML, maliHTML, policeHTML, weatherModal, handlePanels } from './panels.js';
 
 const $ = (id) => document.getElementById(id);
 const _v = new THREE.Vector3();
@@ -55,9 +56,10 @@ export class UI {
       for (const id of ['btnShop', 'btnFarm', 'btnMissions', 'btnBag', 'btnStaff', 'btnFriends', 'seedPill', 'quest', 'carryPill', 'waterPill']) $(id).hidden = true;
       const v = game.visit;
       $('visitBar').hidden = false;
-      $('visitInfo').innerHTML = `👀 <b>${esc(v.fn)}</b>'s farm · Level ${v.l || 1}${v.r ? ` · ⭐ ${v.r}` : ''}<small>shared ${ago(v.ts)}</small>`;
+      $('visitInfo').innerHTML = `👀 <b>${esc(v.fn)}</b>'s farm · Level ${v.l || 1}${v.r ? ` · ⭐ ${v.r}` : ''}<small>shared ${ago(v.ts)}</small><small id="visitLive"></small>`;
     }
     bind('lvl', () => this.open('missions'));
+    document.querySelector('.who').addEventListener('click', (e) => { e.stopPropagation(); this.weatherInfo(); });
     bind('quest', () => { const q = QUESTS[game.state.quest]; if (q?.target) { game.guide.set(q.target, true); this.toast('Follow the yellow arrow ➜'); } else this.open('missions'); });
     bind('seedPill', () => this.open('seeds'));
     bind('soulBox', () => this.open('farm', 'blessings'));
@@ -122,7 +124,8 @@ export class UI {
       this.money(); this.level(); this.carryPill(); this.waterPill(); this.questBar(); this.boosts();
       if (this.view && this.live) this.render();
       if (g.player.vehicle?.kind === 'bike') this.gerhiPill();
-      this.set('dayInfo', `Day ${g.state.day.n} · ${{ sunny: '☀️', cloudy: '⛅', rain: '🌧️' }[g.state.day.weather]}${g.weather.raining ? ' raining' : ''}`);
+      this.set('dayInfo', `Day ${g.state.day.n} · ${g.weather.statusText()}`);
+      if (g.visit && $('visitLive')) this.set('visitLive', g.social?.hostStatus?.() || '');
     }
     // action button
     const pl = g.player, act = $('action');
@@ -205,8 +208,13 @@ export class UI {
 
   pulse(id) { const el = $(id); el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse'); }
 
-  levelUp(level) {
+  weatherInfo() { weatherModal(this); }
+
+  levelUp(level, gift = null) {
     const unlocks = [];
+    for (const dd of Object.values(DECOR)) if (dd.level === level && !dd.tokens) unlocks.push(`${dd.icon} ${dd.name} (Shop → Garden)`);
+    if (level === GARDEN.level) unlocks.push('🌹 Baradari Gardens');
+    if (level === POLICE.level) unlocks.push('🚓 Police Station');
     for (const c of Object.values(CROPS)) if (c.level === level) unlocks.push(`${c.icon} ${c.name} seeds`);
     for (const f of FIELDS) if (f.level === level) unlocks.push(`🟫 ${f.name}`);
     for (const p of Object.values(PENS)) if (p.level === level) unlocks.push(`🐾 ${p.name}`);
@@ -214,7 +222,8 @@ export class UI {
     for (const v of Object.values(VEHICLES)) if (v.level === level) unlocks.push(`🚜 ${v.name}`);
     for (const s of Object.values(STAFF)) if (s.level === level) unlocks.push(`👳 ${s.name} (${s.role})`);
     for (const k of [BAGS, CANS, STORAGE, STALL]) for (const u of k) if (u.level === level && u.cost) unlocks.push(`⬆️ ${u.name}`);
-    this.modal(`<div class="big">⭐</div><h2>Level ${level}!</h2>${unlocks.length ? `<p>Unlocked:</p><ul class="unl scroll">${unlocks.map((u) => `<li>${u}</li>`).join('')}</ul>` : '<p>Shabaash! Keep growing.</p>'}`);
+    const gifts = gift && (gift.money || gift.tokens) ? `<p class="gain">🎁 Level gift: ${money(gift.money)}${gift.tokens ? ` + ${gift.tokens} 🌹 Baradari roses` : ''}</p>` : '';
+    this.modal(`<div class="big">⭐</div><h2>Level ${level}!</h2>${gifts}${unlocks.length ?`<p>Unlocked:</p><ul class="unl scroll">${unlocks.map((u) => `<li>${u}</li>`).join('')}</ul>` : '<p>Shabaash! Keep growing.</p>'}`);
     this.level();
   }
 
@@ -273,7 +282,7 @@ export class UI {
     switch (this.view) {
       case 'shop':
         title = '🛒 Shop';
-        tabs = [['seeds', '🌱 Seeds'], ['tools', '🧰 Upgrades'], ['land', '🟫 Land'], ['build', '🏭 Build'], ['vehicles', '🚜 Vehicles']];
+        tabs = [['seeds', '🌱 Seeds'], ['tools', '🧰 Upgrades'], ['land', '🟫 Land'], ['build', '🏭 Build'], ['vehicles', '🚜 Vehicles'], ['garden', '🌳 Garden']];
         html = this.shopHTML();
         break;
       case 'seeds': title = '🌱 Choose seeds'; html = this.seedsHTML(true); break;
@@ -303,7 +312,10 @@ export class UI {
       case 'orders': title = '📋 Customer orders'; html = this.ordersHTML(); this.live = true; break;
       case 'staff': title = '👔 Managers'; html = this.staffHTML(); this.live = true; break;
       case 'pen': title = `🐾 ${PENS[this.penId].name}`; html = this.penHTML(); this.live = true; break;
-      case 'workshop': title = `🏭 ${BUILDINGS[this.shopId].name}`; html = this.workshopHTML(); this.live = true; break;
+      case 'decor': title = `${DECOR[this.decorItem?.k]?.icon || '🪴'} ${DECOR[this.decorItem?.k]?.name || 'Decoration'}`; html = decorItemHTML(this); this.live = !!DECOR[this.decorItem?.k]?.fruit; break;
+      case 'mali': title = '🌹 Mali\'s stall'; html = maliHTML(this); break;
+      case 'police': title = '🚓 Police Station'; html = policeHTML(this); this.live = ['status', 'filed', 'greet'].includes(this.pStep); break;
+      case 'workshop': title =`🏭 ${BUILDINGS[this.shopId].name}`; html = this.workshopHTML(); this.live = true; break;
     }
     this.titleEl.textContent = title;
     this.tabs(tabs);
@@ -356,6 +368,7 @@ export class UI {
         + this.upgradeRow('💧', 'Water', CANS, 'can', (c, n) => `Holds ${c.cap}${n ? ` → ${n.cap}` : ''}`)
         + this.upgradeRow('🏚️', 'Storage', STORAGE, 'storage', (c, n) => `Stores ${c.cap}${n ? ` → ${n.cap}` : ''}`)
         + this.upgradeRow('🧺', 'Mandi', STALL, 'stall', (c, n) => `Shelf ${c.shelf}, customer every ${c.every}s${n ? ` → ${n.shelf}, ${n.every}s` : ''}`);
+      case 'garden': return decorShopHTML(this);
       case 'land': return '<p class="hint">Buy here, or stand on the white pad in the field to pay.</p>' + FIELDS.map((f) => {
         const o = st.fields[f.id].owned;
         const b = o ? '<span class="tag ok">Owned</span>' : st.level < f.level ? `<span class="tag">🔒 L${f.level}</span>` : this.btn(`Buy ${money(f.cost - st.fields[f.id].paid)}`, 'buyField', { id: f.id }, st.money < f.cost - st.fields[f.id].paid);
@@ -414,12 +427,10 @@ export class UI {
           const fd = st.fields[f.id];
           if (!fd.owned) continue;
           const [u, t, , gr, r] = g.farm.counts(f.id);
-          const crops = Object.entries(CROPS).filter(([, c]) => c.level <= st.level);
-          const sel = `<select data-act="noop" onchange="window.__game.ui.setFieldCrop('${f.id}', this.value)">${crops.map(([id, c]) => `<option value="${id}" ${fd.crop === id ? 'selected' : ''}>${c.icon} ${c.name}</option>`).join('')}</select>`;
           const b = fd.seeri ? this.btn('Dismiss', 'fire', { role: 'seeri', id: f.id }, false, 'ghost') : st.level < STAFF.seeri.level ? `<span class="tag">🔒 L${STAFF.seeri.level}</span>` : this.btn(`Hire Seeri ${money(STAFF.seeri.hire)}`, 'hire', { role: 'seeri', id: f.id }, st.money < STAFF.seeri.hire);
           h += `<div class="card2"><div class="ct"><b>🟫 ${f.name}</b>${fd.seeri ? '<span class="tag ok">👳 Seeri working</span>' : ''}</div>
             <small>${r} ripe · ${gr} growing · ${t} tilled · ${u} empty</small>
-            <div class="ctrl">${fd.seeri ? `Crop: ${sel}` : ''}${b}${this.btn('📍', 'guide', { t: f.id })}</div></div>`;
+            <div class="ctrl">${fd.seeri ? `${this.cropBtn(f.id)}` : ''}${b}${this.btn('📍', 'guide', { t: f.id })}</div></div>`;
         }
         return h;
       }
@@ -547,10 +558,11 @@ export class UI {
     s += `<rect x="0" y="${Z(FLY_Z) - 5}" width="270" height="10" fill="#adb5bd" opacity=".9"/><text x="${X(-30)}" y="${Z(FLY_Z) + 3.5}" class="mt" fill="#1d1d1f">22 No. FLYOVER</text>`;
     s += dot(...POS.stall, '#f76707') + dot(...POS.godown, '#74c0fc') + dot(...POS.tubewell, '#1c7ed6') + dot(...POS.farmhouse, '#fff3bf') + dot(...POS.gopal, '#e64980', 5);
     if (g.vendors?.v) s += dot(g.vendors.v.w.pos.x, g.vendors.v.w.pos.z, '#ffd43b', 5);
+    s += dot(...GARDEN.centre, '#d6336c', 6) + dot(...POLICE.spot, '#1c3f94', 5);
     for (const [id, p] of Object.entries(POS.pens)) s += dot(p[0], p[1], st.pens[id].owned ? '#ffd43b' : '#ced4da');
     for (const [id, p] of Object.entries(POS.buildings)) s += dot(p[0], p[1], st.buildings[id].owned ? '#d6336c' : '#ced4da');
     s += `<circle cx="${X(g.player.pos.x)}" cy="${Z(g.player.pos.z)}" r="6" fill="#e8590c" stroke="#fff" stroke-width="2.5"/></svg>`;
-    const places = [['f1', '🟫 Your khet'], ['tubewell', '💧 Tubewell'], ['stall', '🧺 Mandi stall'], ['arhtiya', '⚖️ Arhtiya'], ['board', '📋 Order board'], ['godown', '🏚️ Godown'], ['gopal', "🍥 Gopal's Sweets"], ...(g.vendors?.v ? [['vendor', `${VENDORS[g.vendors.v.id].icon} Vendor deal`]] : []), ['darbar', '🙏 Gurdwara Dukh Niwaran Sahib'], ['langar', '🍲 Langar hall'], ['flyover', '🌉 22 No. Flyover'], ['canal', '🌊 Bhakhra Nehar'], ['garage', '🚜 Garage'], ['farmhouse', '🏡 Kothi (home)'], ['coop', '🐔 Murgi Khana'], ['tabela', '🐃 Tabela'], ['bakri', '🐐 Goats'], ['bhed', '🐑 Sheep'], ...Object.entries(BUILDINGS).map(([id, b]) => [id, `🏭 ${b.name}`])];
+    const places = [['f1', '🟫 Your khet'], ['tubewell', '💧 Tubewell'], ['stall', '🧺 Mandi stall'], ['arhtiya', '⚖️ Arhtiya'], ['board', '📋 Order board'], ['godown', '🏚️ Godown'], ['gopal', "🍥 Gopal's Sweets"], ...(g.vendors?.v ? [['vendor', `${VENDORS[g.vendors.v.id].icon} Vendor deal`]] : []), ['darbar', '🙏 Gurdwara Dukh Niwaran Sahib'], ['baradari', '🌹 Baradari Gardens'], ['police', '🚓 Police Station'], ['langar', '🍲 Langar hall'], ['flyover', '🌉 22 No. Flyover'], ['canal', '🌊 Bhakhra Nehar'], ['garage', '🚜 Garage'], ['farmhouse', '🏡 Kothi (home)'], ['coop', '🐔 Murgi Khana'], ['tabela', '🐃 Tabela'], ['bakri', '🐐 Goats'], ['bhed', '🐑 Sheep'], ...Object.entries(BUILDINGS).map(([id, b]) => [id, `🏭 ${b.name}`])];
     return `<div class="mapwrap">${s}</div><div class="chips">${places.map(([t, n]) => `<button class="chip" data-act="guide" data-t="${t}">${n}</button>`).join('')}</div>`;
   }
 
@@ -668,10 +680,8 @@ export class UI {
     for (const f of FIELDS) {
       const fd = st.fields[f.id];
       if (!fd.owned) continue;
-      const crops = Object.entries(CROPS).filter(([, c]) => c.level <= st.level);
-      const sel = `<select data-act="noop" onchange="window.__game.ui.setFieldCrop('${f.id}', this.value)">${crops.map(([id, c]) => `<option value="${id}" ${fd.crop === id ? 'selected' : ''}>${c.icon} ${c.name}</option>`).join('')}</select>`;
       const b = fd.seeri ? this.btn('Dismiss', 'fire', { role: 'seeri', id: f.id }, false, 'ghost') : st.level < SEERI.level ? `<span class="tag">🔒 L${SEERI.level}</span>` : this.btn(`Hire ${money(SEERI.hire)}`, 'hire', { role: 'seeri', id: f.id }, st.money < SEERI.hire);
-      h += this.row(fd.seeri ? '🧑‍🌾' : '🟫', f.name, fd.seeri ? `Growing ${CROPS[fd.crop].icon} ${sel}` : `${f.cols * f.rows} plots · no Seeri`, b);
+      h += this.row(fd.seeri ? '🧑‍🌾' : '🟫', f.name, fd.seeri ? `Growing ${this.cropBtn(f.id)}` : `${f.cols * f.rows} plots · no Seeri`, b);
     }
     return h;
   }
@@ -688,7 +698,79 @@ export class UI {
     this.modal(`<div class="big">🌙</div><h2>While you were away</h2><p>${h ? `${h} h ` : ''}${m} min</p><ul class="unl">${lines.map((l) => `<li>${l}</li>`).join('')}</ul>${r.money > 0 ? `<p class="gain">+${money(r.money)} earned</p>` : ''}`, 'Shabaash! 👏');
   }
 
-  setFieldCrop(fid, crop) { this.game.state.fields[fid].crop = crop; }
+  // ---------------------------------------------------------------- Seeri crop picker
+  // Its own overlay (not part of the live panel, which redraws four times a second), so it
+  // stays open until you press Done. Every tap is saved at once: tick several crops and the
+  // Seeri sows them in turn.
+  setFieldCrop(fid, crop) { const fd = this.game.state.fields[fid]; fd.crop = crop; fd.crops = [crop]; }
+  cropBtn(fid) {
+    const fd = this.game.state.fields[fid], list = fieldCrops(fd);
+    return `<button class="chip cropbtn" data-act="seeriCrops" data-id="${fid}">${list.slice(0, 4).map((c) => CROPS[c].icon).join(' ')}${list.length > 4 ? ` +${list.length - 4}` : ''} ✏️ Choose crops</button>`;
+  }
+  openPicker(fid) {
+    this.pickerField = fid;
+    let el = $('picker');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'picker';
+      $('app').appendChild(el);
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const b = e.target.closest('[data-pk]');
+        if (!b) return;
+        this.game.audio.play('click');
+        if (b.dataset.pk === 'done') return this.closePicker();
+        if (b.dataset.pk === 'all' || b.dataset.pk === 'none') return this.pickAll(b.dataset.pk === 'all');
+        this.togglePick(b.dataset.pk);
+      });
+      for (const ev of ['pointerdown', 'touchstart', 'touchmove', 'wheel']) el.addEventListener(ev, (e) => e.stopPropagation(), { passive: true });
+    }
+    this.renderPicker();
+    el.hidden = false;
+    this.game.save(true);
+  }
+  closePicker() { const el = $('picker'); if (el) { el.hidden = true; el.dataset.field = ''; } this.pickerField = null; if (this.view) this.render(); this.game.save(true); }
+  pickable() { return Object.entries(CROPS).filter(([, c]) => c.level <= this.game.state.level).map(([id]) => id); }
+  togglePick(id) {
+    const g = this.game, fd = g.state.fields[this.pickerField];
+    if (!fd || !CROPS[id] || g.state.level < CROPS[id].level) return;
+    let list = fieldCrops(fd).slice();
+    if (list.includes(id)) { if (list.length === 1) { this.toast('Keep at least one crop'); return; } list = list.filter((c) => c !== id); }
+    else list.push(id);
+    fd.crops = list; fd.crop = list[0];
+    this.renderPicker();
+  }
+  pickAll(all) {
+    const fd = this.game.state.fields[this.pickerField];
+    const list = all ? this.pickable() : [fieldCrops(fd)[0]];
+    fd.crops = list; fd.crop = list[0];
+    this.renderPicker();
+  }
+  renderPicker() {
+    const st = this.game.state, f = FIELDS.find((x) => x.id === this.pickerField), fd = st.fields[this.pickerField];
+    const on = new Set(fieldCrops(fd)), el = $('picker'), keep = el.querySelector('.pgrid')?.scrollTop || 0;
+    // after the first draw only the ticks change: the grid itself is never rebuilt, so scrolling is never disturbed
+    if (el.dataset.field === this.pickerField && el.querySelector('.pgrid')) {
+      for (const tile of el.querySelectorAll('.ptile')) {
+        const k = tile.dataset.pk, sel = !!k && on.has(k);
+        tile.classList.toggle('on', sel);
+        const mark = tile.querySelector('em');
+        if (sel && !mark) tile.insertAdjacentHTML('beforeend', '<em>✔</em>'); else if (!sel && mark) mark.remove();
+      }
+      el.querySelector('.pfoot span').textContent = `${on.size} chosen`;
+      return;
+    }
+    el.dataset.field = this.pickerField;
+    const tiles = Object.entries(CROPS).map(([id, c]) => {
+      const locked = st.level < c.level;
+      return `<button class="ptile ${on.has(id) ? 'on' : ''} ${locked ? 'locked' : ''}" data-pk="${locked ? '' : id}" ${locked ? 'disabled' : ''}>
+        <i>${c.icon}</i><b>${c.name}</b><small>${locked ? `🔒 Level ${c.level}` : `₹${c.seed} → ₹${c.sell * c.yield} · ${c.grow}s`}</small>${on.has(id) ? '<em>✔</em>' : ''}</button>`;
+    }).join('');
+    el.innerHTML = `<div class="pcard"><div class="phead"><b>🧑‍🌾 ${f.name}</b><small>Tap crops to add or remove them. The Seeri sows them in turn.</small></div>
+      <div class="pgrid">${tiles}</div>
+      <div class="pfoot"><span>${on.size} chosen</span><button class="mini ghost" data-pk="none">Just one</button><button class="mini ghost" data-pk="all">All</button><button class="btn" data-pk="done">✅ Done</button></div></div>`;
+    el.querySelector('.pgrid').scrollTop = keep;
+  }
 
   // ---------------------------------------------------------------- scarecrows
   scarecrowShopHTML() {
@@ -822,14 +904,19 @@ export class UI {
     return list.map((m) => `<div class="msg ${m.from === me ? 'me' : ''}"><p>${esc(m.text)}</p><small>${ago(m.at)}</small></div>`).join('');
   }
   chatHTML() {
-    return `<div id="chatList" class="chatlist">${this.chatListHTML()}</div>
+    const f = this.game.social.friends[this.chatWith];
+    const here = !!this.game.social.others[this.chatWith];
+    const status = f ? `<p class="hint small">${isOnline(f) || here ? '🟢 Online now' : '⚪ Offline · they will see it later'}${here ? ' · here in the farm with you' : ''}</p>` : '';
+    const quick = ['👋 Sat Sri Akal ji!', '🌾 Vadhiya khet ae!', '🏍️ Chalo gerhi maarde aan?', '☕ Chaa peeyiye?', '😄 Maza aa gaya!'];
+    return `${status}<div id="chatList" class="chatlist">${this.chatListHTML()}</div>
+      <div class="chips quick">${quick.map((q) => `<button class="chip" data-act="chatQuick" data-t="${q}">${q}</button>`).join('')}</div>
       <div class="addrow"><input id="chatIn" maxlength="${SOCIAL.chatLen}" placeholder="Message" autocomplete="off"><button class="btn" data-act="chatSend">Send</button></div>
       <div class="row2"><button class="btn ghost small" data-act="sBlock">🚫 Block</button><button class="btn ghost small" data-act="sReport">⚠️ Report</button></div>`;
   }
   boardListHTML() {
     const g = this.game, so = g.social, mine = !g.visit;
     if (!so.board.length) return `<p class="empty">${mine ? 'No messages yet. Friends who visit your farm can leave one here.' : 'Be the first to sign the guestbook!'}</p>`;
-    return so.board.map((p) => `<div class="post"><div class="fav" style="--c:${esc(p.turban || '#e8590c')}">${esc((p.name || '?')[0].toUpperCase())}</div><div class="fi"><b>${esc(p.name)}</b> <small>${ago(p.at)}</small><p>${esc(p.text)}</p></div>${mine || p.from === so.uid ? `<button class="mini ghost" data-act="boardDel" data-id="${p.id}">🗑️</button>` : ''}</div>`).join('');
+    return so.board.map((p) => `<div class="post"><div class="fav" style="--c:${esc(p.turban || '#e8590c')}">${esc((p.name || '?')[0].toUpperCase())}</div><div class="fi"><b>${esc(p.name)}</b> <small>${ago(p.at)} · ${new Date(p.at).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</small><p>${esc(p.text)}</p></div>${mine || p.from === so.uid ? `<button class="mini ghost" data-act="boardDel" data-id="${p.id}">🗑️</button>` : ''}</div>`).join('');
   }
   boardHTML() {
     const g = this.game, mine = !g.visit;
@@ -920,9 +1007,13 @@ export class UI {
   async handle(act, d) {
     const g = this.game, st = g.state;
     const fail = (msg) => { this.toast(msg); g.audio.play('error'); };
+    const pr = await handlePanels(this, act, d);
+    if (pr === 'done') return;
+    if (pr === 'render') { this.render(); return; }
     switch (act) {
       case 'tab': this.open(this.view, d.tab); return;
       case 'goShop': this.open('shop', 'seeds'); return;
+      case 'seeriCrops': this.openPicker(d.id); return;
       case 'pickSeed': st.seed = d.id; this.seedPill(); this.close(); return;
       case 'buySeed': {
         const c = CROPS[d.id], n = +d.n, cost = c.seed * n;
@@ -1053,7 +1144,8 @@ export class UI {
       }
       case 'gSend': { const err = await g.social.sendGift(this.giftTo, this.giftPick); if (err) return fail(err); this.toast('🎁 Gift sent!'); g.audio.play('trade'); this.open('friends', 'online'); return; }
       case 'sChat': this.chatWith = d.id; g.social.read(d.id); this.open('chat'); { const el = $('chatList'); if (el) el.scrollTop = el.scrollHeight; } return;
-      case 'chatSend': { const box = $('chatIn'); const err = await g.social.say(this.chatWith, box.value); if (err) return fail(err); box.value = ''; box.focus(); return; }
+      case 'chatSend': { const box = $('chatIn'); let err; try { err = await g.social.say(this.chatWith, box.value); } catch { err = 'Could not send. Check your internet'; } if (err) return fail(err); box.value = ''; box.focus(); return; }
+      case 'chatQuick': { let err; try { err = await g.social.say(this.chatWith, d.t); } catch { err = 'Could not send. Check your internet'; } if (err) return fail(err); return; }
       case 'sBlock': if (!await this.confirm('<div class="big">🚫</div><h2>Block this player?</h2><p>They are removed from your friends and can\'t message or gift you.</p>', 'Block')) return; await g.social.block(this.chatWith); this.close(); this.toast('🚫 Blocked'); return;
       case 'sReport': { const why = prompt('What happened? (optional)') ?? ''; await g.social.report(this.chatWith, 'chat', why); this.toast('⚠️ Report sent — thank you'); return; }
       case 'sVisit': { const f = g.social.friends[d.id]; if (!f?.farm) return fail('Their farm is not shared yet'); g.save(true); try { sessionStorage.setItem('pk-visit', f.farm); } catch { /* ignore */ } location.reload(); return; }

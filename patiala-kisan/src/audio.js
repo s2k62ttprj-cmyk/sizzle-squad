@@ -127,6 +127,7 @@ STYLES.ring = {
 };
 // silence: the radio is off, or the player plays their own music
 STYLES.silent = { step: 1, play() {} };
+STYLES.baradari = STYLES.canal || STYLES.farm;
 
 // Patiala FM: the Bullet's radio. Original tracks made for the game; songs from your own
 // music app (Spotify, YouTube Music, Apple Music…) can play over the game with "My music".
@@ -251,6 +252,15 @@ export class Audio {
     g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     s.connect(f); f.connect(g); g.connect(dest || this.sfxGain);
     s.start(t, Math.random() * 1.5); s.stop(t + dur + 0.05);
+  }
+  // thunder: a sharp crack, then a long low rumble, a little after the flash (further away: later and softer)
+  thunder(dist = 30) {
+    if (!this.ctx) return;
+    const d = Math.min(3, 0.12 + dist * 0.024), loud = Math.max(0.25, 1 - dist / 95);
+    this.burst(0.2, { freq: 3200, q: 0.7, vol: 0.5 * loud, delay: d, type: 'highpass' });
+    this.burst(2.8, { freq: 300, q: 0.9, vol: 0.95 * loud, delay: d + 0.04, type: 'lowpass', slide: 0.3 });
+    this.burst(1.8, { freq: 150, q: 1, vol: 0.8 * loud, delay: d + 0.55, type: 'lowpass', slide: 0.5 });
+    this.tone(52, 1.9, { type: 'sine', vol: 0.3 * loud, delay: d + 0.1, slide: 0.6 });
   }
   // a held note with vibrato through a filter (flute, shehnai, harmonium)
   voice(freq, dur, { type = 'sine', vol = 0.1, attack = 0.06, delay = 0, vib = 0, vibRate = 5.5, filter = 0, q = 1, detune = 0, dest = null } = {}) {
@@ -552,8 +562,10 @@ export class Audio {
       crowd: bed('bandpass', 750, 1.4, 0.9, 0.6),
       traffic: bed('lowpass', 170, 0.7, 0.13, 0.35),
       sizzle: bed('highpass', 4200, 0.7, 7, 0.8),
+      rain: bed('highpass', 2400, 0.5, 0.2, 0.15),
+      wind: bed('lowpass', 380, 0.6, 0.17, 0.5),
     };
-    this.ambVol = { water: 0.16, crowd: 0.07, traffic: 0.3, sizzle: 0.035 };
+    this.ambVol = { water: 0.16, crowd: 0.07, traffic: 0.3, sizzle: 0.035, rain: 0.2, wind: 0.2 };
   }
 
   // The area must hold for a moment before the music switches, so walking along a
@@ -631,6 +643,9 @@ export class Audio {
     w.traffic = (w.traffic || 0) * (1 - calm);
     w.crowd = (w.crowd || 0) * (1 - calm);
     w.water = (w.water || 0) * (1 - calm * 0.5);
+    const wx = g.weather;
+    w.rain = (wx?.rain || 0) * (1 - calm * 0.45);
+    w.wind = Math.max(0, Math.min(1, ((wx?.wind || 1) - 1.2) / 2.2));
     for (const k in this.amb) this.amb[k].gain.setTargetAtTime((w[k] || 0) * this.ambVol[k], c.currentTime, 0.6);
     if (w.crowd > 0.35 && Math.random() < 0.25) this.play('chatter');
     if (w.sizzle > 0.4 && Math.random() < 0.3) this.play('sizzle');
