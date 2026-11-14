@@ -29,16 +29,21 @@ export class Tubewells {
       b.rbox(BRICK, { x, y: 1.1, z, sx: 2.4, sy: 2.2, sz: 2.2 }, 0.05); b.rbox(0xc9b9a0, { x, y: 2.28, z, sx: 2.7, sy: 0.16, sz: 2.5 }, 0.04);
       b.rbox(0x2f6fb0, { x: x - 0.5, y: 0.9, z: z - 1.12, sx: 0.8, sy: 1.6, sz: 0.05 }, 0.02); b.rbox(0x868e96, { x: x + 0.7, y: 1.8, z: z - 1.12, sx: 0.5, sy: 0.6, sz: 0.1 }, 0.03);
       b.cyl(0xa3a39c, { x: x + 1.6, y: 2.6, z: z + 0.8, sy: 5.2 }, 0.06, 0.1, 6);
-      b.rbox(BRICK, { x: tx, y: 0.36, z: tz, sx: 2.1, sy: 0.72, sz: 1.4 }, 0.05); b.rbox(0xc9b9a0, { x: tx, y: 0.74, z: tz, sx: 2.2, sy: 0.06, sz: 1.5 }, 0.02);
+      b.rbox(BRICK, { x: tx, y: 0.36, z: tz, sx: 2.1, sy: 0.72, sz: 1.4 }, 0.05); for (const [ox, oz, w, d] of [[0, -0.7, 2.2, 0.1], [0, 0.7, 2.2, 0.1], [-1.05, 0, 0.1, 1.5], [1.05, 0, 0.1, 1.5]]) b.rbox(0xc9b9a0, { x: tx + ox, y: 0.74, z: tz + oz, sx: w, sy: 0.06, sz: d }, 0.02);       // an open rim, so the water shows
       b.cyl(0x6c7178, { x: tx - 0.3, y: 1.05, z: tz - 0.7, rx: Math.PI / 2, sy: 0.7 }, 0.13, 0.13, 10); b.cyl(0x6c7178, { x: tx - 0.3, y: 0.9, z: tz - 1.05, sy: 0.4 }, 0.13, 0.13, 10);
       g.colliders.push({ x0: x - 1.25, x1: x + 1.25, z0: z - 1.2, z1: z + 1.2 }, { x0: tx - 1.05, x1: tx + 1.05, z0: tz - 0.7, z1: tz + 0.7 });
       const water = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.1), waterMaterial(1.8, 1.1, { foam: 0.12 }));
-      water.rotation.x = -Math.PI / 2; water.position.set(tx, 0.64, tz); scene.add(water);
+      water.rotation.x = -Math.PI / 2; water.position.set(tx, 0.735, tz); scene.add(water);
       w.stream = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.16, 0.45, 10, 1, true), new THREE.MeshLambertMaterial({ color: 0xbfeaff, transparent: true, opacity: 0.8, emissive: 0x3a7a9a }));
       w.stream.position.set(tx - 0.3, 0.83, tz - 0.3); scene.add(w.stream);
       w.spout = new THREE.Vector3(tx - 0.3, 0.7, tz - 0.2);
     }
     w.tank = [tx, tz];
+    // a fat gush of water from the pipe and a churning foam patch where it lands, easy to see from the camera
+    w.gush = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.24, 0.55, 12, 1, true), new THREE.MeshLambertMaterial({ color: 0xd8f3ff, transparent: true, opacity: 0.92, emissive: 0x4a8fb8 }));
+    w.gush.position.set(w.spout.x, 0.92, w.spout.z - 0.1); scene.add(w.gush);
+    w.foam = new THREE.Mesh(new THREE.CircleGeometry(0.42, 18).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, depthWrite: false }));
+    w.foam.position.set(w.spout.x, 0.745, w.spout.z); scene.add(w.foam);
     // the khaal: brick-edged channel with a muddy bed; its water grows along it when the motor runs
     const pts = W.channel;
     for (let k = 0; k < pts.length - 1; k++) {
@@ -66,7 +71,7 @@ export class Tubewells {
     return w;
   }
   on(i) { return !!this.st?.on?.[i]; }
-  khaal(i) { return i > 0 || !!this.st.khaal; }
+  khaal() { return true; }
   toggle(i) {
     const g = this.game, st = this.st;
     st.on[i] = !st.on[i];
@@ -108,6 +113,8 @@ export class Tubewells {
       w.spin = on ? Math.min(1, w.spin + dt / 1.5) : Math.max(0, w.spin - dt / 0.8);     // the motor runs up and down
       const flowing = w.spin > 0.95;
       if (w.stream) { w.stream.visible = w.spin > 0.4; w.stream.scale.y = 0.6 + w.spin * 0.4; }
+      w.gush.visible = w.foam.visible = w.spin > 0.4;
+      if (w.gush.visible) { w.gush.scale.x = w.gush.scale.z = 1 + Math.sin(t * 22 + w.i) * 0.12; w.gush.rotation.y = t * 4; w.foam.scale.setScalar(0.8 + w.spin * 0.25 + Math.sin(t * 9) * 0.08); }
       const d = Math.hypot(p.x - w.cfg.kotha[0], p.z - w.cfg.kotha[1]);
       if (w.spin > 0) vol = Math.max(vol, 0.07 * w.spin * Math.max(0, 1 - d / 26));
       // splashes at the spout

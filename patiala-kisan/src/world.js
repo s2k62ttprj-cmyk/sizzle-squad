@@ -325,14 +325,14 @@ export function buildWorld(game) {
     b.cyl(0xa3a39c, { x: x - 1.6, y: 2.6, z: z - 0.8, sy: 5.2 }, 0.06, 0.1, 6);
     const [tx, tz] = POS.tank;
     b.rbox(BRICK, { x: tx, y: 0.36, z: tz, sx: 2.1, sy: 0.72, sz: 1.4 }, 0.05);
-    b.rbox(0xc9b9a0, { x: tx, y: 0.74, z: tz, sx: 2.2, sy: 0.06, sz: 1.5 }, 0.02);
+    for (const [ox, oz, w, d] of [[0, -0.7, 2.2, 0.1], [0, 0.7, 2.2, 0.1], [-1.05, 0, 0.1, 1.5], [1.05, 0, 0.1, 1.5]]) b.rbox(0xc9b9a0, { x: tx + ox, y: 0.74, z: tz + oz, sx: w, sy: 0.06, sz: d }, 0.02);       // an open rim, so the water shows
     b.cyl(0x6c7178, { x: tx + 0.3, y: 1.05, z: tz - 0.7, rx: Math.PI / 2, sy: 0.7 }, 0.13, 0.13, 10);
     b.cyl(0x6c7178, { x: tx + 0.3, y: 0.9, z: tz - 1.05, sy: 0.4 }, 0.13, 0.13, 10);
     rect(x, z, 2.5, 2.4);
     rect(tx, tz, 2.1, 1.4);
     const water = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.1), waterMaterial(1.8, 1.1, { foam: 0.12 }));
     water.rotation.x = -Math.PI / 2;
-    water.position.set(tx, 0.64, tz);
+    water.position.set(tx, 0.735, tz);
     scene.add(water);
     const stream = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.16, 0.45, 10, 1, true), new THREE.MeshLambertMaterial({ color: 0xbfeaff, transparent: true, opacity: 0.8, emissive: 0x3a7a9a }));
     stream.position.set(tx + 0.3, 0.83, tz - 0.3);
@@ -552,18 +552,19 @@ export function buildWorld(game) {
     if (Math.abs(z - 2) < 4 || Math.abs(z - 23) < 3 || Math.abs(z + 14.5) < 3 || Math.abs(z - FLY_Z) < 3) continue;   // and none under the flyover
     for (const x of [-3, 3]) {
       if (z > -12 && z < 32) continue;                    // keep the farm, mandi and workshops clear
+      if (x < 0 && z > 28) continue;                      // the greenhouse field stands here now
       props.safeda(b, x, z, 5.5 + Math.abs(z % 3) * 0.5); circ(x, z, 0.35);
     }
   }
-  const kikars = [[-33, -22], [-20, -22], [-8.5, -20.6], [-55, 6], [-33, 19], [-20, 19.6], [33.5, -28.5], [38, -19], [38, 2], [28.6, 6], [32, 10], [-55.5, -30], [20, 33], [-10, 33], [30, 34], [-30, 32]];
+  const kikars = [[-33, -22], [-20, -22], [-8.5, -20.6], [-55, 6], [33.5, -28.5], [38, -19], [38, 2], [28.6, 6], [32, 10], [-55.5, -30], [20, 33], [30, 34], [-30, 32]];
   for (const [x, z] of kikars) { props.kikar(b, x, z, 0.9 + Math.abs(Math.sin(x * z)) * 0.4); circ(x, z, 0.4); }
-  const trees = [[-6, 35], [4, 37], [17, 36], [-24, 34], [37, -30], [22, -32], [-30, -34], [-40, -40], [-28, -44], [-24, -56], [17, -60], [-55.5, 30], [40, 26], [-12, 40], [26, 42]];
+  const trees = [[4, 37], [17, 36], [37, -30], [22, -32], [-40, -40], [-24, -56], [17, -60], [-55.5, 30], [40, 26], [26, 42]];
   for (const [x, z] of trees) { props.tree(b, x, z, 0.9 + Math.abs(Math.cos(x + z)) * 0.5, LEAVES[Math.abs(x | 0) % 3]); circ(x, z, 0.5); }
   for (const [x, z] of [[-36, 38], [33, 40], [-40, 12]]) { props.mango(b, x, z, 1); circ(x, z, 0.5); }
   for (const [x, z, s] of [[-5.2, -11, 0.8], [-31, -2.5, 1], [-36, -2.2, 0.85], [-40, 21, 1], [33, 30, 1]]) { props.kup(b, x, z, s); circ(x, z, 1.1 * s); }
   for (const [x, z, cc] of [[2.2, -27, 0xff922b], [-2.4, -27, 0xffd43b], [7.5, 6.6, 0xff922b], [-7, 21, 0xf06595], [4.2, -28, 0xffd43b], [-4.2, -28, 0xff922b], [12, -34, 0xffd43b], [-12, -34, 0xff922b], [17, 6.5, 0xffd43b], [-12, -40, 0xff922b], [12, -40, 0xffd43b], [-12, -46, 0xffd43b], [12, -51, 0xff922b], [-0.5, 14.8, 0xffd43b], [10.5, 14.8, 0xff922b]]) props.flowers(b, x, z, cc);
-  for (const [x, z] of [[-1, 30], [-5, 25.8], [18, 26.5], [-35, -26], [30, -27], [-18, 26], [36, 26], [-26, -26]]) props.bush(b, x, z, 1.1);
-  for (const [x, z] of [[-26, 25], [36, 8], [-55, -12], [12, 40], [30, -2], [-20, 36]]) props.rock(b, x, z, 1.2);
+  for (const [x, z] of [[-5, 25.8], [18, 26.5], [-35, -26], [30, -27], [36, 26], [-26, -26]]) props.bush(b, x, z, 1.1);
+  for (const [x, z] of [[36, 8], [-55, -12], [12, 40], [30, -2]]) props.rock(b, x, z, 1.2);
   props.cart(b, -7.5, 9, 0.6);
   props.crates(b, 19.8, 21.2, 3, 0.1);
   // electricity poles with sagging wires down the road

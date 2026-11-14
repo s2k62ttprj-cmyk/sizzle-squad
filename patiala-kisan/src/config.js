@@ -7,7 +7,7 @@ export const SAVE_KEY = 'patiala-kisan-save';
 export const SOUND_PACK = false;
 export const SAVE_VERSION = 2;
 // The release number: each release keeps one copy of the farm exactly as the release before left it
-export const RELEASE = 10;
+export const RELEASE = 11;
 export const DAY_SECONDS = 360;          // one in-game day (salaries, weather)
 export const PLOT = 2;                   // plot pitch in metres
 export const START_MONEY = 40;
@@ -133,7 +133,7 @@ export const PENS = {
   bakri:   { name: 'Bakriyan da Vada', en: 'Goat pen', animal: 'goat', animalName: 'Beetal goat', plural: 'Beetal goats', level: 11, cost: 5000, animalCost: 500, caps: [4, 7, 10, 13, 16], capCosts: [5000, 11000, 18000, 28000], product: 'milk', cycle: 60, feeds: ['carrot', 'cauliflower', 'wheat'], xp: 2 },
   bhed:    { name: 'Bhedan da Vada', en: 'Sheep pen', animal: 'sheep', animalName: 'Sheep', plural: 'Sheep', level: 13, cost: 6000, animalCost: 650, caps: [4, 7, 10, 13, 16], capCosts: [6000, 12000, 20000, 30000], product: 'wool', cycle: 120, feeds: ['wheat', 'maize'], xp: 3 },
 };
-export const PEN_PIPE_COST = 800;     // tubewell pipe: animals never run out of water
+export const PEN_PIPE_COST = 1600;   // doubled in release 11     // tubewell pipe: animals never run out of water
 export const PEN_WATER_CAP = 30;
 
 // Farmland. x0/z0 is the north-west corner, cols along +x, rows along +z.
@@ -146,13 +146,13 @@ export const FIELDS = [
   { id: 'f6', name: 'Vadda Khet',      x0: -28, z0: 4,   cols: 6, rows: 5, level: 12, cost: 12000 },
   { id: 'f7', name: 'Murabba',         x0: -38, z0: -18, cols: 6, rows: 6, level: 16, cost: 25000 },
   { id: 'f8', name: 'Kila',            x0: -39, z0: 4,   cols: 5, rows: 5, level: 20, cost: 40000 },
-  // added in the new-lands update: Navi Zameen, east of the ring road (append only: saves and farm links go by id)
-  { id: 'e1', name: 'Phulkari Baagh',   kind: 'flower', x0: 56, z0: 30,  cols: 6, rows: 5, level: 14, cost: 30000 },
-  { id: 'e2', name: 'Sabzi Baagh',      kind: 'veg',    x0: 72, z0: 30,  cols: 6, rows: 5, level: 17, cost: 45000 },
-  { id: 'e3', name: 'Jhona Khet',       kind: 'paddy',  x0: 56, z0: 10,  cols: 6, rows: 6, level: 20, cost: 65000 },
-  { id: 'e4', name: 'Sheesh Mahal Greenhouse', kind: 'green', x0: 72, z0: 10, cols: 5, rows: 5, level: 24, cost: 120000 },
-  { id: 'e5', name: 'Ganna Bagaan',     kind: 'plant',  x0: 56, z0: -12, cols: 6, rows: 6, level: 27, cost: 160000 },
-  { id: 'e6', name: 'Shahi Zameen',     kind: 'shahi',  x0: 70, z0: -12, cols: 6, rows: 6, level: 32, cost: 300000 },
+  // added in the new-lands update (append only: saves and farm links go by id). Release 11 moved them next to the old farm.
+  { id: 'e1', name: 'Phulkari Baagh',   kind: 'flower', x0: -38.5, z0: 15.6, cols: 5, rows: 6, level: 14, cost: 30000 },
+  { id: 'e2', name: 'Sabzi Baagh',      kind: 'veg',    x0: -27.5, z0: 15.6, cols: 5, rows: 6, level: 17, cost: 45000 },
+  { id: 'e3', name: 'Jhona Khet',       kind: 'paddy',  x0: -23.2, z0: 29,   cols: 6, rows: 6, level: 20, cost: 65000 },
+  { id: 'e4', name: 'Sheesh Mahal Greenhouse', kind: 'green', x0: -10.8, z0: 29, cols: 5, rows: 5, level: 24, cost: 120000 },
+  { id: 'e5', name: 'Ganna Bagaan',     kind: 'plant',  x0: -37.5, z0: -63.5, cols: 6, rows: 6, level: 27, cost: 160000 },
+  { id: 'e6', name: 'Shahi Zameen',     kind: 'shahi',  x0: -37.5, z0: -49.5, cols: 6, rows: 6, level: 32, cost: 300000 },
 ];
 // what each kind of land is good at: grow = speed multiplier, extra = more crops per harvest
 export const FIELD_KINDS = {
@@ -191,7 +191,7 @@ export const MELA = {
   race: [[53.5, 30], [70, 24], [85.7, 24], [85.7, 8], [75, 2.7], [58, 2.7], [53.5, -16], [66, -20], [53.5, -44]], raceTime: 100, racePay: 800,
   harvestTime: 60, harvestPay: 30, harvestCool: 600,
   matkas: 6, matkaPay: 250, matkaBonus: 1500,
-  matkaSpots: [[-4.4, 35], [5.6, 37], [18.6, 36], [-22.4, 34], [38.6, -30], [23.6, -32], [-28.4, -34], [-38.4, -40], [-26.4, -44], [-53.9, 30], [41.6, 26], [-10.4, 40], [27.6, 42], [-31.4, -22], [-53.4, 6], [58, -27], [80, -27.5], [75, 46], [60, 46.5], [98, -30], [49.5, -40], [-36, 45]],
+  matkaSpots: [[-1.5, 43], [5.6, 37], [18.6, 36], [-25.5, 29], [38.6, -30], [23.6, -32], [-28.4, -34], [-38.4, -40], [-24, -46], [-53.9, 30], [41.6, 26], [-10.4, 40], [27.6, 42], [-31.4, -22], [-53.4, 6], [58, -27], [80, -27.5], [75, 46], [60, 46.5], [98, -30], [49.5, -40], [-36, 45]],
   puddles: [[0, 10, 1.2], [0, 25, 1.0], [10, 30, 1.3], [10, 40, 1.0], [-6, 22.5, 1.2], [20, 23, 1.0], [8, -14.5, 1.1], [25, -14.5, 1.0], [53.5, 10, 1.2], [53.5, -20, 1.1], [70, 24, 1.2], [70, 2.7, 1.0], [85.7, -10, 1.1], [-1, -20, 1.0]],
   visitorBeauty: 120, visitorTip: 40, visitorTipTier: 30, visitorFrom: [[0, 49], [10, 49], [50, 24]],
 };
@@ -200,8 +200,8 @@ export const MELA = {
 export const TUBEWELLS = [
   { name: 'Ghar wala tubewell', kotha: [-4.5, -4.2], tank: [-4.5, -1.9], puddle: [-2.6, -1.4], fields: ['f1', 'f2', 'f3', 'f4'],
     channel: [[-5.6, -2.4], [-5.9, -2.4], [-5.9, -7.5], [-25, -7.5]], khaal: { cost: 2500, level: 5 } },
-  { name: 'Navi Zameen tubewell', kotha: [62, 6.2], tank: [65.5, 6.4], puddle: [67.9, 6.0], fields: ['e1', 'e2', 'e3', 'e4', 'e5', 'e6'],
-    channel: [[65.2, 7.2], [65.2, 9.3], [55.3, 9.3], [55.3, 41]] },
+  { name: 'Navi Zameen tubewell', kotha: [62, 6.2], tank: [65.5, 6.4], puddle: [67.9, 6.0], fields: [],
+    channel: [[65.2, 7.2], [65.2, 9.3], [55.3, 9.3], [55.3, -28]] },
 ];
 export const seasonOf = (day) => SEASONS[Math.floor(Math.max(0, (day | 0) - 1) / SEASON_DAYS) % SEASONS.length];
 
@@ -475,7 +475,7 @@ export const ACHIEVEMENTS = [
   { id: 'decor25', text: 'Place 25 decorations', stat: 'decor', n: 25 },
   { id: 'caught1', text: 'Get your goods back from a thief', stat: 'caught', n: 1 },
   { id: 'outfits5', text: 'Own 5 outfits', stat: 'outfits', n: 5 },
-  { id: 'outfitsAll', text: 'Own every outfit in the wardrobe', stat: 'outfits', n: 18 },
+  { id: 'outfitsAll', text: 'Own every outfit in the wardrobe', stat: 'outfits', n: 30 },
   { id: 'beauty700', text: 'Make your farm Beautiful (beauty 700)', stat: 'beauty', n: 700 },
   { id: 'beauty2000', text: 'Make your farm Royal (beauty 2000)', stat: 'beauty', n: 2000 },
   { id: 'themePink', text: 'Place 10 Pink Paradise pieces', stat: 'pinkDecor', n: 10 },
@@ -706,6 +706,19 @@ export const SKINS = {
   sherwani:   { name: 'Royal Sherwani', gender: 'm', rarity: 'legendary', price: 1200000, level: 28, pagg: true, desc: 'An ivory sherwani with gold zari, a pagg with a kalgi, a pearl string', look: { top: 'sherwani', shirt: 0xf3ead6, trim: 0xd4a017, pants: 0xf3ead6, shoes: 0xc9a227, kalgi: true, necklace: 0xfff8f0, scarf: 0x9c1c2b } },
   f_rani:     { name: 'Rani Sahiba', gender: 'f', rarity: 'legendary', price: 1500000, level: 30, desc: 'A royal maroon suit, gold dupatta and kundan jewellery', look: { shirt: 0x7a1424, pants: 0xd4a017, dupatta: 0xf2c94c, shoes: 0xd4a017, necklace: 0xf2c94c } },
   maharaja:   { name: 'Maharaja of Patiala', gender: 'm', rarity: 'legendary', price: 2500000, level: 35, pagg: true, desc: 'A brocade achkan, ropes of pearls, a sash and a jewelled kalgi', look: { top: 'achkan', shirt: 0x1f3a5f, trim: 0xf2c94c, pants: 0xf8f4ea, shoes: 0xd4a017, kalgi: true, sash: 0x9c1c2b } },
+  // added in the more-outfits update (append only)
+  kisanblue:  { name: 'Navy Kurta Pajama', gender: 'm', rarity: 'common', price: 35000, level: 7, pagg: true, desc: 'A navy kurta with gold buttons and white pajama', look: { shirt: 0x1f3a5f, pants: 0xfbf8f1, trim: 0xf2c94c, shoes: 0x9a5a1c } },
+  bhangra:    { name: 'Bhangra Star', gender: 'm', rarity: 'common', price: 40000, level: 8, pagg: true, desc: 'A golden kurta, black vest, blue chadra and a red rumal', look: { shirt: 0xf2c200, pants: 0x1c7ed6, vest: 0x1d1d1f, trim: 0xe03131, scarf: 0xe03131, shoes: 0xd4a017 } },
+  tracksuit:  { name: 'Sports Tracksuit', gender: 'm', rarity: 'common', price: 45000, level: 9, pagg: true, desc: 'A blue tracksuit with white stripes and sneakers', look: { top: 'jacket', shirt: 0x1c7ed6, trim: 0xffffff, legs: 'trousers', pants: 0x1c7ed6, feet: 'sneakers', shoes: 0xffffff, watch: 0x111111 } },
+  pilot:      { name: 'Flying Ace', gender: 'm', rarity: 'rare', price: 180000, level: 16, desc: 'A leather flight jacket, white scarf, cap, gloves and boots', look: { top: 'jacket', shirt: 0x6b3d1f, scarf: 0xffffff, legs: 'cargo', pants: 0x495057, feet: 'boots', shoes: 0x3a2414, hat: 'cap', hatColor: 0x6b3d1f, gloves: 0x3a2414, watch: true } },
+  linen:      { name: 'Summer Linen', gender: 'm', rarity: 'epic', price: 380000, level: 19, pagg: true, desc: 'A white linen shirt, beige trousers, belt and loafers', look: { top: 'shirt', shirt: 0xf8f9fa, legs: 'trousers', pants: 0xe9dcc0, feet: 'formal', shoes: 0x8a5a2b, watch: 0xf2c94c, belt: 0x5a3a22, beltBuckle: 0xd9b45a } },
+  groom:      { name: 'Lagan Groom', gender: 'm', rarity: 'legendary', price: 1800000, level: 32, pagg: true, desc: 'A red and gold sherwani with a pearl mala and a kalgi', look: { top: 'sherwani', shirt: 0xc92a2a, trim: 0xf2c94c, pants: 0xf8f4ea, shoes: 0xd4a017, kalgi: true, necklace: 0xfff8f0, sash: 0xf2c94c } },
+  f_summer:   { name: 'Summer Dress', gender: 'f', rarity: 'common', price: 35000, level: 7, desc: 'A sunny yellow top and skirt with a handbag', look: { female: true, top: 'shirt', shirt: 0xffd43b, legs: 'skirt', pants: 0xffd43b, feet: 'sneakers', shoes: 0xffffff, handbag: 0xe8590c } },
+  f_sports:   { name: 'Athleisure', gender: 'f', rarity: 'common', price: 45000, level: 9, desc: 'A pink hoodie, black joggers and white sneakers', look: { female: true, top: 'hoodie', shirt: 0xf06595, trim: 0xffffff, legs: 'trousers', pants: 0x343a40, feet: 'sneakers', shoes: 0xffffff } },
+  f_phulkari: { name: 'Patiala Shahi Phulkari', gender: 'f', rarity: 'rare', price: 160000, level: 15, desc: 'A white kameez, pink Patiala salwar and an orange phulkari', look: { shirt: 0xf8f9fa, pants: 0xe64980, dupatta: 0xf76707, shoes: 0xd4a017, earrings: 0xf2c94c } },
+  f_pilot:    { name: 'Sky Pilot', gender: 'f', rarity: 'rare', price: 180000, level: 16, desc: 'A flight jacket, white scarf, gloves and boots', look: { female: true, top: 'jacket', shirt: 0x6b3d1f, scarf: 0xffffff, legs: 'cargo', pants: 0x495057, feet: 'boots', shoes: 0x3a2414, gloves: 0x3a2414, watch: true } },
+  f_anarkali: { name: 'Anarkali Gown', gender: 'f', rarity: 'epic', price: 450000, level: 21, desc: 'A long purple anarkali with gold work and jewellery', look: { female: true, top: 'achkan', shirt: 0x7048e8, trim: 0xf2c94c, legs: 'skirt', pants: 0x7048e8, feet: 'heels', earrings: 0xf2c94c, necklace: 0xf2c94c } },
+  f_lehenga:  { name: 'Bridal Lehenga', gender: 'f', rarity: 'legendary', price: 2000000, level: 33, desc: 'A red bridal lehenga, gold dupatta and kundan set', look: { shirt: 0xc92a2a, pants: 0xc92a2a, dupatta: 0xf2c94c, shoes: 0xd4a017, necklace: 0xf2c94c, earrings: 0xf2c94c } },
 };
 // What makeHuman needs to draw a wardrobe choice (the default is exactly the farmer of before)
 export function lookFor(w, turban) {
@@ -721,7 +734,7 @@ export function lookFor(w, turban) {
 // r: room it needs (m); solid: collision radius (0 = walk through); tokens: costs Baradari
 // roses instead of rupees; fruit: a tree that ripens (every s seconds, n pieces) and is picked by hand;
 // glow: [height, size] lamp glow at dusk; spray: a fountain that sprays.
-export const DECOR_MAX = 160;
+export const DECOR_MAX = 200;
 export const DECOR_REFUND = 0.5;
 export const DECOR_CATS = [['tree', '🌳 Trees'], ['flower', '🌼 Flowers'], ['light', '💡 Lights'], ['water', '⛲ Water'], ['seat', '🪑 Seating'], ['path', '🟫 Paths'], ['fence', '🚧 Fences & gates'], ['statue', '🗿 Statues'], ['orn', '🏺 Ornaments'], ['season', '🪔 Seasonal'], ['royal', '👑 Baradari specials']];
 export const DECOR = {
@@ -810,18 +823,46 @@ export const DECOR = {
   pinkswing: { name: 'Flower swing', icon: '🌷', cat: 'pink', cost: 3500, level: 15, r: 1.6, solid: 0.3, desc: 'A swing wrapped in pink flowers' },
   pinkgazebo: { name: 'Pink pavilion', icon: '🎀', cat: 'pink', cost: 18000, level: 25, r: 3.0, bty: 700, desc: 'A rose-pink pavilion with a golden top' },
   pinkrug:   { name: 'Pink rug', icon: '🌺', cat: 'pink', cost: 500, level: 7, r: 1.2, flat: true, desc: 'A soft pink rug with flower print' },
+  // added in the flowers-and-lights update. tiny: small enough to go almost anywhere
+  tulips:    { name: 'Tulip pot', icon: '🌷', cat: 'flower', cost: 150, level: 3, r: 0.45, tiny: true, desc: 'Red, yellow and pink tulips' },
+  lily:      { name: 'Lily pot', icon: '🤍', cat: 'flower', cost: 180, level: 4, r: 0.45, tiny: true, desc: 'White lilies with broad leaves' },
+  hibiscus:  { name: 'Gudhal bush', icon: '🌺', cat: 'flower', cost: 220, level: 5, r: 0.6, tiny: true, desc: 'Big red hibiscus flowers' },
+  daisy:     { name: 'Daisy clump', icon: '🌼', cat: 'flower', cost: 120, level: 2, r: 0.45, tiny: true, desc: 'A cheerful patch of daisies' },
+  lavender:  { name: 'Lavender pot', icon: '💜', cat: 'flower', cost: 260, level: 6, r: 0.45, tiny: true, desc: 'Purple spikes that smell lovely' },
+  orchid:    { name: 'Orchid pot', icon: '🪻', cat: 'flower', cost: 400, level: 9, r: 0.4, tiny: true, desc: 'An elegant purple and white orchid' },
+  bougain:   { name: 'Bougainvillea', icon: '🌸', cat: 'flower', cost: 600, level: 10, r: 0.8, tiny: true, desc: 'Magenta flowers on a little trellis' },
+  rosebush:  { name: 'Rose bush', icon: '🌹', cat: 'flower', cost: 250, level: 4, r: 0.5, tiny: true, desc: 'A single bush of red and pink roses' },
+  gendapot:  { name: 'Genda pot', icon: '🏵️', cat: 'flower', cost: 100, level: 2, r: 0.4, tiny: true, desc: 'Marigolds in a matka' },
+  chameli:   { name: 'Chameli pot', icon: '🤍', cat: 'flower', cost: 200, level: 5, r: 0.45, tiny: true, desc: 'Jasmine, sweet in the evening' },
+  hangbasket: { name: 'Hanging basket', icon: '🧺', cat: 'flower', cost: 350, level: 7, r: 0.5, tiny: true, desc: 'Trailing flowers on an iron hook' },
+  flowertower: { name: 'Flower tower', icon: '🗼', cat: 'flower', cost: 700, level: 11, r: 0.5, tiny: true, desc: 'Three stacked pots overflowing with flowers' },
+  pansy:     { name: 'Pansy tray', icon: '🟣', cat: 'flower', cost: 90, level: 2, r: 0.45, tiny: true, desc: 'A wooden tray of bright pansies' },
+  flowercart: { name: 'Flower cart', icon: '🛒', cat: 'flower', cost: 1200, level: 12, r: 1.1, solid: 0.5, desc: 'A green cart loaded with flower boxes' },
+  pathlight: { name: 'Path light', icon: '🔦', cat: 'light', cost: 120, level: 4, r: 0.3, tiny: true, glow: [0.45, 0.6], desc: 'A little light to line your paths' },
+  kandeel:   { name: 'Kandeel lantern', icon: '🏮', cat: 'light', cost: 300, level: 6, r: 0.5, tiny: true, glow: [1.7, 1.2], desc: 'A Diwali kandeel on a hooked pole' },
+  mashaal:   { name: 'Mashaal torch', icon: '🔥', cat: 'light', cost: 250, level: 5, r: 0.4, tiny: true, glow: [1.9, 1.3], desc: 'A flaming torch on a wooden pole' },
+  lighttree: { name: 'Light tree', icon: '🎄', cat: 'light', cost: 1800, level: 13, r: 1.0, solid: 0.3, glow: [2.2, 2.4], desc: 'A little tree wrapped in coloured bulbs' },
+  bulbarch:  { name: 'Bulb arch', icon: '🌉', cat: 'light', cost: 2200, level: 14, r: 1.6, glow: [2.8, 2.0], desc: 'An archway outlined with warm bulbs' },
+  starlamp:  { name: 'Star lamp', icon: '⭐', cat: 'light', cost: 700, level: 9, r: 0.45, tiny: true, glow: [2.45, 1.4], desc: 'A golden star on a pole' },
+  moonlamp:  { name: 'Moon lamp', icon: '🌕', cat: 'light', cost: 900, level: 10, r: 0.6, solid: 0.3, glow: [0.8, 1.6], desc: 'A glowing full moon on the lawn' },
+  lanternrow: { name: 'Lantern string', icon: '🎐', cat: 'light', cost: 1000, level: 11, r: 1.7, glow: [1.8, 1.8], desc: 'Paper lanterns on a line between two posts' },
+  globelamp: { name: 'Globe lamp', icon: '🔮', cat: 'light', cost: 600, level: 8, r: 0.45, tiny: true, glow: [2.7, 1.5], desc: 'A white glass globe on a black post' },
+  twinlamp:  { name: 'Twin lamp post', icon: '🕯️', cat: 'light', cost: 1100, level: 12, r: 0.6, solid: 0.15, glow: [2.6, 2.0], desc: 'A royal post with two lanterns' },
+  bollard:   { name: 'Bollard light', icon: '🚥', cat: 'light', cost: 220, level: 5, r: 0.3, tiny: true, glow: [0.6, 0.8], desc: 'A short post with a band of light' },
+  fireflyjar: { name: 'Firefly jar', icon: '✨', cat: 'light', cost: 180, level: 4, r: 0.3, tiny: true, glow: [0.3, 0.6], desc: 'A jar of twinkling jugnu' },
+  spotlight: { name: 'Garden spotlight', icon: '💡', cat: 'light', cost: 350, level: 7, r: 0.3, tiny: true, glow: [0.4, 1.3], desc: 'Lights up a tree or statue from below' },
 };
 // added in the decoration-mode update: new shop sections, before the Baradari specials
 DECOR_CATS.splice(DECOR_CATS.length - 1, 0, ['furn', '🛋️ Furniture'], ['prem', '🏛️ Premium'], ['pink', '💗 Pink Paradise']);
 
 // decoration themes: every item belongs to one or more; the shop can show one theme at a time
 export const THEMES = {
-  royal:   { name: 'Royal Garden', icon: '👑', keys: 'fountain marble ironfence horse lion maharaja lantern royalfountain marblebench rosearch goldlamp peacock royalpond minibaradari gazebo elephant hedge ashoka' },
-  modern:  { name: 'Modern Luxury', icon: '🏙️', keys: 'lamp slab pool sofa dining swingchair coffeetable lounger streetlight colorlights fairylights hedge pot' },
-  indian:  { name: 'Traditional Indian', icon: '🪔', keys: 'neem peepal banyan tulsi marigold mogra lotus diya matkas charkha cart charpai jhoola rangoli bonfire diyaring flags arch brick hanglantern elephant peacock welcome' },
-  pink:    { name: 'Pink Paradise', icon: '💗', keys: 'rose lotus rosearch pinktree pinkbench heartarch pinklamp flamingo pinkfountain pinkswing pinkgazebo pinkrug fairylights mogra' },
-  western: { name: 'Western Farmhouse', icon: '🤠', keys: 'fence gate picnic bench cart birdhouse windmill welcome sunflowers pergola rug lamp' },
-  natural: { name: 'Natural Countryside', icon: '🌿', keys: 'neem ashoka peepal mango guava ber gulmohar orange palm jamun bamboo banyan pot hedge sunflowers birdbath pond stoneseats slab fence waterfall bridge deer birdhouse pergola' },
+  royal:   { name: 'Royal Garden', icon: '👑', keys: 'fountain marble ironfence horse lion maharaja lantern royalfountain marblebench rosearch goldlamp peacock royalpond minibaradari gazebo elephant hedge ashoka twinlamp globelamp lighttree orchid' },
+  modern:  { name: 'Modern Luxury', icon: '🏙️', keys: 'lamp slab pool sofa dining swingchair coffeetable lounger streetlight colorlights fairylights hedge pot pathlight bollard spotlight starlamp moonlamp globelamp' },
+  indian:  { name: 'Traditional Indian', icon: '🪔', keys: 'neem peepal banyan tulsi marigold mogra lotus diya matkas charkha cart charpai jhoola rangoli bonfire diyaring flags arch brick hanglantern elephant peacock welcome gendapot chameli kandeel mashaal flowercart hibiscus' },
+  pink:    { name: 'Pink Paradise', icon: '💗', keys: 'rose lotus rosearch pinktree pinkbench heartarch pinklamp flamingo pinkfountain pinkswing pinkgazebo pinkrug fairylights mogra tulips hibiscus orchid bougain rosebush lily' },
+  western: { name: 'Western Farmhouse', icon: '🤠', keys: 'fence gate picnic bench cart birdhouse windmill welcome sunflowers pergola rug lamp lanternrow hangbasket fireflyjar bulbarch flowercart' },
+  natural: { name: 'Natural Countryside', icon: '🌿', keys: 'neem ashoka peepal mango guava ber gulmohar orange palm jamun bamboo banyan pot hedge sunflowers birdbath pond stoneseats slab fence waterfall bridge deer birdhouse pergola daisy lavender rosebush pansy fireflyjar' },
 };
 for (const [t, th] of Object.entries(THEMES)) for (const k of th.keys.split(' ')) if (DECOR[k]) (DECOR[k].th ||= []).push(t);
 
@@ -834,7 +875,7 @@ export const BEAUTY_TIERS = [
   { at: 350, name: 'Charming', money: 4000, xp: 150 }, { at: 700, name: 'Beautiful', money: 10000, xp: 250 }, { at: 1200, name: 'Gorgeous', money: 25000, xp: 400 },
   { at: 2000, name: 'Royal', money: 60000, xp: 600 }, { at: 3200, name: 'Legendary', money: 120000, xp: 900 },
 ];
-export const beautyOf = (k) => { const D = DECOR[k]; return D ? Math.max(1, Math.round(Math.sqrt(D.tokens ? D.tokens * 150 : D.cost) / 2)) : 0; };
+export const beautyOf = (k) => { const D = DECOR[k]; return D ? Math.max(1, Math.round(Math.sqrt(D.tokens ? D.tokens * 150 : D.base ?? D.cost) / 2)) : 0; };
 export function beautyScore(list) {
   const seen = {};
   let sum = 0;
@@ -886,3 +927,21 @@ export const TRADE = {
 export const CUSTOMER_NAMES = ['Bhola', 'Jeeto', 'Kartar', 'Simran', 'Harpal', 'Preeto', 'Balwant', 'Gurmeet', 'Nindi', 'Jassi', 'Raju', 'Bebe', 'Chacha ji', 'Pinky', 'Lakha'];
 
 export const TURBAN_COLORS = ['#e8590c', '#1c4fd1', '#d6336c', '#2b8a3e', '#f2c400', '#7b2cbf', '#111111', '#ffffff'];
+
+// ---------------------------------------------------------------- prices doubled (release 11)
+// The farm was growing too fast, so everything you buy costs twice as much. Seeds and selling
+// prices are untouched. Decorations remember their old price for the beauty score.
+export const PRICE_MUL = 2;
+{
+  const dbl = (o, k = 'cost') => { if (o && typeof o[k] === 'number') o[k] = Math.round(o[k] * PRICE_MUL); };
+  for (const f of FIELDS) dbl(f);
+  for (const L of [BAGS, CANS, STORAGE, STALL, TRACTOR_HP, BIKE_ENGINES, PLANE_ENGINES, SCARECROW_LEVELS]) for (const x of L) dbl(x);
+  for (const L of [VEHICLES, ATTACHMENTS, BUILDINGS]) for (const x of Object.values(L)) dbl(x);
+  for (const p of Object.values(PENS)) { dbl(p); dbl(p, 'animalCost'); p.capCosts = p.capCosts.map((c) => c * PRICE_MUL); }
+  for (const m of Object.values(MANAGERS)) dbl(m, 'hire');
+  dbl(SEERI, 'hire');
+  for (const d of Object.values(DECOR)) if (d.cost) { d.base = d.cost; dbl(d); }
+  for (const s of Object.values(SKINS)) dbl(s, 'price');
+  for (const p of Object.values(PETS)) dbl(p);
+  dbl(ORCHARD); dbl(PADDOCK);
+}

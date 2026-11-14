@@ -382,9 +382,9 @@ export class UI {
         const o = st.fields[f.id].owned;
         const b = o ? '<span class="tag ok">Owned</span>' : st.level < f.level ? `<span class="tag">🔒 L${f.level}</span>` : this.btn(`Buy ${money(f.cost - st.fields[f.id].paid)}`, 'buyField', { id: f.id }, st.money < f.cost - st.fields[f.id].paid);
         const K = FIELD_KINDS[f.kind];
-        return (f.id === 'e1' ? '<h3>🌄 Navi Zameen · new lands east of the ring road</h3>' : '') + this.row(K ? K.icon : '🟫', f.name, `${f.cols * f.rows} plots${K ? ` · ${K.name}: ${K.desc}` : ''}`, b + (o ? '' : this.btn('📍', 'guide', { t: f.id })));
+        return (f.id === 'e1' ? '<h3>🌄 New lands beside the farm</h3>' : '') + this.row(K ? K.icon : '🟫', f.name, `${f.cols * f.rows} plots${K ? ` · ${K.name}: ${K.desc}` : ''}`, b + (o ? '' : this.btn('📍', 'guide', { t: f.id })));
       }).join('') + this.row('🥭', 'Bagicha (fruit orchard)', `12 fruit trees in Navi Zameen, ${ORCHARD.n} fruit from each every ${ORCHARD.every / 60} min · stand on its pad to buy`, st.orchard.owned ? `<span class="tag ok">Owned · ${this.game.eastland.ripeCount()} ripe</span>` : st.level < ORCHARD.level ? `<span class="tag">🔒 L${ORCHARD.level}</span>` : this.btn('📍', 'guide', { t: 'orchard' }))
-        + this.row('💧', 'Dig the khaal (irrigation channel)', `Water runs from the farmhouse tube well to ${TUBEWELLS[0].fields.length} fields whenever its motor is on and waters every dry seed. Navi Zameen's tube well has one already.`, st.pump.khaal ? '<span class="tag ok">Dug</span>' : st.level < TUBEWELLS[0].khaal.level ? `<span class="tag">🔒 L${TUBEWELLS[0].khaal.level}</span>` : this.btn(`Dig · ${money(TUBEWELLS[0].khaal.cost)}`, 'digKhaal', {}, st.money < TUBEWELLS[0].khaal.cost))
+        + this.row('💧', 'Tube well and khaal', `The farmhouse tube well runs and its khaal waters ${TUBEWELLS[0].fields.length} fields by itself. Switch the motor on or off at the pump room.`, st.pump.on[0] ? '<span class="tag ok">Running</span>' : '<span class="tag">Off</span>')
         + `<p class="hint">${seasonOf(st.day.n).icon} It is <b>${seasonOf(st.day.n).name}</b> season (${seasonOf(st.day.n).desc}): ${seasonOf(st.day.n).crops.map((c) => CROPS[c].icon).join('')} sell ${Math.round(SEASON_BONUS * 100)}% dearer. Seasons change every 5 days.</p>`
         + this.scarecrowShopHTML();
       case 'build': {

@@ -1,6 +1,6 @@
 // Save data: creation, versioned load/migrate, autosave and inventory helpers.
 // Pure module (no three.js) so it can be unit tested in tests/index.html.
-import { RELEASE, SAVE_KEY, SAVE_VERSION, START_MONEY, FIELDS, PENS, BUILDINGS, VEHICLES, BAGS, STORAGE, TANKER_CAP, MANAGERS, ITEMS, TRADE, SCARECROW_DESIGNS, SCARECROW_LEVELS, SCARECROW_MAX, AURA, CROPS, DECOR, DECOR_MAX, SKINS } from './config.js';
+import { PLOT, RELEASE, SAVE_KEY, SAVE_VERSION, START_MONEY, FIELDS, PENS, BUILDINGS, VEHICLES, BAGS, STORAGE, TANKER_CAP, MANAGERS, ITEMS, TRADE, SCARECROW_DESIGNS, SCARECROW_LEVELS, SCARECROW_MAX, AURA, CROPS, DECOR, DECOR_MAX, SKINS } from './config.js';
 import { pack, unpack } from './codec.js';
 
 export function todayKey(d = new Date()) {
@@ -65,7 +65,7 @@ export function newState(name = 'Guri', turban = '#e8590c') {
     deco: { inv: {}, snap: true, tier: 0 },
     orchard: { owned: false, paid: 0, t: [] },
     sky: { day: '', kites: [], best: 0 },
-    pump: { on: [false, false], khaal: false },
+    pump: { on: [true, true], khaal: true, fix: 1 },
     pets: { owned: {}, active: '', pat: 0 },
     paddock: { owned: false, paid: 0, fed: '' },
     mela: { day: '', found: [], best: 0, hBest: 0, hLast: 0 },      // tube well motors and the old well's irrigation channel          // the airplane's sky games     // Navi Zameen orchard: when each tree was last picked   // stored decorations by kind, grid snapping, beauty tier already paid
@@ -107,6 +107,7 @@ export function migrate(s) {
     s = m(s);
   }
   const hadGift = 'lvlGift' in s;
+  const pumpFix = !s.pump?.fix;                 // read before the defaults fill it in
   const fresh = newState(s.name, s.turban);
   fillDefaults(s, fresh);
   if (!hadGift) s.lvlGift = Math.max(1, s.level | 0);       // levels passed before the update get no gift
@@ -122,7 +123,11 @@ export function migrate(s) {
     .slice(0, SCARECROW_MAX).map((c) => ({ ...c, lvl: Math.max(0, Math.min(SCARECROW_LEVELS.length - 1, c.lvl | 0)) }));
   s.decor = cleanDecor(s.decor);
   s.deco = cleanDeco(s.deco);
-  s.pump = { on: [!!s.pump?.on?.[0], !!s.pump?.on?.[1]], khaal: !!s.pump?.khaal };
+  // release 11: the tube wells run by default (water you can see) and the khaal comes free
+  s.pump = { on: pumpFix ? [true, true] : [!!s.pump?.on?.[0], !!s.pump?.on?.[1]], khaal: true, fix: 1 };
+  // release 11 moved the new fields next to the old farm: decorations standing there go to the store
+  const inField = (d) => FIELDS.some((f) => d.x > f.x0 - 0.6 && d.x < f.x0 + f.cols * PLOT + 0.6 && d.z > f.z0 - 0.6 && d.z < f.z0 + f.rows * PLOT + 0.6);
+  s.decor = s.decor.filter((d) => { if (!inField(d)) return true; s.deco.inv[d.k] = (s.deco.inv[d.k] || 0) + 1; s.deco.moved = (s.deco.moved || 0) + 1; return false; });
   s.sky = { day: String(s.sky?.day || '').slice(0, 10), kites: (Array.isArray(s.sky?.kites) ? s.sky.kites : []).filter(Number.isInteger).slice(0, 40), best: Math.max(0, +s.sky?.best || 0) };
   s.orchard = { owned: !!s.orchard?.owned, paid: Math.max(0, +s.orchard?.paid || 0), t: (Array.isArray(s.orchard?.t) ? s.orchard.t : []).slice(0, 12).map((v) => Math.max(0, +v || 0)) };
   s.wardrobe = cleanWardrobe(s.wardrobe);
@@ -140,7 +145,7 @@ export function cleanDecor(list) {
 export function cleanDeco(o) {
   const inv = {};
   for (const [k, n] of Object.entries(o?.inv || {})) if (DECOR[k] && Number.isFinite(+n) && +n >= 1) inv[k] = Math.min(999, Math.floor(+n));
-  return { inv, snap: o?.snap !== false, tier: Math.max(0, Math.min(99, o?.tier | 0)) };
+  return { inv, snap: o?.snap !== false, tier: Math.max(0, Math.min(99, o?.tier | 0)), ...(o?.moved > 0 ? { moved: Math.min(999, o.moved | 0) } : {}) };
 }
 // outfits: only real ones are owned, the starting two always are, you can only wear what you own
 export function cleanWardrobe(w) {

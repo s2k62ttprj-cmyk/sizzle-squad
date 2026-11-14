@@ -125,7 +125,7 @@ const SAY = {
 };
 export function policeHTML(ui) {
   const g = ui.game, st = g.state, c = activeCase(st), step = ui.pStep || 'greet';
-  const officer = (t) => `<div class="card2 officer"><div class="of">👮</div><div><b>Inspector Sandhu</b><small>${t}</small></div></div>`;
+  const officer = (t) => `<div class="card2 officer"><div class="of">👮</div><div><b>Inspector Billing</b><small>${t}</small></div></div>`;
   let h = '';
   if (step === 'greet') {
     h += officer(SAY[c ? c.status : 'none']);
@@ -161,7 +161,7 @@ export function policeHTML(ui) {
     h += `<button class="btn wide ghost" data-act="pBack">⬅ Not now</button>`;
   } else if (step === 'result') {
     const r = ui.pResult || {};
-    const talk = r.timeout ? '"He wriggled out of your grip, so we stepped in, ji. Do not worry: the goods are back with you."' : { confront: '"Hai, maaf karo ji! I will never touch your godown again!" the thief cries, rubbing his arm. Inspector Sandhu nods: "Taught him well."', forgive: '"Tusi rabb ho ji…" the thief folds his hands, eyes wet. "I will work an honest day from tomorrow." The Inspector smiles.', police: '"We will see to it that he learns," says the Inspector, locking the register. "Case closed."' }[r.option];
+    const talk = r.timeout ? '"He wriggled out of your grip, so we stepped in, ji. Do not worry: the goods are back with you."' : { confront: '"Hai, maaf karo ji! I will never touch your godown again!" the thief cries, rubbing his arm. Inspector Billing nods: "Taught him well."', forgive: '"Tusi rabb ho ji…" the thief folds his hands, eyes wet. "I will work an honest day from tomorrow." The Inspector smiles.', police: '"We will see to it that he learns," says the Inspector, locking the register. "Case closed."' }[r.option];
     h += officer(talk || 'Case closed.');
     h += `<div class="card2 gold"><b>✅ Goods returned to your godown</b><ul class="unl">${itemList(r.items || {})}</ul>`;
     const bits = [r.money ? `+${money(r.money)}` : '', r.soul ? `+${r.soul} 🙏 soul points` : '', r.xp ? `+${r.xp} XP` : ''].filter(Boolean);

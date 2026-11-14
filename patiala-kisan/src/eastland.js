@@ -33,15 +33,20 @@ export class EastLand {
     for (const f of EAST_FIELDS) {
       const K = FIELD_KINDS[f.kind], w = f.cols * PLOT, d = f.rows * PLOT, cx = f.x0 + w / 2;
       // a signboard on two posts at the north edge, facing the track
-      const sx = f.x0 + 1.2, sz = f.z0 - 1.4;
-      for (const s of [-1, 1]) b.cyl(WOOD, { x: sx + s * 0.9, y: 0.9, z: sz, sy: 1.8 }, 0.05, 0.06, 6);
+      // a signboard on two posts beside the field, on a side that is not another field
+      const clear = (x, z) => !FIELDS.some((g) => x > g.x0 - 1 && x < g.x0 + g.cols * PLOT + 1 && z > g.z0 - 1 && z < g.z0 + g.rows * PLOT + 1);
+      const cands = [[f.x0 + 1.2, f.z0 - 1.4, 0], [f.x0 + 1.2, f.z0 + d + 1.4, 0], [f.x0 - 1.4, f.z0 + 1.2, Math.PI / 2], [f.x0 + w + 1.4, f.z0 + 1.2, Math.PI / 2]];
+      const [sx, sz, sr] = cands.find(([x, z]) => clear(x, z)) || cands[0];
+      b.push(sx, 0, sz, sr);
+      for (const s of [-1, 1]) b.cyl(WOOD, { x: s * 0.9, y: 0.9, sy: 1.8 }, 0.05, 0.06, 6);
+      b.pop();
       cols.push({ x: sx, z: sz, r: 0.5 });
-      board([{ text: `${K.icon} ${f.name}`, size: 46 }, { text: K.name, size: 38 }], 2.3, 0.9, sx, 1.45, sz + 0.06, 0);
-      board([{ text: `${K.icon} ${f.name}`, size: 46 }, { text: K.name, size: 38 }], 2.3, 0.9, sx, 1.45, sz - 0.06, Math.PI);
+      board([{ text: `${K.icon} ${f.name}`, size: 46 }, { text: K.name, size: 38 }], 2.3, 0.9, sx + Math.sin(sr) * 0.06, 1.45, sz + Math.cos(sr) * 0.06, sr);
+      board([{ text: `${K.icon} ${f.name}`, size: 46 }, { text: K.name, size: 38 }], 2.3, 0.9, sx - Math.sin(sr) * 0.06, 1.45, sz - Math.cos(sr) * 0.06, sr + Math.PI);
       if (f.kind === 'paddy') {
         // earth bunds round the paddy and a little channel
         for (const [x, z, a, l] of [[cx, f.z0 - 0.35, 0, w + 1.4], [cx, f.z0 + d + 0.35, 0, w + 1.4], [f.x0 - 0.35, f.z0 + d / 2, 1, d], [f.x0 + w + 0.35, f.z0 + d / 2, 1, d]]) b.rbox(MUD, { x, y: 0.1, z, sx: a ? 0.45 : l, sy: 0.22, sz: a ? l : 0.45 }, 0.08);
-        b.box(0x4f9fd0, { x: f.x0 + w + 0.95, y: 0.03, z: f.z0 + d / 2, sx: 0.5, sy: 0.03, sz: d, ao: false });
+        b.box(0x4f9fd0, { x: f.x0 - 0.95, y: 0.03, z: f.z0 + d / 2, sx: 0.5, sy: 0.03, sz: d, ao: false });
       }
       if (f.kind === 'green') {
         // the greenhouse: steel hoops and posts; glass panels are added below as one see-through mesh

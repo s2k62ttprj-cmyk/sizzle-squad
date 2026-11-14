@@ -104,7 +104,7 @@ export class Police {
     this.thief = null;              // the thief running about during a theft
     this.fight = null;
     this.t = 0;
-    this.labelO = game.labels.add(() => '👮 Inspector Sandhu', () => _v.set(SX + DESK[0] + 2.2, 2.55, SZ + DESK[1] + 0.2), 'mgr', 18);
+    this.labelO = game.labels.add(() => '👮 Inspector Billing', () => _v.set(SX + DESK[0] + 2.2, 2.55, SZ + DESK[1] + 0.2), 'mgr', 18);
     this.labelS = game.labels.add(() => this.stationTag(), () => _v.set(SX, 4.6, SZ + 3), 'bubble', 22);
     game.actions.add({ label: () => '🚓 Police Station', x: SX + PAD[0], z: SZ + PAD[1], r: 2.3, visible: () => !game.visit, onPress: () => this.openDesk() });
     this.pad = game.pads.add({ x: SX + PAD[0], z: SZ + PAD[1], r: 1.1, color: 0x4d79ff, label: () => '🚓 Police Station', visible: () => !game.visit && game.state.level >= POLICE.level, onStay: () => {} });
