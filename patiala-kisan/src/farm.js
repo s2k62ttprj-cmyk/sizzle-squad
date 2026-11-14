@@ -2,7 +2,7 @@
 // real time (so crops keep growing while the game is closed) and instanced rendering.
 import * as THREE from 'three';
 import { Builder, textTexture } from './geo.js';
-import { FIELDS, CROPS, PLOT } from './config.js';
+import { FIELDS, CROPS, PLOT, kindGrow, kindExtra } from './config.js';
 import { cropGeometries, swayMaterial } from './crops.js';
 import { props } from './models.js';
 import { enhance, TEX } from './shading.js';
@@ -35,6 +35,15 @@ export class Farm {
   owned(fid) { return this.game.state.fields[fid].owned; }
 
   growMul() { return this.game.perks.grow; }
+  // which field a plot's data belongs to (land kinds speed some crops up)
+  fieldOf(d) {
+    let f = this._fo?.get(d);
+    if (f !== undefined) return f;
+    this._fo = new WeakMap();
+    for (const F of FIELDS) for (const x of this.game.state.plots[F.id] || []) this._fo.set(x, F);
+    return this._fo.get(d) || null;
+  }
+  growFor(d) { return this.growMul() * kindGrow(this.fieldOf(d), d.c); }
 
   // 0 untilled, 1 tilled, 2 planted (dry seed), 3 growing, 4 ripe
   stage(p, now = Date.now()) {
@@ -45,7 +54,7 @@ export class Farm {
   }
   progress(d, now = Date.now()) {
     if (!d.w || !d.c) return 0;
-    return (now - d.w) / (CROPS[d.c].grow * 1000 / this.growMul());
+    return (now - d.w) / (CROPS[d.c].grow * 1000 / this.growFor(d));
   }
 
   // ---------- actions (return true if something happened)
@@ -77,12 +86,13 @@ export class Farm {
     const d = this.data(p);
     if (this.stage(p) !== 4) return 0;
     const c = CROPS[d.c];
-    let n = c.yield;
+    const base = c.yield + kindExtra(p.f, d.c);
+    let n = base;
     if (Math.random() < this.game.perks.luck) n *= 2;
     const crop = d.c;
     d.s = 0; d.c = null; d.w = 0;
     this.changed(p, 'harvest');
-    this.lastHarvest = { crop, n, double: n > c.yield };
+    this.lastHarvest = { crop, n, double: n > base };
     return n;
   }
 
@@ -122,7 +132,7 @@ export class Farm {
       if (!this.owned(p.fid)) continue;
       const d = this.data(p);
       if (d.s !== 2 || !d.w || !d.c || this.progress(d, now) >= 1) continue;
-      d.w -= CROPS[d.c].grow * 1000 * frac / this.growMul();
+      d.w -= CROPS[d.c].grow * 1000 * frac / this.growFor(d);
       n++;
     }
     if (n) this.dirty = true;

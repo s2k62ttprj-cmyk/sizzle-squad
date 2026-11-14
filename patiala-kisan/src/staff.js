@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { Walker } from './market.js';
 import { StackView } from './cargo.js';
-import { MANAGERS, SEERI, MANAGER_RANKS, WALK_MAX, wage, FIELDS, CROPS, ITEMS, STALL, MUNSHI_KEEP, MUNSHI_RATE, DUKAANDAR_KEEP, OFFLINE_HOURS, PLOT } from './config.js';
+import { kindExtra, MANAGERS, SEERI, MANAGER_RANKS, WALK_MAX, wage, FIELDS, CROPS, ITEMS, STALL, MUNSHI_KEEP, MUNSHI_RATE, DUKAANDAR_KEEP, OFFLINE_HOURS, PLOT } from './config.js';
 import { addStorage, storageUsed, fieldCrops } from './state.js';
 import { POS } from './world.js';
 import { fmt } from './pads.js';
@@ -494,7 +494,7 @@ export class Staff {
       else if (s === 1) { const c = this.pickCrop(f); if (c && st.seeds[c] > 0) { st.seeds[c]--; if (!st.seeds[c]) delete st.seeds[c]; d.s = 2; d.c = c; d.w = 0; this.advance(f); } }
       else if (s === 2 && !d.w) d.w = t;
       else if (s === 4) {
-        const n = CROPS[d.c].yield;
+        const n = CROPS[d.c].yield + kindExtra(f, d.c);
         const k = addStorage(st, d.c, n);
         st.stats.harvested += n;
         got += k;

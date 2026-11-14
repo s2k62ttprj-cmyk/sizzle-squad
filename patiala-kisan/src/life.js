@@ -109,7 +109,7 @@ export class Life {
     const R = this.rand, scene = this.game.scene;
     const pts = [];
     const x0 = BOUNDS.x0 - 8, x1 = BOUNDS.x1 + 8, z0 = BOUNDS.z0 - 8, z1 = BOUNDS.z1 + 8;
-    for (let i = 0; i < 26000 && pts.length < 9000; i++) {
+    for (let i = 0; i < 36000 && pts.length < 12000; i++) {
       // cluster: most tufts grow near another tuft
       let x, z;
       if (pts.length && R() < 0.55) { const o = pts[(R() * pts.length) | 0]; x = o[0] + (R() - 0.5) * 1.6; z = o[1] + (R() - 0.5) * 1.6; }

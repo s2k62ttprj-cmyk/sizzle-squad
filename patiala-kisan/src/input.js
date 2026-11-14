@@ -5,6 +5,13 @@ export class Input {
     this.x = 0; this.y = 0;          // joystick vector, screen space, length ≤ 1
     this.active = false;
     this.keys = new Set();
+    this.climb = false; this.dive = false;        // the airplane's ⬆️ / ⬇️ buttons, held down
+    for (const [id, k] of [['climbBtn', 'climb'], ['diveBtn', 'dive']]) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      el.addEventListener('pointerdown', (e) => { e.stopPropagation(); e.preventDefault(); this[k] = true; });
+      for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) el.addEventListener(ev, () => { this[k] = false; });
+    }
     this.base = document.getElementById('joy');
     this.knob = document.getElementById('knob');
     this.pointer = null;

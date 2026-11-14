@@ -17,14 +17,31 @@ const DAILY_POOL = [
   { type: 'product', text: (n) => `Collect ${n} eggs, milk or wool`, n: (l) => 6 + l, need: (st) => Object.values(st.pens).some((p) => p.owned) },
   { type: 'make', text: (n) => `Make ${n} goods in workshops`, n: (l) => 3 + Math.floor(l / 3), need: (st) => Object.values(st.buildings).some((b) => b.owned) },
   { type: 'langar', text: (n) => `Give ${n} items to the Langar`, n: () => 10 },
+  // added in the big expansion
+  { type: 'fruit', text: (n) => `Pick ${n} fruit`, n: (l) => 10 + Math.floor(l / 2), need: (st) => st.orchard?.owned || (st.decor || []).some((d) => ['mango', 'guava', 'ber', 'orange', 'jamun'].includes(d.k)) },
+  { type: 'flight', text: () => 'Take off in your airplane', n: () => 1, need: (st) => st.vehicles.plane?.owned },
+  { type: 'petPlay', text: () => 'Play with your pet', n: () => 1, need: (st) => Object.keys(st.pets?.owned || {}).length > 0 },
 ];
+// weekly goals: bigger, three a week (Monday to Sunday), paid out when done
+const WEEKLY_POOL = [
+  { type: 'harvested', text: (n) => `Harvest ${n} crops this week`, n: (l) => 200 + l * 25 },
+  { type: 'sold', text: (n) => `Sell ${n} items this week`, n: (l) => 160 + l * 20 },
+  { type: 'earn', text: (n) => `Earn ₹${n.toLocaleString('en-IN')} this week`, n: (l) => 2000 + l * l * 220 },
+  { type: 'order', text: (n) => `Complete ${n} orders this week`, n: () => 12 },
+  { type: 'decorPlaced', text: (n) => `Place ${n} decorations this week`, n: () => 8, need: (st) => st.level >= 3 },
+  { type: 'fruit', text: (n) => `Pick ${n} fruit this week`, n: (l) => 60 + l * 2, need: (st) => st.orchard?.owned },
+  { type: 'flight', text: (n) => `Fly ${n} times this week`, n: () => 5, need: (st) => st.vehicles.plane?.owned },
+  { type: 'race', text: (n) => `Finish ${n} mela races this week`, n: () => 3, need: (st) => st.level >= 8 },
+  { type: 'langar', text: (n) => `Give ${n} items to the Langar this week`, n: () => 60 },
+];
+export const weekKey = (d = new Date()) => { const m = new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7)); return `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}-${String(m.getDate()).padStart(2, '0')}`; };
 
 export class Progression {
   constructor(game) {
     this.game = game;
     this.checkT = 0;
     this.ensureDaily();
-    for (const ev of new Set([...Object.values(EVENT_FOR), 'harvested', 'sold', 'earn'])) game.on(ev, (d) => this.onEvent(ev, d));
+    for (const ev of new Set([...Object.values(EVENT_FOR), 'harvested', 'sold', 'earn', 'fruit', 'flight', 'petPlay', 'race', 'decorPlaced', 'order', 'langar'])) game.on(ev, (d) => this.onEvent(ev, d));
   }
 
   get quest() { return QUESTS[this.game.state.quest]; }
@@ -46,19 +63,21 @@ export class Progression {
     }
     // daily goals
     const daily = st.daily;
-    if (daily.date === todayKey()) {
-      for (const goal of daily.goals) {
+    const tick = (goals, label) => {
+      for (const goal of goals) {
         if (goal.done || goal.type !== ev) continue;
-        goal.prog += ev === 'earn' ? d.money : ev === 'harvested' ? d.n : ev === 'make' ? (d.n || 1) : 1;
+        goal.prog += ev === 'earn' ? d.money : ev === 'harvested' ? d.n : ev === 'make' || ev === 'fruit' ? (d.n || 1) : 1;
         if (goal.prog >= goal.n) {
           goal.done = true;
           g.reward(goal.money);
           g.addXP(goal.xp);
-          g.ui.toast(`✅ Daily goal: ${goal.text} · +₹${goal.money}`, 3);
+          g.ui.toast(`✅ ${label} goal: ${goal.text} · +₹${goal.money.toLocaleString('en-IN')}`, 3);
           g.audio.play('buy');
         }
       }
-    }
+    };
+    if (daily.date === todayKey()) tick(daily.goals, 'Daily');
+    if (st.weekly?.week === weekKey()) tick(st.weekly.goals, 'Weekly');
     this.checkQuest();
   }
 
@@ -89,7 +108,17 @@ export class Progression {
     }
   }
 
+  ensureWeekly() {
+    const st = this.game.state, wk = weekKey();
+    if (st.weekly?.week === wk) return;
+    const l = st.level, pool = WEEKLY_POOL.filter((d) => !d.need || d.need(st)), picks = [];
+    let seed = wk.split('-').reduce((a, b) => a * 37 + +b, 11);
+    while (picks.length < 3 && pool.length) { seed = (seed * 9301 + 49297) % 233280; picks.push(pool.splice(seed % pool.length, 1)[0]); }
+    st.weekly = { week: wk, goals: picks.map((d) => { const n = d.n(l); return { type: d.type, text: d.text(n), n, prog: 0, done: false, money: 400 + l * l * 12, xp: 80 + l * 8 }; }) };
+  }
+
   ensureDaily() {
+    this.ensureWeekly();
     const st = this.game.state, today = todayKey();
     if (st.daily.date === today) return;
     const l = st.level;
@@ -116,6 +145,7 @@ export class Progression {
     st.stats.soul = st.soul;
     st.stats.streak = Math.max(st.stats.streak || 0, st.guru.streak);
     st.stats.roses = st.garden.total; st.stats.decor = st.decor.length; st.stats.caught = st.police.stats.caught; st.stats.outfits = Object.keys(st.wardrobe.owned).length;
+    st.stats.eastFields = ['e1', 'e2', 'e3', 'e4', 'e5', 'e6'].filter((id) => st.fields[id]?.owned).length;
     for (const a of ACHIEVEMENTS) {
       if (st.ach[a.id]) continue;
       if ((st.stats[a.stat] || 0) >= a.n) {

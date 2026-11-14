@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import {
   CROPS, ITEMS, BAGS, CANS, STORAGE, STALL, FIELDS, PENS, BUILDINGS, RECIPES, VEHICLES, ATTACHMENTS, TRACTOR_HP,
   STAFF, MANAGERS, SEERI, MANAGER_RANKS, wage, OFFLINE_HOURS, SOUL_PERKS, QUESTS, ACHIEVEMENTS, BUILDING_UPGRADES, PEN_PIPE_COST, PEN_WATER_CAP, TANKER_CAP, xpNeed, TURBAN_COLORS, PLOT,
-  SWEETS, GOPAL_RATE, VENDORS, TRADE, SCARECROW_DESIGNS, SCARECROW_LEVELS, SCARECROW_MAX, AURA, BIKE_ENGINES, SOCIAL, DECOR, GARDEN, POLICE,
+  FIELD_KINDS, ORCHARD, seasonOf, SEASON_BONUS, TUBEWELLS, SWEETS, GOPAL_RATE, VENDORS, TRADE, SCARECROW_DESIGNS, SCARECROW_LEVELS, SCARECROW_MAX, AURA, BIKE_ENGINES, SOCIAL, DECOR, GARDEN, POLICE,
 } from './config.js';
 import { carryCap, storageCap, storageUsed, have, fieldCrops, saveWorks, rating, todayKey, tradeLimitError, itemCount, itemsValue, backupCode, readBackup } from './state.js';
 import { POS, FLY_Z } from './world.js';
@@ -16,7 +16,7 @@ import { isOnline } from './net.js';
 import { clean } from './moderation.js';
 import { fmtT } from './gerhi.js';
 import { RADIO } from './audio.js';
-import { decorShopHTML, decorItemHTML, maliHTML, policeHTML, weatherModal, handlePanels, wardrobeHTML } from './panels.js';
+import { decorShopHTML, decorItemHTML, maliHTML, policeHTML, weatherModal, handlePanels, wardrobeHTML, hangarHTML, melaHTML, petsHTML } from './panels.js';
 
 const $ = (id) => document.getElementById(id);
 const _v = new THREE.Vector3();
@@ -65,6 +65,7 @@ export class UI {
     bind('soulBox', () => this.open('farm', 'blessings'));
     $('action').addEventListener('pointerdown', (e) => { e.stopPropagation(); e.preventDefault(); game.audio.unlock(); this.pressAction(); });
     $('attBtn').addEventListener('click', (e) => { e.stopPropagation(); this.cycleAttachment(); });
+    $('skyBtn')?.addEventListener('click', (e) => { e.stopPropagation(); this.open('hangar'); });
     $('hornBtn').addEventListener('click', (e) => { e.stopPropagation(); game.audio.play(game.player.vehicle?.kind === 'bike' && game.state.aura.owned.horn ? 'hornP' : 'horn'); });
     this.panel.querySelector('.x').addEventListener('click', () => this.close());
     $('scrim').addEventListener('click', () => this.close());
@@ -152,7 +153,10 @@ export class UI {
     bar.hidden = !v;
     $('seedPill').hidden = !!v && v.kind !== 'tractor';
     $('gerhiPill').hidden = !v || v.kind !== 'bike' || !!this.game.visit;
+    $('flyBtns').hidden = !v || v.kind !== 'plane';
     if (!v) return;
+    if (v.kind === 'plane') { $('attBtn').hidden = true; $('tankInfo').hidden = false; this.planeHud(v); return; }
+    if (VEHICLES[v.kind]?.icon) { $('attBtn').hidden = true; $('tankInfo').hidden = !v.cargoCap; $('tankInfo').innerHTML = `📦 ${v.cargo.length}/${v.cargoCap}`; return; }
     if (v.kind === 'bike') { $('attBtn').hidden = true; $('tankInfo').hidden = true; this.gerhiPill(); return; }
     if (v.kind === 'tractor') {
       const a = ATTACHMENTS[v.data.att];
@@ -162,6 +166,7 @@ export class UI {
       $('tankInfo').innerHTML = `💧 ${v.data.tank}/${TANKER_CAP}`;
     } else { $('attBtn').hidden = true; $('tankInfo').hidden = true; }
   }
+  planeHud() { const s = this.game.airfield?.status(); if (s) $('tankInfo').innerHTML = s; }
   gerhiPill() { if (!this.game.visit) this.set('gerhiPill', this.game.gerhi.status()); }
 
   cycleAttachment() {
@@ -304,7 +309,7 @@ export class UI {
       case 'chat': title = `💬 ${esc(clean(g.social.friends[this.chatWith]?.name || '', 14))}`; html = this.chatHTML(); break;
       case 'board': title = '📝 Guestbook'; html = this.boardHTML(); break;
       case 'trade': title = this.tr.mode === 'gift' ? '🎁 Send a gift' : '🔁 Make a trade'; html = this.tradeHTML(); break;
-      case 'missions': title = '📜 Goals'; tabs = [['mission', 'Mission'], ['daily', 'Daily'], ['gerhi', '🏍️ Gerhi'], ['ach', 'Achievements']]; html = this.missionsHTML(); this.live = this.tab !== 'gerhi'; break;
+      case 'missions': title = '📜 Goals'; tabs = [['mission', 'Mission'], ['daily', 'Daily & weekly'], ['gerhi', '🏍️ Gerhi'], ['ach', 'Achievements']]; html = this.missionsHTML(); this.live = this.tab !== 'gerhi'; break;
       case 'radio': title = '📻 Radio'; html = this.radioHTML(); break;
       case 'bag': title = '🎒 Bag & Godown'; tabs = [['carry', '🧺 Carrying'], ['storage', '🏚️ Godown'], ['seedbag', '🌱 Seeds']]; html = this.bagHTML(); break;
       case 'map': title = '🗺️ Map'; html = this.mapHTML(); break;
@@ -312,6 +317,8 @@ export class UI {
       case 'orders': title = '📋 Customer orders'; html = this.ordersHTML(); this.live = true; break;
       case 'staff': title = '👔 Managers'; html = this.staffHTML(); this.live = true; break;
       case 'pen': title = `🐾 ${PENS[this.penId].name}`; html = this.penHTML(); this.live = true; break;
+      case 'hangar': title = '✈️ Patiala Flying Club'; html = hangarHTML(this); this.live = true; break;
+      case 'mela': title = '🎪 Mela games'; html = melaHTML(this); this.live = true; break;
       case 'decor': title = `${DECOR[this.decorItem?.k]?.icon || '🪴'} ${DECOR[this.decorItem?.k]?.name || 'Decoration'}`; html = decorItemHTML(this); this.live = !!DECOR[this.decorItem?.k]?.fruit; break;
       case 'wardrobe': title = '👕 Wardrobe'; tabs = []; html = wardrobeHTML(this); setTimeout(() => this.game.wardrobe.start(this.wardSel), 0); break;
       case 'mali': title = '🌹 Mali\'s stall'; html = maliHTML(this); break;
@@ -374,8 +381,12 @@ export class UI {
       case 'land': return '<p class="hint">Buy here, or stand on the white pad in the field to pay.</p>' + FIELDS.map((f) => {
         const o = st.fields[f.id].owned;
         const b = o ? '<span class="tag ok">Owned</span>' : st.level < f.level ? `<span class="tag">🔒 L${f.level}</span>` : this.btn(`Buy ${money(f.cost - st.fields[f.id].paid)}`, 'buyField', { id: f.id }, st.money < f.cost - st.fields[f.id].paid);
-        return this.row('🟫', f.name, `${f.cols * f.rows} plots`, b + (o ? '' : this.btn('📍', 'guide', { t: f.id })));
-      }).join('') + this.scarecrowShopHTML();
+        const K = FIELD_KINDS[f.kind];
+        return (f.id === 'e1' ? '<h3>🌄 Navi Zameen · new lands east of the ring road</h3>' : '') + this.row(K ? K.icon : '🟫', f.name, `${f.cols * f.rows} plots${K ? ` · ${K.name}: ${K.desc}` : ''}`, b + (o ? '' : this.btn('📍', 'guide', { t: f.id })));
+      }).join('') + this.row('🥭', 'Bagicha (fruit orchard)', `12 fruit trees in Navi Zameen, ${ORCHARD.n} fruit from each every ${ORCHARD.every / 60} min · stand on its pad to buy`, st.orchard.owned ? `<span class="tag ok">Owned · ${this.game.eastland.ripeCount()} ripe</span>` : st.level < ORCHARD.level ? `<span class="tag">🔒 L${ORCHARD.level}</span>` : this.btn('📍', 'guide', { t: 'orchard' }))
+        + this.row('💧', 'Dig the khaal (irrigation channel)', `Water runs from the farmhouse tube well to ${TUBEWELLS[0].fields.length} fields whenever its motor is on and waters every dry seed. Navi Zameen's tube well has one already.`, st.pump.khaal ? '<span class="tag ok">Dug</span>' : st.level < TUBEWELLS[0].khaal.level ? `<span class="tag">🔒 L${TUBEWELLS[0].khaal.level}</span>` : this.btn(`Dig · ${money(TUBEWELLS[0].khaal.cost)}`, 'digKhaal', {}, st.money < TUBEWELLS[0].khaal.cost))
+        + `<p class="hint">${seasonOf(st.day.n).icon} It is <b>${seasonOf(st.day.n).name}</b> season (${seasonOf(st.day.n).desc}): ${seasonOf(st.day.n).crops.map((c) => CROPS[c].icon).join('')} sell ${Math.round(SEASON_BONUS * 100)}% dearer. Seasons change every 5 days.</p>`
+        + this.scarecrowShopHTML();
       case 'build': {
         let h = '<p class="hint">Build here or stand on the site pad to pay.</p><h3>Animals</h3>';
         for (const [id, p] of Object.entries(PENS)) {
@@ -389,14 +400,14 @@ export class UI {
           const b = o ? this.btn('Open', 'openShop', { id }) : st.level < b0.level ? `<span class="tag">🔒 L${b0.level}</span>` : this.btn(`Build ${money(b0.cost - st.buildings[id].paid)}`, 'buildShop', { id }, st.money < b0.cost - st.buildings[id].paid);
           h += this.row('🏭', `${b0.name} <span class="pa">${b0.pa}</span>`, b0.recipes.map((r) => `${ITEMS[r].icon} ${ITEMS[r].name}`).join(', '), b + this.btn('📍', 'guide', { t: id }));
         }
-        return h;
+        return h + petsHTML(this);
       }
       case 'vehicles': {
         let h = '';
         for (const [id, v] of Object.entries(VEHICLES)) {
           const o = st.vehicles[id].owned;
-          const b = o ? '<span class="tag ok">Owned</span>' + this.btn('📍', 'guide', { t: 'garage' }) : st.level < v.level ? `<span class="tag">🔒 L${v.level}</span>` : this.btn(`Buy ${money(v.cost)}`, 'buyVehicle', { id }, st.money < v.cost);
-          h += this.row({ bike: '🏍️', tractor: '🚜', combine: '🌾' }[id], v.name, v.desc + (v.cargo ? ` Holds ${v.cargo}.` : ''), b);
+          const b = o ? '<span class="tag ok">Owned</span>' + this.btn('📍', 'guide', { t: id === 'plane' ? 'hangar' : 'garage' }) : st.level < v.level ? `<span class="tag">🔒 L${v.level}</span>` : this.btn(`Buy ${money(v.cost)}`, 'buyVehicle', { id }, st.money < v.cost);
+          h += (id === 'golfcart' ? '<h3>🚗 More wheels and wings</h3>' : '') + this.row(v.icon || { bike: '🏍️', tractor: '🚜', combine: '🌾' }[id], v.name, v.desc + (v.cargo ? ` Holds ${v.cargo}.` : ''), b);
         }
         if (st.vehicles.bike.owned) {
           const e = st.vehicles.bike.hp, next = BIKE_ENGINES[e + 1];
@@ -487,7 +498,8 @@ export class UI {
     }
     if (this.tab === 'gerhi') return this.gerhiHTML();
     if (this.tab === 'daily') {
-      return `<p class="hint">New goals every day. Finished goals pay out automatically.</p>` + st.daily.goals.map((d) => `<div class="card2 ${d.done ? 'done' : ''}"><b>${d.done ? '✅' : '🎯'} ${esc(d.text)}</b><div class="bar"><i style="width:${Math.min(1, d.prog / d.n) * 100}%"></i></div><small>${Math.min(d.prog, d.n).toLocaleString('en-IN')}/${d.n.toLocaleString('en-IN')} · ₹${d.money} + ${d.xp} XP</small></div>`).join('');
+      const card = (d) => `<div class="card2 ${d.done ? 'done' : ''}"><b>${d.done ? '✅' : '🎯'} ${esc(d.text)}</b><div class="bar"><i style="width:${Math.min(1, d.prog / d.n) * 100}%"></i></div><small>${Math.min(d.prog, d.n).toLocaleString('en-IN')}/${d.n.toLocaleString('en-IN')} · ₹${d.money.toLocaleString('en-IN')} + ${d.xp} XP</small></div>`;
+      return `<p class="hint">New goals every day. Finished goals pay out automatically.</p>` + st.daily.goals.map(card).join('') + (st.weekly?.goals?.length ? `<h3>📅 This week</h3><p class="hint">Three big goals, new every Monday.</p>` + st.weekly.goals.map(card).join('') : '');
     }
     return ACHIEVEMENTS.map((a) => this.row(st.ach[a.id] ? '🏆' : '▫️', a.text, `${Math.min(st.stats[a.stat] || 0, a.n).toLocaleString('en-IN')}/${a.n.toLocaleString('en-IN')}`, st.ach[a.id] ? '<span class="tag ok">Done</span>' : '', st.ach[a.id] ? '' : 'locked')).join('');
   }
@@ -550,14 +562,14 @@ export class UI {
   mapHTML() {
     const g = this.game, st = g.state;
     // simple top-down SVG map
-    const X = (x) => (x + 47) * 3, Z = (z) => (z + 66) * 3;
-    let s = `<svg viewBox="0 0 270 336" class="map"><rect width="270" height="336" fill="#8fd14f" rx="12"/>`;
+    const X = (x) => (x + 47) * 3, Z = (z) => (z + 66) * 3, MW = 441;
+    let s = `<svg viewBox="0 0 ${MW} 336" class="map"><rect width="${MW}" height="336" fill="#8fd14f" rx="12"/>`;
     s += `<rect x="${X(-45)}" y="0" width="${3 * 3}" height="336" fill="#4fb3d9"/><text x="${X(-43.6) + 2}" y="120" transform="rotate(-90 ${X(-43.6) + 2} 120)" class="mt" fill="#fff">BHAKHRA</text>`;
     s += `<rect x="${X(-1.6)}" y="${Z(-29)}" width="${3.2 * 3}" height="${73 * 3}" fill="#dba467"/><rect x="${X(-22)}" y="${Z(-63)}" width="${38 * 3}" height="${34 * 3}" fill="#f1ece2"/>`;
     s += `<rect x="${X(-8)}" y="${Z(-44)}" width="48" height="24" fill="#4fb3d9"/><circle cx="${X(0)}" cy="${Z(-55)}" r="9" fill="#f2bd3a"/>`;
     for (const f of FIELDS) s += `<rect x="${X(f.x0)}" y="${Z(f.z0)}" width="${f.cols * PLOT * 3}" height="${f.rows * PLOT * 3}" fill="${st.fields[f.id].owned ? '#8a5a32' : '#6faa3e'}" stroke="#fff" stroke-width="${st.fields[f.id].owned ? 0 : 1}" stroke-dasharray="3 2" rx="2"/>`;
     const dot = (x, z, c, r = 4) => `<circle cx="${X(x)}" cy="${Z(z)}" r="${r}" fill="${c}" stroke="#fff" stroke-width="1.5"/>`;
-    s += `<rect x="0" y="${Z(FLY_Z) - 5}" width="270" height="10" fill="#adb5bd" opacity=".9"/><text x="${X(-30)}" y="${Z(FLY_Z) + 3.5}" class="mt" fill="#1d1d1f">22 No. FLYOVER</text>`;
+    s += `<rect x="0" y="${Z(FLY_Z) - 5}" width="${MW}" height="10" fill="#adb5bd" opacity=".9"/><text x="${X(-30)}" y="${Z(FLY_Z) + 3.5}" class="mt" fill="#1d1d1f">22 No. FLYOVER</text>`;
     s += dot(...POS.stall, '#f76707') + dot(...POS.godown, '#74c0fc') + dot(...POS.tubewell, '#1c7ed6') + dot(...POS.farmhouse, '#fff3bf') + dot(...POS.gopal, '#e64980', 5);
     if (g.vendors?.v) s += dot(g.vendors.v.w.pos.x, g.vendors.v.w.pos.z, '#ffd43b', 5);
     s += dot(...GARDEN.centre, '#d6336c', 6) + dot(...POLICE.spot, '#1c3f94', 5);

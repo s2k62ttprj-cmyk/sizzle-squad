@@ -293,7 +293,7 @@ export class Crows {
     for (const p of this.plots) {
       const d = farm.data(p);
       if (d.s !== 2 || !d.w || !d.c) continue;
-      const grow = CROPS[d.c].grow * 1000 / farm.growMul();
+      const grow = CROPS[d.c].grow * 1000 / farm.growFor(d);
       const prog = Math.min(1, farm.progress(d, now));
       d.w = now - Math.max(0, prog - CROWS.setback) * grow;
       n++;

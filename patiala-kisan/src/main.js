@@ -31,6 +31,10 @@ import { Vendors } from './vendors.js';
 import { Friends, decode, findCode, visitState, describe, INBOX_KEY } from './friends.js';
 import { Weather } from './weather.js';
 import { Decor } from './decor.js';
+import { EastLand } from './eastland.js';
+import { Airfield } from './fleet.js';
+import { Tubewells } from './tubewell.js';
+import { Extras } from './extras.js';
 import { Baradari, buildBaradari } from './baradari.js';
 import { Police } from './police.js';
 import { Wardrobe } from './wardrobe.js';
@@ -53,7 +57,7 @@ class Guide {
     if (POS.buildings[name]) return [POS.buildings[name][0], POS.buildings[name][1] + 3.6];
     if (POS.desks[name]) return [POS.desks[name][0], POS.desks[name][1] + 1.35];
     const map = { tubewell: POS.tankPad, stall: POS.stallPad, pile: POS.pile, arhtiya: POS.arhtiyaPad, board: [POS.board[0], POS.board[1] + 1.2], godown: POS.godownPad, darbar: POS.darbar, langar: POS.langarPad, garage: POS.garage, farmhouse: [POS.farmhouse[0], POS.farmhouse[1] + 3],
-      baradari: [29.5, -35], mali: [36.3, -36.8], police: [-31, 43.4],
+      baradari: [29.5, -35], mali: [36.3, -36.8], police: [-31, 43.4], orchard: [53, -36], paddock: [53.5, -54.5], mela: [52, 18], hangar: [92, 39], tubewell2: [53.5, 4],
       gopal: POS.gopalAct, vendor: [POS.vendor[0] - 1.6, POS.vendor[1] + 1.2], flyover: [0, POS.flyZ + 3], canal: [POS.canalX + 4.5, -6] };
     return map[name] || null;
   }
@@ -127,6 +131,10 @@ class Game {
     this.scarecrows = new Scarecrows(this);
     this.crows = new Crows(this);
     this.decor = new Decor(this, this.state.decor, { view: !!this.visit });
+    this.eastland = new EastLand(this);
+    this.airfield = new Airfield(this);
+    this.tubewells = new Tubewells(this);
+    this.extras = new Extras(this);
     buildBaradari(this);
     this.player = new Player(this);
     this.input = new Input(this);
@@ -273,7 +281,11 @@ class Game {
     _sky.set(0xbfe3f5).lerp(_gray.set(0xc6ced4), Math.min(1, cloud)).lerp(_dusk.set(0xffbe8f), warm * 0.75).lerp(_ngt.set(0x55639a), night * 0.85).lerp(_gray.set(0x5d6873), W.dark * 0.55).lerp(_dusk.set(0xf2f6ff), fl * 0.6);
     this.scene.background.copy(_sky);
     this.scene.fog.color.copy(_sky);
-    this.scene.fog.near = 44 - 14 * W.dark; this.scene.fog.far = 120 - 36 * W.dark;
+    // morning mist: thick on cloudy or rainy dawns, a light haze on clear ones, gone by mid-morning
+    const mist = sm(0.01, 0.07, f) * (1 - sm(0.2, 0.3, f)) * Math.min(1, 0.35 + cloud * 0.9 + W.rain) * 0.85;
+    this.mist = mist;
+    this.scene.fog.near = (44 - 14 * W.dark) * (1 - mist) + 5 * mist; this.scene.fog.far = (120 - 36 * W.dark) * (1 - mist) + 40 * mist;
+    if (mist > 0.02) this.scene.fog.color.lerp(_gray.set(0xe3e8ec), mist * 0.8);
     this.sunDir = [Math.cos(sunA) * 0.6 + 0.3, 0.55 + elev * 0.45, 0.45];
     this.dusk = Math.max(night, sunset * 0.35);
     SH.uCloud.value = (0.16 * (1 - cloud) + 0.3 * cloud) * (1 - W.rain) + 0.05 * W.rain;
@@ -315,7 +327,9 @@ class Game {
     const p = this.player.pos, v = this.player.vehicle;
     const inG = this.guru.inside;
     this.zoomNow = this.zoomNow || 1;
-    this.zoomNow += ((v ? (v.kind === 'combine' ? 1.35 : v.kind === 'tractor' ? 1.15 : 1.05) : inG ? 1.3 : 1) - this.zoomNow) * Math.min(1, dt * 2);
+    const alt = v?.alt || 0;
+    this.altNow = (this.altNow || 0) + (alt - (this.altNow || 0)) * Math.min(1, dt * 3);
+    this.zoomNow += ((v ? (v.kind === 'plane' ? 1.5 + Math.min(1.2, alt / 30) : v.kind === 'combine' || v.kind === 'truck' ? 1.35 : v.kind === 'tractor' || v.kind === 'pickup' || v.kind === 'suv' ? 1.15 : 1.05) : inG ? 1.3 : 1) - this.zoomNow) * Math.min(1, dt * 2);
     const zoom = this.state.settings.zoom * this.zoomNow;
     const portrait = innerWidth / innerHeight < 0.75;
     const dist = (portrait ? 20 : 16.5) * zoom;
@@ -323,8 +337,8 @@ class Game {
     this.camTarget = this.camTarget || _ct.clone();
     this.camTarget.lerp(_ct, Math.min(1, dt * 6));
     // ~52° looking down: shows the sides of buildings and people, not just their tops
-    this.camera.position.set(this.camTarget.x, dist * 0.79, this.camTarget.z + dist * 0.62);
-    this.camera.lookAt(this.camTarget.x, 0.6, this.camTarget.z - 0.8);
+    this.camera.position.set(this.camTarget.x, dist * 0.79 + this.altNow, this.camTarget.z + dist * 0.62);
+    this.camera.lookAt(this.camTarget.x, 0.6 + this.altNow, this.camTarget.z - 0.8);
     const sd = this.sunDir || [0.5, 1, 0.45];
     this.sun.position.set(this.camTarget.x + sd[0] * 34, sd[1] * 44, this.camTarget.z - 6 + sd[2] * 34);
     this.sun.target.position.set(this.camTarget.x, 0, this.camTarget.z - 6);
@@ -365,6 +379,10 @@ class Game {
       this.scarecrows.update(dt, t);
       this.crows.update(dt);
       this.decor.update(dt, t);
+      this.eastland.update(dt);
+      this.airfield.update(dt, t);
+      this.tubewells.update(dt, t);
+      this.extras.update(dt, t);
       this.baradari.update(dt, t);
       this.police.update(dt, t);
       this.market.update(dt);

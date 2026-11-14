@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { makeHuman, animateHuman } from './models.js';
 import { StackView, noteGeometry } from './cargo.js';
 import { POS } from './world.js';
-import {
+import { seasonOf, SEASON_BONUS,
   ITEMS, STALL, ARHTIYA_RATE, CANS, TANKER_CAP, CROPS, PENS, BUILDINGS, RECIPES, BOOSTS,
   CUSTOMER_LINES, CUSTOMER_NAMES, CUSTOMER_BARGAIN, SELLER_REPLIES, CUSTOMER_EMPTY, CUSTOMER_GIVEUP, REVIEW_KEEP,
 } from './config.js';
@@ -93,7 +93,9 @@ export class Market {
 
   stock() { return Object.values(this.game.state.stall).reduce((a, b) => a + b, 0); }
   priceMul() { return 1 + this.game.perks.price + (this.game.state.boosts.price > 0 ? BOOSTS.price : 0); }
-  price(id) { return Math.max(1, Math.round(ITEMS[id].price * this.priceMul())); }
+  // crops in season (Rabi / Kharif) sell a little dearer
+  seasonMul(id) { return seasonOf(this.game.state.day.n).crops.includes(id) ? 1 + SEASON_BONUS : 1; }
+  price(id) { return Math.max(1, Math.round(ITEMS[id].price * this.priceMul() * this.seasonMul(id))); }
 
   refreshShelf() {
     const list = [];

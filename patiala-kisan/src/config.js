@@ -7,7 +7,7 @@ export const SAVE_KEY = 'patiala-kisan-save';
 export const SOUND_PACK = false;
 export const SAVE_VERSION = 2;
 // The release number: each release keeps one copy of the farm exactly as the release before left it
-export const RELEASE = 9;
+export const RELEASE = 10;
 export const DAY_SECONDS = 360;          // one in-game day (salaries, weather)
 export const PLOT = 2;                   // plot pitch in metres
 export const START_MONEY = 40;
@@ -146,7 +146,64 @@ export const FIELDS = [
   { id: 'f6', name: 'Vadda Khet',      x0: -28, z0: 4,   cols: 6, rows: 5, level: 12, cost: 12000 },
   { id: 'f7', name: 'Murabba',         x0: -38, z0: -18, cols: 6, rows: 6, level: 16, cost: 25000 },
   { id: 'f8', name: 'Kila',            x0: -39, z0: 4,   cols: 5, rows: 5, level: 20, cost: 40000 },
+  // added in the new-lands update: Navi Zameen, east of the ring road (append only: saves and farm links go by id)
+  { id: 'e1', name: 'Phulkari Baagh',   kind: 'flower', x0: 56, z0: 30,  cols: 6, rows: 5, level: 14, cost: 30000 },
+  { id: 'e2', name: 'Sabzi Baagh',      kind: 'veg',    x0: 72, z0: 30,  cols: 6, rows: 5, level: 17, cost: 45000 },
+  { id: 'e3', name: 'Jhona Khet',       kind: 'paddy',  x0: 56, z0: 10,  cols: 6, rows: 6, level: 20, cost: 65000 },
+  { id: 'e4', name: 'Sheesh Mahal Greenhouse', kind: 'green', x0: 72, z0: 10, cols: 5, rows: 5, level: 24, cost: 120000 },
+  { id: 'e5', name: 'Ganna Bagaan',     kind: 'plant',  x0: 56, z0: -12, cols: 6, rows: 6, level: 27, cost: 160000 },
+  { id: 'e6', name: 'Shahi Zameen',     kind: 'shahi',  x0: 70, z0: -12, cols: 6, rows: 6, level: 32, cost: 300000 },
 ];
+// what each kind of land is good at: grow = speed multiplier, extra = more crops per harvest
+export const FIELD_KINDS = {
+  flower: { name: 'Flower farm', icon: '🌸', crops: ['mustard', 'sunflower', 'saffron', 'strawberry'], grow: 1.15, extra: 1, desc: 'Flower crops grow 15% faster and give +1 a harvest' },
+  veg:    { name: 'Vegetable farm', icon: '🥕', crops: ['carrot', 'potato', 'tomato', 'cauliflower', 'chilli', 'peas', 'onion', 'garlic', 'pumpkin', 'watermelon'], grow: 1.25, extra: 0, desc: 'Vegetables grow 25% faster' },
+  paddy:  { name: 'Rice paddy', icon: '🌾', crops: ['rice'], grow: 1.3, extra: 2, desc: 'Basmati grows 30% faster and gives +2 a harvest' },
+  green:  { name: 'Greenhouse', icon: '🏡', crops: null, grow: 1.4, extra: 0, desc: 'Every crop grows 40% faster under glass' },
+  plant:  { name: 'Plantation', icon: '🎋', crops: ['sugarcane', 'cotton', 'turmeric', 'peanut', 'maize'], grow: 1.1, extra: 2, desc: 'Cane, cotton, turmeric, peanut and maize: 10% faster, +2 a harvest' },
+  shahi:  { name: 'Premium land', icon: '👑', crops: null, grow: 1.2, extra: 1, desc: 'Royal soil: every crop grows 20% faster and gives +1' },
+};
+export const kindFits = (f, crop) => { const K = FIELD_KINDS[f?.kind]; return !!K && (!K.crops || K.crops.includes(crop)); };
+export const kindGrow = (f, crop) => (kindFits(f, crop) ? FIELD_KINDS[f.kind].grow : 1);
+export const kindExtra = (f, crop) => (kindFits(f, crop) ? FIELD_KINDS[f.kind].extra : 0);
+
+// The orchard (Navi Zameen): twelve fruit trees bought with the land, each ripening on the real
+// clock and picked by hand
+export const ORCHARD = { level: 15, cost: 50000, x0: 56, z0: -42, cols: 6, rows: 2, dx: 4.6, dz: 6,
+  trees: ['mango', 'guava', 'orange', 'jamun', 'ber', 'mango', 'orange', 'guava', 'ber', 'jamun', 'mango', 'orange'], every: 300, n: 5 };
+
+// Seasons: Rabi (winter) and Kharif (monsoon) take turns every 5 days; crops in season sell 15% dearer
+export const SEASONS = [
+  { id: 'rabi', name: 'Rabi', icon: '❄️', desc: 'winter crops', crops: ['wheat', 'mustard', 'peas', 'potato', 'carrot', 'cauliflower', 'onion', 'garlic', 'strawberry', 'saffron'] },
+  { id: 'kharif', name: 'Kharif', icon: '🌧️', desc: 'monsoon crops', crops: ['rice', 'maize', 'cotton', 'sugarcane', 'tomato', 'chilli', 'watermelon', 'peanut', 'sunflower', 'pumpkin', 'turmeric'] },
+];
+export const SEASON_DAYS = 5, SEASON_BONUS = 0.15;
+
+// Pets that follow you, the Navi Zameen paddock (horses and a duck pond) and the Mela games
+export const PETS = {
+  dog: { name: 'Sheru', icon: '🐕', cost: 8000, level: 6, desc: 'A loyal desi dog who follows you everywhere' },
+  cat: { name: 'Billo', icon: '🐈', cost: 6000, level: 6, desc: 'A grey cat who trots after you, when she feels like it' },
+  patEvery: 600, patXp: 8,
+};
+export const PADDOCK = { x0: 56, x1: 76, z0: -62, z1: -47, shed: [71.5, -59], trough: [64, -50], pond: [60.5, -57, 2.4], horses: 3, ducks: 6, cost: 80000, level: 20, feedXp: 30, feedSoul: 5 };
+export const MELA = {
+  board: [49.8, 17],
+  race: [[53.5, 30], [70, 24], [85.7, 24], [85.7, 8], [75, 2.7], [58, 2.7], [53.5, -16], [66, -20], [53.5, -44]], raceTime: 100, racePay: 800,
+  harvestTime: 60, harvestPay: 30, harvestCool: 600,
+  matkas: 6, matkaPay: 250, matkaBonus: 1500,
+  matkaSpots: [[-4.4, 35], [5.6, 37], [18.6, 36], [-22.4, 34], [38.6, -30], [23.6, -32], [-28.4, -34], [-38.4, -40], [-26.4, -44], [-53.9, 30], [41.6, 26], [-10.4, 40], [27.6, 42], [-31.4, -22], [-53.4, 6], [58, -27], [80, -27.5], [75, 46], [60, 46.5], [98, -30], [49.5, -40], [-36, 45]],
+  puddles: [[0, 10, 1.2], [0, 25, 1.0], [10, 30, 1.3], [10, 40, 1.0], [-6, 22.5, 1.2], [20, 23, 1.0], [8, -14.5, 1.1], [25, -14.5, 1.0], [53.5, 10, 1.2], [53.5, -20, 1.1], [70, 24, 1.2], [70, 2.7, 1.0], [85.7, -10, 1.1], [-1, -20, 1.0]],
+  visitorBeauty: 120, visitorTip: 40, visitorTipTier: 30, visitorFrom: [[0, 49], [10, 49], [50, 24]],
+};
+
+// Tube wells: switch the motor on and water runs down the khaal (channel) to the fields listed
+export const TUBEWELLS = [
+  { name: 'Ghar wala tubewell', kotha: [-4.5, -4.2], tank: [-4.5, -1.9], puddle: [-2.6, -1.4], fields: ['f1', 'f2', 'f3', 'f4'],
+    channel: [[-5.6, -2.4], [-5.9, -2.4], [-5.9, -7.5], [-25, -7.5]], khaal: { cost: 2500, level: 5 } },
+  { name: 'Navi Zameen tubewell', kotha: [62, 6.2], tank: [65.5, 6.4], puddle: [67.9, 6.0], fields: ['e1', 'e2', 'e3', 'e4', 'e5', 'e6'],
+    channel: [[65.2, 7.2], [65.2, 9.3], [55.3, 9.3], [55.3, 41]] },
+];
+export const seasonOf = (day) => SEASONS[Math.floor(Math.max(0, (day | 0) - 1) / SEASON_DAYS) % SEASONS.length];
 
 export const BAGS = [
   { name: 'Jhola',           cap: 8,  cost: 0,    level: 1 },
@@ -173,6 +230,8 @@ export const STORAGE = [
   { name: 'Cold Store',   cap: 1200, cost: 25000, level: 15 },
   { name: 'Mega Cold Store', cap: 2400, cost: 60000, level: 21 },
   { name: 'Patiala Cold Chain', cap: 4000, cost: 120000, level: 27 },
+  { name: 'Navi Zameen Silo', cap: 7000, cost: 250000, level: 33 },
+  { name: 'Punjab Grain Bank', cap: 12000, cost: 500000, level: 40 },
 ];
 export const STALL = [
   { name: 'Phatta (plank stall)', shelf: 30,  every: 7.0, cost: 0,    level: 1 },
@@ -181,6 +240,7 @@ export const STALL = [
   { name: 'Vaddi Dukaan',         shelf: 240, every: 2.5, cost: 18000, level: 16 },
   { name: 'Mandi Showroom',       shelf: 400, every: 1.9, cost: 45000, level: 21 },
   { name: 'Patiala Super Store',  shelf: 600, every: 1.5, cost: 90000, level: 27 },
+  { name: 'Punjab Mega Mart',     shelf: 900, every: 1.2, cost: 220000, level: 34 },
 ];
 export const ARHTIYA_RATE = 0.7;     // wholesale buys instantly but pays less
 
@@ -188,6 +248,28 @@ export const VEHICLES = {
   bike:    { name: 'Bullet Motorcycle', level: 3,  cost: 1200,  speed: 13, cargo: 0,   desc: 'Zoom around the farm. Uses your bag.' },
   tractor: { name: 'Tractor 35 HP',     level: 9,  cost: 10000, speed: 8.5, cargo: 80, desc: 'Works fields with attachments and carries a trolley.' },
   combine: { name: 'Combine Harvester', level: 18, cost: 40000, speed: 7,  cargo: 200, desc: 'Harvests a wide strip in one pass.' },
+  // added in the vehicles-and-airplane update (append only). top m/s, accel m/s², turn rad/s, offroad: no slow-down in fields
+  golfcart: { name: 'Golf Cart', icon: '⛳', level: 8, cost: 15000, speed: 9, accel: 4, turn: 3.0, cargo: 10, desc: 'Quiet and nippy. Perfect for a garden tour.' },
+  atv:      { name: 'Quad Bike (ATV)', icon: '🛞', level: 12, cost: 35000, speed: 14, accel: 8, turn: 2.8, cargo: 20, offroad: true, desc: 'Four fat tyres: flies over fields and rough ground.' },
+  pickup:   { name: 'Mahindra Pickup', icon: '🛻', level: 18, cost: 60000, speed: 15, accel: 6, turn: 2.2, cargo: 120, desc: 'Open back for 120 goods. Drive them to the Mandi.' },
+  suv:      { name: 'Scorpio SUV', icon: '🚙', level: 24, cost: 150000, speed: 19, accel: 7.5, turn: 2.0, cargo: 40, desc: 'Fast, black and very Punjabi.' },
+  truck:    { name: 'Delivery Truck', icon: '🚚', level: 28, cost: 220000, speed: 12, accel: 3.5, turn: 1.4, cargo: 300, desc: 'A painted Punjab truck that carries 300 goods.' },
+  plane:    { name: 'Crop-duster Airplane', icon: '✈️', level: 30, cost: 500000, speed: 34, accel: 6, turn: 1.3, cargo: 0, desc: 'Fly over Patiala! Lives in the Navi Zameen hangar. Missions, rings, spraying.' },
+};
+// the airplane: engines bought at the hangar; fuel is used in the air and bought at the hangar
+export const PLANE_ENGINES = [
+  { name: 'Lycoming 180', top: 34, climb: 5, fuel: 100 },
+  { name: 'Lycoming 260', top: 40, climb: 6.5, fuel: 130, cost: 120000, level: 32 },
+  { name: 'Turbo 350', top: 47, climb: 8, fuel: 170, cost: 300000, level: 36 },
+];
+export const PLANE = {
+  takeoff: 20, ceiling: 70, burn: 1 / 5, fuelPrice: 40,                 // burn: fuel per second in the air; ₹ per unit of fuel
+  park: [92.5, 36, Math.PI], runway: { x0: 88, x1: 97, z0: -14, z1: 40 }, hangar: [92.5, 45.5],
+  rings: [[60, -50, 14], [20, -35, 18], [-20, -45, 22], [-45, -10, 16], [-30, 30, 14], [10, 40, 20], [40, 20, 26], [75, 25, 12]],   // the sky tour, in order: x, z, height
+  ringPay: 1500, ringXp: 60, ringTime: 150,
+  kites: 12, kitePay: 150,                                                // patang to catch every day
+  cargo: [{ name: 'Mangoes to Rajpura', x: -48, z: -60, pay: 4000 }, { name: 'Seeds to Sanaur', x: -40, z: 50, pay: 3500 }, { name: 'Milk to Sirhind', x: 30, z: -60, pay: 3800 }, { name: 'Spares to Bahadurgarh', x: 40, z: 48, pay: 3200 }],
+  cargoTime: 120, sprayPay: 3,
 };
 export const ATTACHMENTS = {
   cultivator: { name: 'Cultivator',   action: 'till',    cost: 0,    level: 9 },
@@ -397,6 +479,14 @@ export const ACHIEVEMENTS = [
   { id: 'beauty700', text: 'Make your farm Beautiful (beauty 700)', stat: 'beauty', n: 700 },
   { id: 'beauty2000', text: 'Make your farm Royal (beauty 2000)', stat: 'beauty', n: 2000 },
   { id: 'themePink', text: 'Place 10 Pink Paradise pieces', stat: 'pinkDecor', n: 10 },
+  { id: 'eastLand', text: 'Own land in Navi Zameen', stat: 'eastFields', n: 1 },
+  { id: 'eastAll', text: 'Own every Navi Zameen field', stat: 'eastFields', n: 6 },
+  { id: 'orchard100', text: 'Pick 100 fruit in the orchard', stat: 'orchardFruit', n: 100 },
+  { id: 'fly1', text: 'Take off in your airplane', stat: 'flights', n: 1 },
+  { id: 'skyTour', text: 'Finish the sky tour', stat: 'tours', n: 1 },
+  { id: 'kites50', text: 'Catch 50 kites in the sky', stat: 'kites', n: 50 },
+  { id: 'cargo10', text: 'Fly 10 cargo runs', stat: 'cargoRuns', n: 10 },
+  { id: 'garage5', text: 'Own 5 vehicles', stat: 'vehicles', n: 5 },
 ];
 
 export const CUSTOMER_LINES = [

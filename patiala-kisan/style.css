@@ -337,4 +337,6 @@ textarea.paste { width: 100%; min-height: 96px; font: inherit; font-size: 16px; 
 .wtile small { font-size: 11px; opacity: .8; }
 .wtile em { font-style: normal; font-size: 10px; font-weight: 800; color: var(--r); }
 .wtile.sel { box-shadow: 0 2px 0 var(--r), inset 0 0 0 2px var(--r); }
-.wtile.own { background: #f3fbef; }
+.wtile.own { background: #f3fbef; }/* the airplane's climb / descend buttons */
+#flyBtns { gap: 14px; }
+#flyBtns .round.big { width: 62px; height: 62px; font-size: 28px; touch-action: none; user-select: none; -webkit-user-select: none; }

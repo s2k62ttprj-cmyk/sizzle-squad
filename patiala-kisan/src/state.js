@@ -42,6 +42,7 @@ export function newState(name = 'Guri', turban = '#e8590c') {
     stats: { harvested: 0, earned: 0, tilled: 0, planted: 0, watered: 0, sold: 0, orders: 0, langar: 0, made: 0, products: 0, tractorWork: 0 },
     ach: {},
     daily: { date: '', goals: [] },
+    weekly: { week: '', goals: [] },
     guru: { last: '', streak: 0, langarDate: '', langarSoul: 0, blessDate: '' },
     day: { n: 1, t: 0, weather: 'sunny', rain: 0, next: '', rainI: 0.5 },
     player: { x: 2.5, z: 6, rot: Math.PI, ride: null },
@@ -61,7 +62,13 @@ export function newState(name = 'Guri', turban = '#e8590c') {
     wardrobe: { gender: 'm', skin: 'classic', fskin: 'f_suit', hair: 'bun', owned: { classic: true, f_suit: true } },
     lvlGift: 1,                       // the highest level that has been paid its gift
     decor: [],                        // placed decorations and trees: { id, k, x, z, ry, t }
-    deco: { inv: {}, snap: true, tier: 0 },   // stored decorations by kind, grid snapping, beauty tier already paid
+    deco: { inv: {}, snap: true, tier: 0 },
+    orchard: { owned: false, paid: 0, t: [] },
+    sky: { day: '', kites: [], best: 0 },
+    pump: { on: [false, false], khaal: false },
+    pets: { owned: {}, active: '', pat: 0 },
+    paddock: { owned: false, paid: 0, fed: '' },
+    mela: { day: '', found: [], best: 0, hBest: 0, hLast: 0 },      // tube well motors and the old well's irrigation channel          // the airplane's sky games     // Navi Zameen orchard: when each tree was last picked   // stored decorations by kind, grid snapping, beauty tier already paid
     garden: { tokens: 0, total: 0, day: '', found: [], bonus: false, wished: '', sat: {}, relax: 0 },
     police: { cases: [], seq: 0, t: 0, last: 0, trust: 0, stats: { thefts: 0, caught: 0, recovered: 0 } },
     aura: { pts: 0, total: 0, laps: 0, best: 0, dist: 0, day: '', today: { laps: 0, distPts: 0, dist: 0, spots: {}, fast: 0, dusk: 0 }, goals: [], spots: {}, miles: {}, owned: {}, paint: '', title: false },
@@ -115,6 +122,9 @@ export function migrate(s) {
     .slice(0, SCARECROW_MAX).map((c) => ({ ...c, lvl: Math.max(0, Math.min(SCARECROW_LEVELS.length - 1, c.lvl | 0)) }));
   s.decor = cleanDecor(s.decor);
   s.deco = cleanDeco(s.deco);
+  s.pump = { on: [!!s.pump?.on?.[0], !!s.pump?.on?.[1]], khaal: !!s.pump?.khaal };
+  s.sky = { day: String(s.sky?.day || '').slice(0, 10), kites: (Array.isArray(s.sky?.kites) ? s.sky.kites : []).filter(Number.isInteger).slice(0, 40), best: Math.max(0, +s.sky?.best || 0) };
+  s.orchard = { owned: !!s.orchard?.owned, paid: Math.max(0, +s.orchard?.paid || 0), t: (Array.isArray(s.orchard?.t) ? s.orchard.t : []).slice(0, 12).map((v) => Math.max(0, +v || 0)) };
   s.wardrobe = cleanWardrobe(s.wardrobe);
   s.police.cases = cleanCases(s.police.cases);
   return s;

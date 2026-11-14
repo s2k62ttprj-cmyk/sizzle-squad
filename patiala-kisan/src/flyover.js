@@ -7,8 +7,8 @@ import { Builder, textTexture } from './geo.js';
 import { enhance } from './shading.js';
 import { FLY_Z, FLY_Y } from './world.js';
 
-const X0 = -84, X1 = 78;                       // the deck runs into the hills at both ends
-const PIERS = [-57, -40.2, -31, -22, -13, -4.2, 4.2, 11, 22, 31, 39, 54];   // clear of the ring road
+const X0 = -84, X1 = 132;                      // the deck runs into the hills at both ends
+const PIERS = [-57, -40.2, -31, -22, -13, -4.2, 4.2, 11, 22, 31, 39, 54, 66, 78, 102, 114, 126];   // clear of the ring road
 const LANE = 0.72;                             // left-hand traffic: eastbound in the north lane
 const SCALE = 0.72;                            // vehicles are a little small so two fit side by side
 

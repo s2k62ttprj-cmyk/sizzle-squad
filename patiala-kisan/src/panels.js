@@ -1,6 +1,6 @@
 // Menus for the decoration shop, a placed item, the Mali's stall, the police desk and the
 // weather forecast. Plain functions that take the UI; ui.js calls them from render() and handle().
-import { DECOR, DECOR_CATS, DECOR_MAX, DECOR_REFUND, THEMES, BEAUTY_TIERS, beautyTier, beautyOf, GARDEN, POLICE, ITEMS, SKINS, RARITY, HAIRSTYLES } from './config.js';
+import { PETS, PADDOCK, MELA, VEHICLES, PLANE, PLANE_ENGINES, DECOR, DECOR_CATS, DECOR_MAX, DECOR_REFUND, THEMES, BEAUTY_TIERS, beautyTier, beautyOf, GARDEN, POLICE, ITEMS, SKINS, RARITY, HAIRSTYLES } from './config.js';
 import { fmt } from './pads.js';
 import { activeCase, caseValue, caseCount } from './crime.js';
 import { rainLabel } from './weather.js';
@@ -56,6 +56,45 @@ export function decorItemHTML(ui) {
   h += `<div class="row2"><button class="btn ghost" data-act="decorStore">📦 Put in store</button></div>`;
   h += `<div class="row2"><button class="btn ghost danger" data-act="decorRemove">🗑️ Take down · +${D.tokens ? `${back} 🌹` : money(back)}</button></div>`;
   h += `<p class="hint small">The store keeps it to place again for free. Taking it down sells it back for ${Math.round(DECOR_REFUND * 100)}% of what it cost.</p>`;
+  return h;
+}
+
+// ---------------------------------------------------------------- the hangar (airplane: fuel, engines, sky games)
+export function hangarHTML(ui) {
+  const g = ui.game, st = g.state, V = VEHICLES.plane, pd = st.vehicles.plane, A = g.airfield;
+  if (!pd.owned) return `<div class="card2"><b>✈️ ${V.name}</b><small>${V.desc}</small></div><p class="hint">Buy the airplane in Shop → Vehicles (level ${V.level}, ${money(V.cost)}). It waits here, by the runway.</p>`;
+  const E = PLANE_ENGINES[pd.hp] || PLANE_ENGINES[0], next = PLANE_ENGINES[pd.hp + 1], fuel = Math.round(pd.fuel ?? E.fuel), need = Math.max(0, E.fuel - fuel), flying = !!A.plane()?.flying;
+  let h = `<div class="card2 gold"><b class="big">⛽ ${fuel}/${E.fuel}</b><small>${E.name} · top ${Math.round(E.top * 3.6)} km/h · climbs ${E.climb} m/s</small></div>`;
+  h += ui.row('⛽', 'Fill the tank', need ? `${need} units · ${money(need * PLANE.fuelPrice)}` : 'Full', need ? ui.btn(`Fill · ${money(need * PLANE.fuelPrice)}`, 'planeFuel', {}, st.money < need * PLANE.fuelPrice) : '<span class="tag ok">Full</span>');
+  if (next) h += ui.row('🔧', `Engine: ${next.name}`, `Top ${Math.round(next.top * 3.6)} km/h, climbs ${next.climb} m/s, ${next.fuel} fuel`, st.level < next.level ? `<span class="tag">🔒 L${next.level}</span>` : ui.btn(`Fit · ${money(next.cost)}`, 'planeEngine', {}, st.money < next.cost));
+  h += `<p class="hint">How to fly: get in the plane by the runway, push the stick to taxi and speed up, then hold <b>⬆️</b> (R on a keyboard) to take off. Steer with the stick, <b>⬇️</b> (F) to come down. Fly low over your fields to water them from the sky.</p>`;
+  h += '<h3>🎯 Sky games</h3>';
+  h += ui.row('🎯', 'Sky tour', `Fly through ${PLANE.rings.length} golden rings in ${PLANE.ringTime} s · +${money(PLANE.ringPay)}${st.sky.best ? ` · best ${st.sky.best} s` : ''}`, ui.btn(flying ? 'Start' : 'Take off first', 'skyTour', {}, !flying));
+  h += ui.row('🪁', 'Kites', `${st.sky.kites.length}/${PLANE.kites} caught today · ${money(PLANE.kitePay)} each · fly into them`, '');
+  PLANE.cargo.forEach((c, i) => { h += ui.row('📦', c.name, `Fly through the green beam low within ${PLANE.cargoTime} s · +${money(c.pay)}`, ui.btn(flying ? 'Go' : 'Take off first', 'cargoRun', { i }, !flying)); });
+  return h;
+}
+
+// ---------------------------------------------------------------- the mela and pets
+export function melaHTML(ui) {
+  const g = ui.game, st = g.state, M = g.extras.mela, ms = st.mela, v = g.player.vehicle;
+  let h = '<p class="hint">Games at the village mela. Prizes are paid in rupees and XP.</p>';
+  if (M.status()) h += `<div class="card2 gold"><b>${M.status()}</b></div>`;
+  h += ui.row('🏁', 'Navi Zameen race', `Drive any vehicle through ${MELA.race.length} red flags in order within ${MELA.raceTime} s · +${money(MELA.racePay + st.level * 40)}${ms.best ? ` · record ${ms.best} s` : ''}`, ui.btn(v && v.kind !== 'plane' ? 'Start' : 'Get on a vehicle', 'melaRace', {}, !v || v.kind === 'plane'));
+  h += ui.row('🌾', 'Harvest challenge', `Harvest as many ripe crops as you can in ${MELA.harvestTime} s · ${money(MELA.harvestPay)} a crop${ms.hBest ? ` · record ${ms.hBest}` : ''}`, ui.btn('Start', 'melaHarvest'));
+  h += ui.row('🏺', 'Hidden golden matkas', `${ms.found.length}/${MELA.matkas} found today · ${money(MELA.matkaPay)} each, ${money(MELA.matkaBonus)} for all · they hide near trees around the farm and in Navi Zameen`, '');
+  h += ui.row('📸', 'Visitors', `When your farm's beauty reaches ${MELA.visitorBeauty}, visitors come to admire it and tip you · ${st.stats.visitors || 0} so far`, '');
+  return h;
+}
+export function petsHTML(ui) {
+  const g = ui.game, st = g.state, P = st.pets;
+  let h = '<h3>🐾 Pets and paddock</h3>';
+  for (const [k, d] of Object.entries(PETS)) {
+    if (!d.name) continue;
+    const own = P.owned[k], b = own ? ui.btn(P.active === k ? '🏠 Leave at home' : '🐾 Take along', 'pet', { k }) : st.level < d.level ? `<span class="tag">🔒 L${d.level}</span>` : ui.btn(`Adopt · ${money(d.cost)}`, 'pet', { k }, st.money < d.cost);
+    h += ui.row(d.icon, `${d.name}${own ? ' <span class="tag ok">Yours</span>' : ''}`, `${d.desc}. Walk up and pat for XP.`, b);
+  }
+  h += ui.row('🐴', 'Ghoda Tabela (paddock)', 'Horses and a duck pond in Navi Zameen · feed the horses daily for XP and soul · stand on its pad to buy', st.paddock.owned ? '<span class="tag ok">Owned</span>' : st.level < PADDOCK.level ? `<span class="tag">🔒 L${PADDOCK.level}</span>` : ui.btn('📍', 'guide', { t: 'paddock' }));
   return h;
 }
 
@@ -187,6 +226,25 @@ export async function handlePanels(ui, act, d) {
       g.wardrobe.wear(d.id); g.audio.play('buy'); ui.toast(`🎉 ${S.name} is yours and you are wearing it!`, 3); return 'render';
     }
     case 'decorCat': ui.decorCat = d.c; ui.decorTheme = ''; return 'render';
+    case 'planeFuel': {
+      const pd = g.state.vehicles.plane, E = PLANE_ENGINES[pd.hp] || PLANE_ENGINES[0], need = Math.max(0, Math.ceil(E.fuel - (pd.fuel ?? E.fuel))), cost = need * PLANE.fuelPrice;
+      if (!need) return 'render';
+      if (g.state.money < cost) return fail('Not enough money');
+      g.state.money -= cost; pd.fuel = E.fuel; ui.money(); g.audio.play('buy'); ui.toast(`⛽ Tank full · ${money(cost)}`); g.save(true); return 'render';
+    }
+    case 'planeEngine': {
+      const pd = g.state.vehicles.plane, next = PLANE_ENGINES[pd.hp + 1];
+      if (!next) return 'render';
+      if (g.state.level < next.level) return fail(`Unlocks at level ${next.level}`);
+      if (g.state.money < next.cost) return fail('Not enough money');
+      g.state.money -= next.cost; pd.hp++; pd.fuel = next.fuel; ui.money(); g.audio.play('yay'); ui.toast(`🔧 ${next.name} fitted, tank filled`); g.save(true); return 'render';
+    }
+    case 'digKhaal': { const e = g.tubewells.digKhaal(); if (e) return fail(e); ui.toast('💧 The khaal is dug! Start the tube well motor to water your fields'); return 'render'; }
+    case 'melaRace': { const e = g.extras.mela.startRace(); if (e) return fail(e); ui.close(); return 'done'; }
+    case 'melaHarvest': { const e = g.extras.mela.startHarvest(); if (e) return fail(e); ui.close(); return 'done'; }
+    case 'pet': { const had = g.state.pets.owned[d.k], e = g.extras.buyPet(d.k); if (e) return fail(e); if (!had) ui.toast(`${PETS[d.k].icon} ${PETS[d.k].name} is part of the family!`, 3); return 'render'; }
+    case 'skyTour': { const e = g.airfield.startTour(); if (e) return fail(e); ui.close(); return 'done'; }
+    case 'cargoRun': { const e = g.airfield.startCargo(+d.i); if (e) return fail(e); ui.close(); return 'done'; }
     case 'decorTheme': ui.decorTheme = d.t || ''; return 'render';
     case 'decorPlaceStored': { const err = g.decor.start(d.k, null, true); if (err) return fail(err); return 'done'; }
     case 'decorStore': { const D = DECOR[ui.decorItem.k]; g.decor.store(ui.decorItem); ui.toast(`📦 ${D.name} put in your store`); g.audio.play('click'); ui.close(); return 'done'; }

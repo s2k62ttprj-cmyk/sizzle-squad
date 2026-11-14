@@ -79,7 +79,7 @@ export class Pads {
       if (!vis) continue;
       pad.mesh.userData.ring.material.opacity = 0.6 + Math.sin(t * 4) * 0.3;
       pad.mesh.userData.dash.rotation.y = t * 0.5;
-      if ((riding && !pad.vehicleOk) || g.visit) continue;     // a friend's farm is look-only
+      if ((riding && !pad.vehicleOk) || g.visit || riding?.alt > 1) continue;     // a friend's farm is look-only; nothing from the sky
       const d = Math.hypot(pl.pos.x - pad.x, pl.pos.z - pad.z);
       if (d < pad.r * (riding ? 1.8 : 1)) on = pad;
     }
@@ -143,7 +143,7 @@ export class Actions {
     for (const a of this.list) {
       if (this.game.visit && !a.visitOk) continue;          // a friend's farm: only look around (and sign the guestbook)
       if (!a.visible()) continue;
-      if (pl.vehicle && !a.vehicleOk) continue;
+      if (pl.vehicle && (!a.vehicleOk || pl.vehicle.alt > 1)) continue;
       const p = typeof a.pos === 'function' ? a.pos() : a;
       const d = Math.hypot(pl.pos.x - p.x, pl.pos.z - p.z);
       if (d < a.r && d < bd) { bd = d; best = a; }

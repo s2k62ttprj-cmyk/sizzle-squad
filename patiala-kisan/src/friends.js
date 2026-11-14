@@ -6,7 +6,7 @@
 //  - a trade link offers goods for goods: your side is set aside when you make it, your
 //    friend accepts and sends back a reply link that pays you.
 // Limits per link and per day (config TRADE) keep the trading fair.
-import { CROPS, FIELDS, PENS, BUILDINGS, VEHICLES, MANAGERS, ITEMS, SOUL_PERKS, BAGS, CANS, STORAGE, STALL, QUESTS, TRADE, TURBAN_COLORS, SCARECROW_DESIGNS, SCARECROW_LEVELS, SCARECROW_MAX,
+import { kindGrow, CROPS, FIELDS, PENS, BUILDINGS, VEHICLES, MANAGERS, ITEMS, SOUL_PERKS, BAGS, CANS, STORAGE, STALL, QUESTS, TRADE, TURBAN_COLORS, SCARECROW_DESIGNS, SCARECROW_LEVELS, SCARECROW_MAX,
   BUILDING_UPGRADES, TRACTOR_HP, MANAGER_RANKS, DECOR, DECOR_MAX } from './config.js';
 import { newState, makeId, tradeLimitError, noteTradeSent, redeemOnce, roomFor, receive, take, have, rating, itemCount, itemsValue } from './state.js';
 import { pack, unpack } from './codec.js';
@@ -63,7 +63,7 @@ export function snapshot(st) {
     // per plot: 0 untilled, 1 tilled, or a letter = crop × (dry seed | growing | ripe)
     f[fd.id] = st.plots[fd.id].map((d) => {
       if (d.s < 2 || !CROPS[d.c]) return String(Math.min(d.s, 1));
-      const stage = !d.w ? 0 : (now - d.w) / (CROPS[d.c].grow * 1000 / gm) >= 1 ? 2 : 1;
+      const stage = !d.w ? 0 : (now - d.w) / (CROPS[d.c].grow * 1000 / (gm * kindGrow(fd, d.c))) >= 1 ? 2 : 1;
       return PLOT_CHARS[ci(d.c) * 3 + stage] || '1';
     }).join('') + (st.fields[fd.id].seeri ? '*' : '');
   }

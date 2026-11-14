@@ -322,7 +322,7 @@ export function decorGeometry(k) {
   MODELS[k](b);
   return (geoCache[k] = b.build());
 }
-function fruitGeometry(k) {
+export function fruitGeometry(k) {
   const key = k + ':fruit';
   if (geoCache[key]) return geoCache[key];
   const [col, h, s] = FRUIT[k], b = new Builder(0.02, { ao: 0 });
@@ -341,9 +341,11 @@ const PEN_BOX = { coop: [6, 5], tabela: [8, 6], bakri: [6, 5], bhed: [7, 5] };
 const ZONES = [
   [1.5, 19.5, -12, 9.5], [2.5, 12, -23, -12], [-1, 22, 5, 15], [-17, 39, 13, 27.5], [-23.5, 17.5, -64.5, -27], [-60, 50, -28.5, -18.5],
   [7.5, 14.5, 0, 48], [-1, 16, 27, 48], [15.5, 19.5, 2, 5], [-17.5, -13, 20, 25.5], [1, 9, -9, -2.5], [-7, -2, -5, 1],
+  // Navi Zameen: the gate, the orchard and the airstrip with its hangar
+  [47, 53, 21, 27], [52, 85, -43.5, -29], [84, 99, -46, 52], [60, 69, 4.5, 8], [54.6, 56, 9, 41], [55, 77, -63, -46], [47.5, 53, 14.5, 19.5], [55, 66, 8.8, 9.8], [-6.2, -5.4, -8, -2], [-25.5, -5.4, -7.9, -7.1],
 ];
 const SPOTS = [[23, 3, 7], [5.2, 3.4, 3.5], [7.7, 15.7, 2.8], [2.5, 6, 2.5], [POS.gopalAct[0], POS.gopalAct[1], 3.5], [-31, 37, 7.5]];     // x, z, radius
-const EDGE = { x0: -38.5, x1: 40, z0: -64.5, z1: 46.5 };
+const EDGE = { x0: -38.5, x1: 98, z0: -64.5, z1: 46.5 };
 const GRID = 0.8;      // grid snapping: paving tiles (1.55 m) line up two squares apart
 
 export class Decor {

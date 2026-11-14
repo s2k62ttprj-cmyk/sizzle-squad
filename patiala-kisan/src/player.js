@@ -88,7 +88,8 @@ export class Player {
       this.pos.y -= 0.0;
       this.rot = v.rot;
       this.group.rotation.y = this.rot;
-      this.group.rotation.z = v.kind === 'bike' ? v.lean : 0;
+      this.group.rotation.z = v.kind === 'bike' ? v.lean : v.kind === 'plane' ? v.bank : 0;
+      this.group.rotation.x = v.kind === 'plane' ? -v.pitch : 0;
       animateHuman(this.h, t, 0, 0, true);
       // hands on the handlebar, leaning into the ride (and a touch more when braking)
       if (v.kind === 'bike') { poseRide(this.h, v.braking ? 1 : 0, v.throttle || 0); this.riding = true; }
@@ -98,6 +99,7 @@ export class Player {
       return;
     }
     this.back.visible = true;
+    if (this.group.rotation.x) this.group.rotation.x = 0;
     this.group.position.y = 0;
     if (this.riding) { this.riding = false; this.group.rotation.z = 0; }
 

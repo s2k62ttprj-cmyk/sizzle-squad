@@ -7,6 +7,7 @@ import { collide, POS } from './world.js';
 import { VEHICLES, ATTACHMENTS, TRACTOR_HP, COMBINE_RADIUS, TANKER_CAP, CROPS, BIKE_ENGINES, AURA } from './config.js';
 import { addStorage } from './state.js';
 import { onRing } from './ring.js';
+import { Ride, Airplane, FLEET } from './fleet.js';
 
 const PARK = { bike: [12.6, 8.2, 0], tractor: [15.2, 10.5, Math.PI], combine: [21.5, 10.5, Math.PI] };
 // grip: how hard the bike can turn; top: share of top speed; drag: extra rolling resistance (m/s²)
@@ -325,7 +326,7 @@ export class Vehicles {
     for (const id in VEHICLES) if (game.state.vehicles[id].owned) this.spawn(id);
   }
   spawn(id) {
-    if (!this.map[id]) this.map[id] = new Vehicle(this.game, id);
+    if (!this.map[id]) this.map[id] = id === 'plane' ? new Airplane(this.game) : FLEET.includes(id) ? new Ride(this.game, id) : new Vehicle(this.game, id);
     return this.map[id];
   }
   buy(id) {
@@ -336,7 +337,8 @@ export class Vehicles {
     if (id === 'tractor') st.stats.tractor = 1;
     this.spawn(id);
     g.emit('vehicle', { key: id });
-    g.guide.set('garage');
+    g.guide.set(id === 'plane' ? 'hangar' : 'garage');
+    st.stats.vehicles = Object.values(st.vehicles).filter((v) => v.owned).length;
     return true;
   }
   update(dt, t) { for (const k in this.map) this.map[k].update(dt, t); }

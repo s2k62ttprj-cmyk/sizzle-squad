@@ -7,7 +7,7 @@ import { groundMaterial, waterMaterial } from './shading.js';
 import { ONLINE } from './config.js';
 
 // the play area runs out to the ring road that circles the whole village
-export const BOUNDS = { x0: -56, x1: 51, z0: -76, z1: 57 };
+export const BOUNDS = { x0: -56, x1: 100, z0: -76, z1: 57 };     // x1 was 51 before Navi Zameen (east of the ring)
 
 export const POS = {
   spawn: [2.5, 6],
@@ -54,7 +54,7 @@ export function ambienceAt(x, z) {
 }
 
 const MARBLE = 0xfbf8f1, GOLD = 0xf2bd3a, BRICK = 0xb4583a, PLASTER = 0xf3e2c4;
-const WORLD = 220, HALF = WORLD / 2;
+const WORLD = 300, HALF = WORLD / 2;
 
 function noise(x, z) {
   return Math.sin(x * 0.21 + Math.sin(z * 0.13) * 2) * 0.5 + Math.sin(z * 0.17 + x * 0.07) * 0.3 + Math.sin((x + z) * 0.6) * 0.2;
@@ -68,7 +68,7 @@ export function terrainH(x, z) {
 
 // ---------------------------------------------------------------- splat map
 // Painted on canvases in world coordinates: dirt roads, marble plaza, worn ground
-const SPLAT = 512;
+const SPLAT = 700;
 class Splat {
   constructor() {
     this.ch = ['dirt', 'marble', 'wear'].map(() => { const c = document.createElement('canvas'); c.width = c.height = SPLAT; const x = c.getContext('2d', { willReadFrequently: true }); x.fillStyle = '#000'; x.fillRect(0, 0, SPLAT, SPLAT); x.fillStyle = '#fff'; return x; });
@@ -142,6 +142,13 @@ export function buildWorld(game) {
   sp.rect(0, 9, 5, 11, 46, 0.6);                  // customer road
   sp.rect(0, -17, 21.5, 39, 24.5, 0.7);           // south lane (workshops)
   sp.rect(0, 1.5, -15.6, 34, -13.4, 0.7);         // east lane (godown, pens)
+  // Navi Zameen: kachcha farm tracks from the ring road out to the new fields, the orchard and the airstrip
+  sp.rect(0, 48, 22.4, 87, 25.6, 0.7);
+  sp.rect(0, 48, 1.4, 87, 4.0, 0.7);
+  sp.rect(0, 52, -45, 55, 46, 0.6);
+  sp.rect(0, 52, -26, 87, -20, 0.5);
+  sp.rect(0, 84.5, -46, 87, 46, 0.6);
+  sp.rect(0, 87.6, -14.5, 97.4, 52, 0.3);          // the airstrip and the hangar floor
   sp.rect(0, -27, -8.2, -1.6, -7.3, 0.35, 0.85);  // bund walks between fields
   sp.rect(0, -41, 1.8, -1.6, 3.2, 0.35, 0.85);
   sp.circle(0, 0, 2.3, 3.4, 1.2);                 // vehra (farmyard)
@@ -166,7 +173,7 @@ export function buildWorld(game) {
   game.surface = (kind, x, z) => sp.at(kind, x, z);
 
   // ---------- terrain (one mesh, splat-blended grass, dirt and marble)
-  const seg = 110;
+  const seg = 150;
   const tg = new THREE.PlaneGeometry(WORLD, WORLD, seg, seg);
   tg.rotateX(-Math.PI / 2);
   const pos = tg.attributes.position, col = new Float32Array(pos.count * 3);
@@ -332,6 +339,7 @@ export function buildWorld(game) {
     scene.add(stream);
     anim.push((t) => { stream.scale.x = stream.scale.z = 1 + Math.sin(t * 20) * 0.14; stream.rotation.y = t * 3; });
     game.tubewellSpout = new THREE.Vector3(tx + 0.3, 0.7, tz - 0.2);
+    game.tubewellStream = stream;
   }
 
   // ---- Mandi stall: wooden counter, crates, a tarazu and striped awning
@@ -604,7 +612,7 @@ export function buildWorld(game) {
 
   // ---------- beyond the farm: neighbours' fields, village houses, tree lines on the hills
   {
-    const farFields = [[-62, -40, 12, 30, 0xf2d418], [-62, -5, 12, 26, 0x86c34a], [-62, 25, 12, 20, 0xe9c25a], [61, -50, 10, 26, 0x86c34a], [61, -18, 10, 22, 0xf2d418], [61, 8, 10, 26, 0x6fb33f], [-30, 63, 26, 9, 0xf2d418], [8, 63, 24, 9, 0x86c34a], [-20, -85, 22, 8, 0x6fb33f], [28, -87, 18, 8, 0xe9c25a]];
+    const farFields = [[-62, -40, 12, 30, 0xf2d418], [-62, -5, 12, 26, 0x86c34a], [-62, 25, 12, 20, 0xe9c25a], [117, -50, 10, 26, 0x86c34a], [117, -18, 10, 22, 0xf2d418], [117, 8, 10, 26, 0x6fb33f], [-30, 63, 26, 9, 0xf2d418], [8, 63, 24, 9, 0x86c34a], [-20, -85, 22, 8, 0x6fb33f], [28, -87, 18, 8, 0xe9c25a]];
     for (const [cx, cz, w, d, c] of farFields) {
       const along = d > w;
       const n = Math.floor((along ? w : d) / 0.9);
@@ -615,7 +623,7 @@ export function buildWorld(game) {
         b.capsule(shade(c, (i % 3 - 1) * 0.03), { x, y: y + 0.25, z, rx: along ? Math.PI / 2 : 0, rz: along ? 0 : Math.PI / 2, sx: 1, sy: (along ? d : w) / 1.0, sz: 1, ao: false }, 0.32, 0.4, 5);
       }
     }
-    const houses = [[-60, 40, 0], [-61, 48, 0.3], [58, 36, -0.2], [60, 27, 0.1], [59, -36, 0.2], [-62, -58, 0], [56, -82, 0.4], [-10, 64, 0.1], [20, 64, -0.15]];
+    const houses = [[-60, 40, 0], [-61, 48, 0.3], [114, 36, -0.2], [116, 27, 0.1], [115, -36, 0.2], [-62, -58, 0], [56, -82, 0.4], [-10, 64, 0.1], [20, 64, -0.15]];
     for (const [x, z, ry] of houses) {
       const y = terrainH(x, z);
       b.push(x, y, z, ry);
@@ -632,10 +640,18 @@ export function buildWorld(game) {
       const a = i / 120 * Math.PI * 2, r = 80 + (i * 37 % 19);
       const x = Math.cos(a) * r * 0.85, z = Math.sin(a) * r;
       if (x > -66 && x < 62 && z > -86 && z < 68) continue;
+      if (x > 40) continue;                   // the east side is Navi Zameen now: its trees stand further out (below)
       const y = terrainH(x, z), s = 1 + (i % 5) * 0.25;
       b.cyl(0x5e3f24, { x, y: y + 1 * s, z, sy: 2 * s, ao: false }, 0.15 * s, 0.22 * s, 5);
       b.ico(LEAVES[i % 3], { x, y: y + 2.8 * s, z, sx: 2.6 * s, sy: 2.4 * s, sz: 2.6 * s, ao: false, g: 0.3 }, 1);
     }
+  }
+
+  // tree line on the eastern hills, beyond Navi Zameen
+  for (let i = 0; i < 26; i++) {
+    const z = -80 + i * 6.2, x = 110 + (i * 37 % 9), y = terrainH(x, z), s = 1 + (i % 5) * 0.25;
+    b.cyl(0x5e3f24, { x, y: y + 1 * s, z, sy: 2 * s, ao: false }, 0.15 * s, 0.22 * s, 5);
+    b.ico(LEAVES[i % 3], { x, y: y + 2.8 * s, z, sx: 2.6 * s, sy: 2.4 * s, sz: 2.6 * s, ao: false, g: 0.3 }, 1);
   }
 
   // ---------- distant Patiala skyline: Qila Mubarak walls, houses, brick kiln

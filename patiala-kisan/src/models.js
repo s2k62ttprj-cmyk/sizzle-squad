@@ -218,7 +218,7 @@ export function makeScarecrow(design = 'daravna', lvl = 0) {
 }
 
 // ---------------------------------------------------------------- vehicles
-function wheel(r, w, tire = 0x1d1d1f, rim = 0xf2b705, { lugs = true, spokes = false } = {}) {
+export function wheel(r, w, tire = 0x1d1d1f, rim = 0xf2b705, { lugs = true, spokes = false } = {}) {
   const b = new Builder(0.03, { ao: 0 });
   b.cyl(tire, { rz: Math.PI / 2, sy: w }, r * 0.94, r * 0.94, 20);
   b.torus(tire, { ry: Math.PI / 2, s: 1, sz: w / (0.24 * r) }, r * 0.88, r * 0.12, 6, 22);
