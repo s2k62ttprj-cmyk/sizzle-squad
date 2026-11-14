@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { Builder } from './geo.js';
 import { shade } from './models.js';
 import { enhance } from './shading.js';
-import { DECOR, DECOR_MAX, DECOR_REFUND, ITEMS } from './config.js';
+import { DECOR, DECOR_MAX, DECOR_REFUND, ITEMS, BEAUTY_TIERS, beautyScore, beautyTier } from './config.js';
 import { POS } from './world.js';
 import { makeId } from './state.js';
 import { onRing } from './ring.js';
@@ -49,6 +49,42 @@ const tiers = (b, c, gold, big = 1) => {
   b.sph(gold, { y: 2.15 * big, s: 0.22 * big }, 10, 8);
 };
 const chhatri = (b, x, z, s, c = MARBLE, dome = GOLD) => { for (const [px, pz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) b.cyl(c, { x: x + px * s * 0.4, y: s * 0.55, z: z + pz * s * 0.4, sy: s * 1.1 }, s * 0.06, s * 0.07, 8); b.rbox(c, { x, y: s * 1.15, z, sx: s * 1.0, sy: s * 0.1, sz: s * 1.0 }, 0.03); b.dome(dome, { x, y: s * 1.2, z, s: s * 0.95 }, 14, 6); b.cone(GOLD, { x, y: s * 1.9, z, sx: s * 0.08, sy: s * 0.35, sz: s * 0.08 }, 6); };
+
+const ROSEGOLD = 0xe8a598;
+const chair = (b, x, z, ry, c = WOOD2) => {
+  b.push(x, 0, z, ry);
+  b.rbox(c, { y: 0.45, sx: 0.45, sy: 0.06, sz: 0.45 }, 0.02); b.rbox(c, { y: 0.75, z: -0.2, sx: 0.45, sy: 0.55, sz: 0.05 }, 0.02);
+  for (const [px, pz] of [[-0.18, -0.18], [0.18, -0.18], [-0.18, 0.18], [0.18, 0.18]]) b.cyl(DARK, { x: px, y: 0.22, z: pz, sy: 0.44 }, 0.025, 0.025, 4);
+  b.pop();
+};
+const heart = (b, x, y, z, s, c) => {
+  for (const k of [-1, 1]) b.sph(c, { x: x + k * 0.22 * s, y: y + 0.12 * s, z, sx: 0.55 * s, sy: 0.55 * s, sz: 0.18 * s, ao: false }, 8, 6);
+  b.cone(c, { x, y: y - 0.22 * s, z, sx: 0.92 * s, sy: 0.6 * s, sz: 0.18 * s, rz: Math.PI, ao: false }, 4);
+};
+// an eight-sided pavilion with a railing, open at the front
+const pavilion = (b, base, post, roof, top) => {
+  b.cyl(base, { y: 0.12, sy: 0.24 }, 2.6, 2.7, 8); b.cyl(shade(base, -0.05), { y: 0.26, sy: 0.04 }, 2.4, 2.4, 8);
+  for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2 + Math.PI / 8; pillar(b, Math.cos(a) * 2.2, Math.sin(a) * 2.2, 2.4, 0.09, post); }
+  for (let i = 0; i < 8; i++) {
+    if (i === 1) continue;
+    const m = i * Math.PI / 4 + Math.PI / 4, d = 2.2 * Math.cos(Math.PI / 8);
+    b.box(post, { x: Math.cos(m) * d, y: 0.85, z: Math.sin(m) * d, sx: 1.6, sy: 0.07, sz: 0.07, ry: Math.atan2(-Math.cos(m), -Math.sin(m)) });
+  }
+  b.cyl(post, { y: 2.55, sy: 0.25 }, 2.55, 2.45, 8);
+  b.cone(roof, { y: 3.32, sx: 5.6, sy: 1.3, sz: 5.6 }, 8); b.cyl(top, { y: 3.95, sy: 0.12 }, 0.12, 0.18, 8); b.sph(top, { y: 4.1, s: 0.3 }, 8, 6);
+};
+const rugOf = (b, cols, fringe) => {
+  b.box(cols[0], { y: 0.015, sx: 2.0, sy: 0.03, sz: 1.4 });
+  b.box(cols[1], { y: 0.032, sx: 1.7, sy: 0.005, sz: 1.1, ao: false }); b.box(cols[2], { y: 0.036, sx: 1.4, sy: 0.005, sz: 0.8, ao: false }); b.box(cols[3], { y: 0.04, sx: 1.1, sy: 0.005, sz: 0.5, ao: false });
+  for (let i = 0; i < 9; i++) for (const s of [-1, 1]) b.box(fringe, { x: -0.8 + i * 0.2, y: 0.01, z: s * 0.75, sx: 0.04, sy: 0.02, sz: 0.12, ao: false });
+};
+const flamingoBird = (b, x, z, ry) => {
+  b.push(x, 0, z, ry);
+  b.cyl(0xf06595, { y: 0.45, sy: 0.8 }, 0.015, 0.015, 4); b.cyl(0xf06595, { x: 0.06, y: 0.6, z: 0.05, sy: 0.32, rz: -0.6 }, 0.012, 0.012, 4);
+  b.sph(0xf783ac, { y: 0.95, sx: 0.3, sy: 0.28, sz: 0.5 }, 8, 6); b.capsule(0xf783ac, { y: 1.25, z: 0.15, rx: 0.25 }, 0.035, 0.4, 5);
+  b.sph(0xf783ac, { y: 1.5, z: 0.2, s: 0.13 }, 6, 5); b.cone(0x212529, { y: 1.45, z: 0.32, sx: 0.04, sy: 0.14, sz: 0.04, rx: 2.2 }, 4);
+  b.pop();
+};
 
 export const MODELS = {
   neem: (b) => roundCrown(b, 1.4, 2.0, 0x4f9a3a),
@@ -106,12 +142,178 @@ export const MODELS = {
   peacock: (b) => { b.rbox(MARBLE, { y: 0.3, sx: 1.0, sy: 0.6, sz: 1.0 }, 0.05); b.capsule(0x1b6fa8, { y: 0.95, z: 0.1, rx: 0.5, sx: 1, sy: 1, sz: 1 }, 0.2, 0.5, 8); b.capsule(0x1b6fa8, { y: 1.5, z: 0.35, rx: -0.2 }, 0.07, 0.5, 6); b.sph(0x1b6fa8, { y: 1.9, z: 0.4, s: 0.2 }, 8, 6); b.cone(GOLD, { y: 2.05, z: 0.4, sx: 0.05, sy: 0.18, sz: 0.05 }, 4); for (let i = 0; i < 11; i++) { const a = -0.9 + i * 0.18, x = Math.sin(a) * 0.75, y = 1.35 + Math.cos(a) * 0.62; b.capsule(i % 2 ? 0x1c9a6a : 0x1b6fa8, { x, y, z: -0.55, rz: -a, sx: 0.5, sy: 1, sz: 0.2 }, 0.13, 0.55, 5); b.sph(0xf2c200, { x: Math.sin(a) * 0.95, y: 1.35 + Math.cos(a) * 0.85, z: -0.5, s: 0.1, ao: false }, 5, 4); } },
   royalpond: (b) => { disc(b, 0x2f8ac8, 0.05, 5.0); for (let i = 0; i < 24; i++) { const a = i / 24 * Math.PI * 2; b.rbox(MARBLE, { x: Math.cos(a) * 2.55, y: 0.18, z: Math.sin(a) * 2.55, sx: 0.8, sy: 0.36, sz: 0.5, ry: -a }, 0.08); } b.torus(GOLD, { y: 0.38, rx: Math.PI / 2, s: 1 }, 2.55, 0.04, 4, 36); for (let i = 0; i < 7; i++) { const a = i * 2.4, d = 0.5 + (i % 3) * 0.5, x = Math.cos(a) * d, z = Math.sin(a) * d; b.cyl(0x3f8f35, { x, y: 0.08, z, sy: 0.02 }, 0.3, 0.3, 10); for (let k = 0; k < 5; k++) b.cone(0xff8fb1, { x: x + Math.cos(k) * 0.07, y: 0.2, z: z + Math.sin(k) * 0.07, sx: 0.12, sy: 0.26, sz: 0.06, rz: Math.cos(k) * 0.5, rx: -Math.sin(k) * 0.5, ao: false }, 4); } b.cyl(MARBLE, { y: 0.4, sy: 0.8 }, 0.14, 0.2, 8); b.sph(GOLD, { y: 0.9, s: 0.2 }, 8, 6); },
   minibaradari: (b) => { b.rbox(MARBLE, { y: 0.2, sx: 3.6, sy: 0.4, sz: 3.6 }, 0.05); b.rbox(0xe8dfcb, { y: 0.45, sx: 3.2, sy: 0.1, sz: 3.2 }, 0.03); for (const x of [-1.3, 0, 1.3]) for (const z of [-1.3, 0, 1.3]) { if (x === 0 && z === 0) continue; pillar(b, x, z, 2.2, 0.12); } b.rbox(0xf2e6c8, { y: 2.45, sx: 3.5, sy: 0.3, sz: 3.5 }, 0.05); b.dome(GOLD, { y: 2.6, s: 2.2 }, 18, 8); b.cone(GOLD, { y: 3.9, sx: 0.12, sy: 0.6, sz: 0.12 }, 6); for (const [x, z] of [[-1.55, -1.55], [1.55, -1.55], [-1.55, 1.55], [1.55, 1.55]]) { b.dome(0xf2e6c8, { x, y: 2.6, z, s: 0.55 }, 10, 5); b.cone(GOLD, { x, y: 3.0, z, sx: 0.05, sy: 0.3, sz: 0.05 }, 5); } for (let i = 0; i < 4; i++) b.box(0xe8dfcb, { x: -0.6 + i * 0.4, y: 0.12, z: 1.9, sx: 0.4, sy: 0.12 * (4 - i) / 2, sz: 0.4 }); },
+  // ---- added in the decoration-mode update
+  waterfall: (b) => {
+    disc(b, 0x3b8fd0, 0.05, 3.2);
+    for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2; b.ico(shade(STONE, (i % 3 - 1) * 0.08), { x: Math.cos(a) * 1.55, y: 0.15, z: Math.sin(a) * 1.55, sx: 0.6, sy: 0.35, sz: 0.45 }, 0); }
+    b.ico(0x8f877a, { y: 0.9, z: -1.0, sx: 2.2, sy: 1.8, sz: 1.2 }, 1); b.ico(0x9c9486, { x: -0.7, y: 1.5, z: -1.1, sx: 1.2, sy: 1.4, sz: 1.0 }, 1); b.ico(0x857d70, { x: 0.6, y: 1.8, z: -1.2, sx: 1.1, sy: 1.2, sz: 0.9 }, 1);
+    b.box(0x9fd8ff, { y: 1.05, z: -0.42, sx: 0.7, sy: 1.95, sz: 0.05, rx: 0.12, ao: false }); b.box(0xe3f4ff, { y: 1.05, z: -0.39, sx: 0.36, sy: 1.95, sz: 0.03, rx: 0.12, ao: false });
+    b.box(0x9fd8ff, { y: 2.02, z: -0.72, sx: 0.7, sy: 0.05, sz: 0.6, ao: false });
+    for (let i = 0; i < 6; i++) b.sph(0xffffff, { x: (i - 2.5) * 0.14, y: 0.12, z: -0.2 + (i % 2) * 0.1, s: 0.16, ao: false }, 5, 4);
+    for (const [x, z] of [[-0.9, 0.6], [1.0, 0.3]]) b.cyl(0x3f8f35, { x, y: 0.08, z, sy: 0.02 }, 0.22, 0.22, 8);
+    b.ico(0x3f8f35, { x: -1.2, y: 1.9, z: -1.0, s: 0.7 }, 1); b.ico(0x4f9a3a, { x: 1.1, y: 2.3, z: -1.1, s: 0.6 }, 1);
+  },
+  pool: (b) => {
+    b.rbox(0xe9ecef, { y: 0.08, sx: 5.2, sy: 0.16, sz: 3.4 }, 0.05);
+    b.box(0x2fa8e0, { y: 0.165, sx: 4.6, sy: 0.02, sz: 2.8, ao: false }); b.box(0x74d0f5, { y: 0.172, sx: 3.6, sy: 0.01, sz: 1.8, ao: false });
+    for (let i = 0; i < 5; i++) b.box(0x1c7ed6, { x: -1.84 + i * 0.92, y: 0.168, sx: 0.04, sy: 0.01, sz: 2.6, ao: false });
+    for (const z of [-0.25, 0.25]) { b.cyl(0xc0c4c8, { x: 2.15, y: 0.5, z, sy: 0.7 }, 0.025, 0.025, 6); b.torus(0xc0c4c8, { x: 2.3, y: 0.85, z, s: 1 }, 0.15, 0.025, 4, 8, Math.PI); }
+    for (let i = 0; i < 3; i++) b.box(0xc0c4c8, { x: 2.15, y: 0.25 + i * 0.18, sx: 0.03, sy: 0.03, sz: 0.5 });
+    b.torus(0xf783ac, { x: -1.2, y: 0.2, z: 0.5, rx: Math.PI / 2, s: 1 }, 0.3, 0.1, 6, 14); b.torus(0xffd43b, { x: 0.6, y: 0.2, z: -0.6, rx: Math.PI / 2, s: 1 }, 0.26, 0.09, 6, 14);
+  },
+  sofa: (b) => {
+    const C = 0x8a6a4a, Cu = 0xf1e3c8;
+    b.rbox(C, { y: 0.25, sx: 1.8, sy: 0.4, sz: 0.8 }, 0.06); b.rbox(C, { y: 0.7, z: -0.32, sx: 1.8, sy: 0.6, sz: 0.16 }, 0.06);
+    for (const s of [-1, 1]) b.rbox(C, { x: s * 0.85, y: 0.55, sx: 0.16, sy: 0.35, sz: 0.8 }, 0.05);
+    for (const s of [-1, 1]) b.rbox(Cu, { x: s * 0.4, y: 0.52, z: 0.04, sx: 0.74, sy: 0.16, sz: 0.66 }, 0.06);
+    b.rbox(0xd6336c, { x: -0.45, y: 0.8, z: -0.18, sx: 0.4, sy: 0.36, sz: 0.12, rx: -0.2 }, 0.08); b.rbox(0x1c7ed6, { x: 0.45, y: 0.8, z: -0.18, sx: 0.4, sy: 0.36, sz: 0.12, rx: -0.2 }, 0.08);
+  },
+  dining: (b) => {
+    b.cyl(WOOD2, { y: 0.75, sy: 0.06 }, 0.6, 0.6, 16); b.cyl(DARK, { y: 0.38, sy: 0.75 }, 0.05, 0.05, 6); b.cyl(DARK, { y: 0.03, sy: 0.06 }, 0.3, 0.3, 10);
+    b.cyl(0xdddddd, { y: 1.5, sy: 1.6 }, 0.025, 0.025, 5); b.cone(0xe03131, { y: 2.35, sx: 2.4, sy: 0.5, sz: 2.4 }, 8); b.sph(0xffffff, { y: 2.62, s: 0.1 }, 5, 4);
+    for (let i = 0; i < 4; i++) { const a = i / 4 * Math.PI * 2 + Math.PI / 4; chair(b, Math.cos(a) * 0.95, Math.sin(a) * 0.95, Math.atan2(-Math.cos(a), -Math.sin(a))); }
+    b.cyl(0xffffff, { x: 0.15, y: 0.82, sy: 0.08 }, 0.12, 0.1, 10); b.sph(0xff9f1c, { x: 0.15, y: 0.88, s: 0.1 }, 5, 4); b.sph(0x8bc34a, { x: 0.2, y: 0.88, z: 0.05, s: 0.09 }, 5, 4);
+  },
+  swingchair: (b) => {
+    b.cyl(IRON, { y: 0.04, z: -0.1, sy: 0.08 }, 0.5, 0.55, 14); b.cyl(IRON, { y: 1.15, z: -0.55, sy: 2.3 }, 0.045, 0.055, 6); b.cyl(IRON, { y: 2.3, z: -0.28, sy: 0.6, rx: Math.PI / 2 }, 0.04, 0.04, 6);
+    b.cyl(0x666666, { y: 1.85, sy: 0.9 }, 0.012, 0.012, 3); b.dome(0xc99a5b, { y: 1.0, rx: Math.PI, s: 1.0 }, 12, 6); b.torus(0xa87a42, { y: 1.0, rx: Math.PI / 2, s: 1 }, 0.5, 0.05, 4, 16);
+    b.cyl(0xf1e3c8, { y: 0.62, sy: 0.12 }, 0.36, 0.36, 12); b.rbox(0xd6336c, { y: 0.85, z: -0.22, sx: 0.4, sy: 0.3, sz: 0.1, rx: -0.3 }, 0.06);
+  },
+  coffeetable: (b) => {
+    b.rbox(WOOD2, { y: 0.42, sx: 1.0, sy: 0.06, sz: 0.6 }, 0.03); b.rbox(DARK, { y: 0.15, sx: 0.9, sy: 0.03, sz: 0.5 }, 0.01);
+    for (const [x, z] of [[-0.42, -0.22], [0.42, -0.22], [-0.42, 0.22], [0.42, 0.22]]) b.cyl(DARK, { x, y: 0.2, z, sy: 0.4 }, 0.03, 0.03, 5);
+    for (const x of [-0.2, 0.12]) { b.cyl(0xffffff, { x, y: 0.5, z: 0.05, sy: 0.1 }, 0.05, 0.04, 8); b.cyl(0xb5653a, { x, y: 0.553, z: 0.05, sy: 0.01 }, 0.045, 0.045, 8); }
+    b.cyl(0xc0c0c0, { x: 0.35, y: 0.52, z: -0.1, sy: 0.14 }, 0.06, 0.07, 8);
+  },
+  lounger: (b) => {
+    b.rbox(0xf8f9fa, { y: 0.3, z: 0.15, sx: 0.7, sy: 0.08, sz: 1.3 }, 0.03); b.rbox(0xf8f9fa, { y: 0.55, z: -0.7, sx: 0.7, sy: 0.08, sz: 0.7, rx: 0.6 }, 0.03);
+    b.rbox(0x1c7ed6, { y: 0.36, z: 0.15, sx: 0.62, sy: 0.06, sz: 1.2 }, 0.03); b.rbox(0x1c7ed6, { y: 0.6, z: -0.66, sx: 0.62, sy: 0.06, sz: 0.64, rx: 0.6 }, 0.03);
+    for (const [x, z] of [[-0.3, -0.4], [0.3, -0.4], [-0.3, 0.7], [0.3, 0.7]]) b.cyl(0xc0c4c8, { x, y: 0.14, z, sy: 0.28 }, 0.025, 0.025, 5);
+    b.rbox(0xffffff, { y: 0.48, z: -0.9, sx: 0.4, sy: 0.12, sz: 0.2, rx: 0.6 }, 0.05);
+  },
+  streetlight: (b) => {
+    b.cyl(0x495057, { y: 1.8, sy: 3.6 }, 0.05, 0.08, 8); b.cyl(0x495057, { y: 0.12, sy: 0.24 }, 0.16, 0.2, 8);
+    b.cyl(0x495057, { y: 3.6, z: 0.35, sy: 0.75, rx: Math.PI / 2 }, 0.035, 0.035, 6);
+    b.rbox(0x343a40, { y: 3.55, z: 0.75, sx: 0.28, sy: 0.1, sz: 0.5 }, 0.04); b.box(0xfff8db, { y: 3.49, z: 0.75, sx: 0.22, sy: 0.02, sz: 0.42, ao: false });
+  },
+  fairylights: (b) => {
+    for (const s of [-1, 1]) { b.cyl(WOOD, { x: s * 1.4, y: 1.15, sy: 2.3 }, 0.04, 0.06, 6); b.cyl(WOOD, { x: s * 1.4, y: 0.08, sy: 0.16 }, 0.14, 0.16, 8); }
+    for (let r = 0; r < 2; r++) {
+      const pt = (t) => [-1.4 + t * 2.8, 2.2 - r * 0.35 - Math.sin(t * Math.PI) * 0.45];
+      for (let i = 0; i <= 14; i++) {
+        const [x, y] = pt(i / 14);
+        b.sph([0xfff3b0, 0xffd43b, 0xffffff, 0xffc9de][(i + r) % 4], { x, y: y - 0.05, z: r * 0.06, s: 0.1, ao: false }, 5, 4);
+        if (i < 14) { const [x1, y1] = pt((i + 1) / 14); b.cyl(0x343a40, { x: (x + x1) / 2, y: (y + y1) / 2, z: r * 0.06, sy: Math.hypot(x1 - x, y1 - y), rz: Math.atan2(-(x1 - x), y1 - y) }, 0.008, 0.008, 3); }
+      }
+    }
+  },
+  colorlights: (b) => {
+    b.cyl(IRON, { y: 1.15, sy: 2.3 }, 0.04, 0.06, 8); b.cyl(IRON, { y: 0.1, sy: 0.2 }, 0.15, 0.2, 8);
+    b.torus(IRON, { y: 2.2, rx: Math.PI / 2, s: 1 }, 0.42, 0.015, 3, 20);
+    const C = [0xff4d4d, 0x51cf66, 0x4dabf7, 0xffd43b, 0xcc5de8];
+    for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; b.sph(C[i], { x: Math.cos(a) * 0.42, y: 2.2, z: Math.sin(a) * 0.42, s: 0.26, ao: false }, 8, 6); }
+    b.sph(0xffffff, { y: 2.45, s: 0.24, ao: false }, 8, 6);
+  },
+  hanglantern: (b) => {
+    b.cyl(IRON, { y: 1.0, sy: 2.0 }, 0.03, 0.04, 6); b.cyl(IRON, { y: 0.06, sy: 0.12 }, 0.12, 0.14, 8);
+    for (const s of [-1, 1]) {
+      b.torus(IRON, { x: s * 0.25, y: 2.0, s: 1 }, 0.25, 0.025, 4, 10, Math.PI);
+      b.cyl(0x666666, { x: s * 0.5, y: 1.86, sy: 0.28 }, 0.008, 0.008, 3);
+      b.sph(s > 0 ? 0xff6b6b : 0xffa94d, { x: s * 0.5, y: 1.55, sx: 0.3, sy: 0.36, sz: 0.3, ao: false }, 8, 6);
+      for (const y of [1.72, 1.38]) b.cyl(0xc92a2a, { x: s * 0.5, y, sy: 0.04 }, 0.08, 0.08, 6);
+    }
+  },
+  gazebo: (b) => pavilion(b, MARBLE, 0xffffff, 0xf8f9fa, GOLD),
+  pergola: (b) => {
+    for (const [x, z] of [[-1.6, -1.0], [1.6, -1.0], [-1.6, 1.0], [1.6, 1.0]]) { b.rbox(WOOD, { x, y: 1.2, z, sx: 0.18, sy: 2.4, sz: 0.18 }, 0.03); b.ico(0x3f8f35, { x, y: 0.9, z, sx: 0.45, sy: 1.6, sz: 0.45 }, 1); }
+    for (const z of [-1.0, 1.0]) b.rbox(WOOD2, { y: 2.45, z, sx: 3.9, sy: 0.18, sz: 0.12 }, 0.03);
+    for (let i = 0; i < 7; i++) b.rbox(WOOD2, { x: -1.65 + i * 0.55, y: 2.6, sx: 0.1, sy: 0.12, sz: 2.6 }, 0.02);
+    for (let i = 0; i < 10; i++) b.ico(LEAF[i % 3], { x: -1.7 + i * 0.38, y: 2.72, z: ((i * 7) % 5 - 2) * 0.4, sx: 0.6, sy: 0.25, sz: 0.6 }, 0);
+    for (let i = 0; i < 8; i++) b.sph([0xcc5de8, 0xf783ac][i % 2], { x: -1.5 + i * 0.42, y: 2.62, z: ((i * 3) % 5 - 2) * 0.45, s: 0.14, ao: false }, 5, 4);
+  },
+  bridge: (b) => {
+    b.box(0x3b8fd0, { y: 0.02, sx: 1.4, sy: 0.02, sz: 2.6, ao: false });
+    const N = 11;
+    for (let i = 0; i < N; i++) { const t = i / (N - 1); b.rbox(i % 2 ? WOOD2 : shade(WOOD2, -0.06), { x: -1.9 + t * 3.8, y: 0.12 + Math.sin(t * Math.PI) * 0.55, sx: 0.36, sy: 0.08, sz: 1.2, rz: Math.atan(0.4546 * Math.cos(t * Math.PI)) }, 0.02); }
+    for (const z of [-0.6, 0.6]) {
+      for (let i = 0; i < 6; i++) { const t = i / 5; b.cyl(WOOD, { x: -1.8 + t * 3.6, y: 0.47 + Math.sin(t * Math.PI) * 0.55, z, sy: 0.7 }, 0.04, 0.04, 5); }
+      for (let i = 0; i < 10; i++) {
+        const t0 = i / 10, t1 = (i + 1) / 10, x0 = -1.8 + t0 * 3.6, x1 = -1.8 + t1 * 3.6, y0 = 0.82 + Math.sin(t0 * Math.PI) * 0.55, y1 = 0.82 + Math.sin(t1 * Math.PI) * 0.55;
+        b.box(WOOD2, { x: (x0 + x1) / 2, y: (y0 + y1) / 2, z, sx: Math.hypot(x1 - x0, y1 - y0) + 0.02, sy: 0.06, sz: 0.06, rz: Math.atan2(y1 - y0, x1 - x0) });
+      }
+    }
+  },
+  birdhouse: (b) => {
+    b.cyl(WOOD, { y: 0.8, sy: 1.6 }, 0.035, 0.045, 6); b.cyl(WOOD, { y: 0.06, sy: 0.12 }, 0.12, 0.14, 8);
+    b.rbox(0xd9480f, { y: 1.8, sx: 0.4, sy: 0.4, sz: 0.36 }, 0.03); b.prism(0x5c3d2e, { y: 2.1, sx: 0.52, sy: 0.26, sz: 0.46 });
+    b.cyl(0x2b1d12, { y: 1.85, z: 0.185, sy: 0.02, rx: Math.PI / 2 }, 0.07, 0.07, 8); b.cyl(WOOD, { y: 1.72, z: 0.24, sy: 0.12, rx: Math.PI / 2 }, 0.015, 0.015, 4);
+    b.sph(0x8a6a4a, { x: 0.12, y: 2.32, z: 0.05, s: 0.12 }, 5, 4);
+  },
+  rug: (b) => rugOf(b, [0xc92a2a, 0xf2c200, 0x1c7ed6, 0xc92a2a], 0xf8f0dc),
+  welcome: (b) => {
+    for (const s of [-1, 1]) { b.rbox(WOOD, { x: s * 0.8, y: 0.7, sx: 0.12, sy: 1.4, sz: 0.12 }, 0.03); b.ico(0x3f8f35, { x: s * 0.8, y: 0.25, z: 0.15, s: 0.45 }, 1); }
+    b.rbox(WOOD2, { y: 1.15, sx: 1.8, sy: 0.6, sz: 0.08 }, 0.04);
+    b.box(0xf2c200, { y: 1.15, z: 0.045, sx: 1.55, sy: 0.04, sz: 0.01, ao: false }); b.box(0x5c3d2e, { y: 1.29, z: 0.045, sx: 1.3, sy: 0.1, sz: 0.01, ao: false }); b.box(0x5c3d2e, { y: 1.02, z: 0.045, sx: 1.0, sy: 0.08, sz: 0.01, ao: false });
+    for (let i = 0; i < 11; i++) { const t = i / 10; b.sph(i % 2 ? 0xff9a1f : 0xffc61a, { x: -0.85 + t * 1.7, y: 0.84 - Math.sin(t * Math.PI) * 0.12, z: 0.06, s: 0.11, ao: false }, 5, 4); }
+  },
+  elephant: (b) => {
+    const G = 0x9a958c;
+    b.rbox(MARBLE, { y: 0.25, sx: 1.4, sy: 0.5, sz: 2.2 }, 0.05);
+    for (const [x, z] of [[-0.32, -0.55], [0.32, -0.55], [-0.32, 0.55], [0.32, 0.55]]) b.cyl(G, { x, y: 0.9, z, sy: 0.85 }, 0.15, 0.17, 8);
+    b.sph(G, { y: 1.6, sx: 1.15, sy: 1.15, sz: 1.85 }, 12, 8);
+    b.sph(G, { y: 1.95, z: 1.0, s: 0.85 }, 10, 8);
+    b.capsule(G, { y: 1.3, z: 1.42, rx: 0.15 }, 0.1, 0.75, 6);
+    for (const s of [-1, 1]) { b.cyl(shade(G, -0.06), { x: s * 0.45, y: 1.95, z: 0.85, sy: 0.05, rz: Math.PI / 2 }, 0.42, 0.42, 12); b.capsule(0xfffbea, { x: s * 0.17, y: 1.55, z: 1.38, rx: 1.0 }, 0.04, 0.3, 4); }
+    b.rbox(0xc92a2a, { y: 2.12, sx: 1.2, sy: 0.08, sz: 1.0 }, 0.03); b.box(GOLD, { y: 2.12, sx: 1.24, sy: 0.04, sz: 1.04 });
+    b.rbox(0xc92a2a, { y: 2.2, z: 1.2, sx: 0.5, sy: 0.4, sz: 0.06, rx: 0.5 }, 0.03); b.sph(GOLD, { y: 2.42, z: 1.12, s: 0.12 }, 6, 5);
+    b.capsule(G, { y: 1.5, z: -0.95, rx: -0.4 }, 0.03, 0.4, 4);
+  },
+  deer: (b) => {
+    const C = 0xb07a45;
+    b.rbox(STONE, { y: 0.1, sx: 0.8, sy: 0.2, sz: 1.3 }, 0.04);
+    for (const [x, z] of [[-0.12, -0.32], [0.12, -0.32], [-0.12, 0.3], [0.12, 0.3]]) b.cyl(C, { x, y: 0.55, z, sy: 0.7 }, 0.03, 0.04, 5);
+    b.capsule(C, { y: 0.98, rx: Math.PI / 2 }, 0.2, 0.55, 8);
+    b.capsule(C, { y: 1.3, z: 0.38, rx: 0.45 }, 0.08, 0.35, 6); b.sph(C, { y: 1.58, z: 0.52, sx: 0.18, sy: 0.2, sz: 0.34 }, 8, 6);
+    for (const s of [-1, 1]) { b.cyl(0x6b4a2a, { x: s * 0.1, y: 1.85, z: 0.45, sy: 0.4, rz: -s * 0.4 }, 0.015, 0.02, 4); b.cyl(0x6b4a2a, { x: s * 0.2, y: 1.95, z: 0.5, sy: 0.2, rz: s * 0.5 }, 0.012, 0.015, 4); b.cone(C, { x: s * 0.12, y: 1.68, z: 0.42, sx: 0.08, sy: 0.16, sz: 0.04, rz: -s * 0.9 }, 4); }
+    for (let i = 0; i < 7; i++) b.sph(0xfff3df, { x: (i % 2 ? 0.1 : -0.1), y: 1.12, z: -0.3 + i * 0.1, s: 0.06, ao: false }, 4, 3);
+  },
+  windmill: (b) => {
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) b.cyl(0x868e96, { x: sx * 0.35, y: 2.0, z: sz * 0.35, sy: 4.05, rz: sx * 0.1, rx: -sz * 0.1 }, 0.035, 0.045, 5);
+    for (const y of [1.0, 2.0, 3.0]) { const w = 0.6 * (1 - y / 4.5) + 0.3; for (const s of [-1, 1]) { b.box(0x868e96, { y, z: s * w * 0.95, sx: w * 1.9, sy: 0.04, sz: 0.04 }); b.box(0x868e96, { y, x: s * w * 0.95, sx: 0.04, sy: 0.04, sz: w * 1.9 }); } }
+    b.rbox(0x868e96, { y: 4.1, sx: 0.4, sy: 0.15, sz: 0.4 }, 0.03); b.cyl(0x495057, { y: 4.3, z: 0.25, sy: 0.25, rx: Math.PI / 2 }, 0.12, 0.12, 8);
+    for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; b.box(i % 2 ? 0xe9ecef : 0xc92a2a, { x: Math.cos(a) * 0.62, y: 4.3 + Math.sin(a) * 0.62, z: 0.4, sx: 0.9, sy: 0.15, sz: 0.02, rz: a }); }
+    b.box(0xe9ecef, { y: 4.3, z: -0.6, sx: 0.02, sy: 0.55, sz: 0.9 }); b.box(0x868e96, { y: 4.3, z: -0.2, sx: 0.03, sy: 0.03, sz: 0.8 });
+    b.cyl(0x6c757d, { x: 0.9, y: 0.35, sy: 0.7 }, 0.4, 0.4, 12); b.cyl(0x3b8fd0, { x: 0.9, y: 0.71, sy: 0.02 }, 0.36, 0.36, 12);
+  },
+  pinktree: (b) => { trunk(b, 1.5, 0.15, 0x6b4a3a); blobs(b, [[0, 2.3, 0, 2.2], [0.9, 2.1, 0.2, 1.5], [-0.9, 2.2, -0.1, 1.6], [0.1, 2.1, 0.9, 1.4], [-0.1, 2.9, -0.2, 1.3]], 0xf7a8c4, 0.06); for (const [x, y, z] of ringSpots(18, 1.5, 2.3)) b.sph(0xfcc2d7, { x, y: y + 0.3, z, s: 0.22, ao: false }, 5, 4); },
+  pinkbench: (b) => { seat(b, 1.6, 0xf783ac, false); for (const x of [-0.45, 0.45]) heart(b, x, 0.98, -0.22, 0.6, 0xd6336c); b.rbox(0xf783ac, { y: 0.72, z: -0.22, sx: 1.5, sy: 0.06, sz: 0.05 }, 0.02); },
+  heartarch: (b) => {
+    for (const s of [-1, 1]) { b.rbox(0xffffff, { x: s * 1.0, y: 0.85, sx: 0.14, sy: 1.7, sz: 0.14 }, 0.03); b.ico(0x3f8f35, { x: s * 1.0, y: 0.3, s: 0.5 }, 1); }
+    for (let i = 0; i < 64; i++) {
+      const t = i / 64 * Math.PI * 2, hx = 16 * Math.pow(Math.sin(t), 3), hy = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+      if (hy < -4) continue;
+      const x = hx * 0.075, y = 1.6 + (hy + 4) * 0.075;
+      b.sph([0xf06595, 0xff8fab, 0xd6336c][i % 3], { x, y, z: (i % 3 - 1) * 0.06, s: 0.2, ao: false }, 5, 4);
+      if (i % 2) b.ico(0x3f8f35, { x: x * 0.97, y: y - 0.04, z: 0.1, s: 0.14 }, 0);
+    }
+  },
+  pinklamp: (b) => { b.cyl(ROSEGOLD, { y: 1.15, sy: 2.3 }, 0.04, 0.07, 8); b.cyl(ROSEGOLD, { y: 0.1, sy: 0.2 }, 0.16, 0.2, 8); heart(b, 0, 2.5, 0, 0.6, 0xffc9de); b.torus(ROSEGOLD, { y: 2.5, s: 1 }, 0.32, 0.02, 4, 16); },
+  flamingo: (b) => { b.cyl(0x3f8f35, { y: 0.03, sy: 0.06 }, 0.7, 0.75, 12); flamingoBird(b, -0.25, 0, 0.4); flamingoBird(b, 0.3, 0.1, -0.5); },
+  pinkfountain: (b) => { tiers(b, 0xf8c8d8, GOLD, 1); for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; b.sph(0xf06595, { x: Math.cos(a) * 1.32, y: 0.56, z: Math.sin(a) * 1.32, s: 0.16, ao: false }, 5, 4); } },
+  pinkswing: (b) => {
+    for (const s of [-1, 1]) { b.cyl(0xffffff, { x: s * 0.9, y: 1.2, z: -0.4, sy: 2.5, rx: -0.2 }, 0.06, 0.08, 6); b.cyl(0xffffff, { x: s * 0.9, y: 1.2, z: 0.4, sy: 2.5, rx: 0.2 }, 0.06, 0.08, 6); b.cyl(0x8a7a5a, { x: s * 0.55, y: 1.5, sy: 1.8 }, 0.012, 0.012, 3); }
+    b.cyl(0xffffff, { y: 2.42, sy: 2.1, rz: Math.PI / 2 }, 0.06, 0.06, 6); b.rbox(0xf783ac, { y: 0.6, sx: 1.2, sy: 0.07, sz: 0.4 }, 0.03);
+    for (let i = 0; i < 16; i++) { const s = i % 2 ? 1 : -1; b.sph([0xf06595, 0xffc9de, 0xffffff][i % 3], { x: s * 0.55, y: 0.75 + Math.floor(i / 2) * 0.2, s: 0.12, ao: false }, 5, 4); }
+    for (let i = 0; i < 10; i++) b.sph([0xf06595, 0xffc9de][i % 2], { x: -0.9 + i * 0.2, y: 2.5, z: (i % 2 - 0.5) * 0.08, s: 0.14, ao: false }, 5, 4);
+  },
+  pinkgazebo: (b) => pavilion(b, 0xffe3ec, 0xffffff, 0xf783ac, GOLD),
+  pinkrug: (b) => { rugOf(b, [0xf783ac, 0xffc9de, 0xffffff, 0xf06595], 0xffffff); for (let i = 0; i < 6; i++) b.sph(0xd6336c, { x: -0.6 + (i % 3) * 0.6, y: 0.045, z: i < 3 ? -0.3 : 0.3, sx: 0.16, sy: 0.02, sz: 0.16, ao: false }, 6, 3); },
 };
 const i2c = (i) => [0xe03131, 0xff6b3a, 0xd6336c][Math.abs(Math.floor(i * 3)) % 3];
 
 // where ripe fruit hangs (per fruit tree) and its colour
 const FRUIT = { mango: [0xffb627, 1.1, 2.2], guava: [0xb9e07a, 0.9, 1.5], ber: [0xc9893a, 0.9, 1.35], orange: [0xff9f1c, 0.9, 1.6], jamun: [0x5b2a86, 1.2, 2.3] };
-const SWAY = new Set(['neem', 'ashoka', 'peepal', 'mango', 'guava', 'ber', 'gulmohar', 'orange', 'palm', 'jamun', 'bamboo', 'banyan', 'pot', 'marigold', 'rose', 'mogra', 'hedge', 'sunflowers', 'lotus']);
+const SWAY = new Set(['neem', 'ashoka', 'peepal', 'mango', 'guava', 'ber', 'gulmohar', 'orange', 'palm', 'jamun', 'bamboo', 'banyan', 'pot', 'marigold', 'rose', 'mogra', 'hedge', 'sunflowers', 'lotus', 'pinktree']);
 
 const geoCache = {};
 export function decorGeometry(k) {
@@ -142,6 +344,7 @@ const ZONES = [
 ];
 const SPOTS = [[23, 3, 7], [5.2, 3.4, 3.5], [7.7, 15.7, 2.8], [2.5, 6, 2.5], [POS.gopalAct[0], POS.gopalAct[1], 3.5], [-31, 37, 7.5]];     // x, z, radius
 const EDGE = { x0: -38.5, x1: 40, z0: -64.5, z1: 46.5 };
+const GRID = 0.8;      // grid snapping: paving tiles (1.55 m) line up two squares apart
 
 export class Decor {
   constructor(game, list = game.state.decor, { view = false } = {}) {
@@ -167,12 +370,15 @@ export class Decor {
     $('placeYes')?.addEventListener('click', (e) => { e.stopPropagation(); this.confirm(); });
     $('placeNo')?.addEventListener('click', (e) => { e.stopPropagation(); this.cancel(); });
     $('placeRot')?.addEventListener('click', (e) => { e.stopPropagation(); this.rotate(); });
+    $('placeSnap')?.addEventListener('pointerdown', (e) => e.stopPropagation());
+    $('placeSnap')?.addEventListener('click', (e) => { e.stopPropagation(); this.toggleSnap(); });
+    setTimeout(() => this.checkBeauty(), 1500);
   }
 
   meshFor(k) {
     if (this.meshes[k]) return this.meshes[k];
     const m = new THREE.InstancedMesh(decorGeometry(k), SWAY.has(k) ? MAT_SWAY : MAT_RIGID, DECOR_MAX);
-    m.castShadow = !DECOR[k].cat.match(/path|season/) || k === 'bonfire';
+    m.castShadow = !(DECOR[k].flat || DECOR[k].cat.match(/path|season/)) || k === 'bonfire';
     m.receiveShadow = true; m.frustumCulled = false; m.count = 0;
     this.root.add(m);
     return (this.meshes[k] = m);
@@ -206,7 +412,7 @@ export class Decor {
       }
       if (D.solid && !this.cols.has(d.id)) { const c = { x: d.x, z: d.z, r: D.solid, decor: d.id }; this.cols.set(d.id, c); this.game.colliders.push(c); }
       if (D.glow && !this.glowRefs.has(d.id)) { const g = [d.x, D.glow[0], d.z, D.glow[1]]; this.glowRefs.set(d.id, g); this.game.glows.push(g); this.glowsDirty = true; }
-      if (/tree|statue|royal|water/.test(D.cat) && (D.solid || 0) > 0.2) tall.push([d.x - D.solid * 1.2, d.z - D.solid * 1.2, d.x + D.solid * 1.2, d.z + D.solid * 1.2, D.cat === 'tree' ? 3.2 : 2.2]);
+      if (/tree|statue|royal|water|prem|pink/.test(D.cat) && (D.solid || 0) > 0.2) tall.push([d.x - D.solid * 1.2, d.z - D.solid * 1.2, d.x + D.solid * 1.2, d.z + D.solid * 1.2, D.cat === 'tree' ? 3.2 : 2.2]);
     }
     for (const [id, c] of [...this.cols]) if (!ids.has(id)) { const i = this.game.colliders.indexOf(c); if (i >= 0) this.game.colliders.splice(i, 1); this.cols.delete(id); }
     for (const [id, g] of [...this.glowRefs]) if (!ids.has(id)) { const i = this.game.glows.indexOf(g); if (i >= 0) this.game.glows.splice(i, 1); this.glowRefs.delete(id); this.glowsDirty = true; }
@@ -215,6 +421,36 @@ export class Decor {
     this.game.seeThrough?.setDynamic(tall);
     if (this.glowsDirty) { this.game.life?.refreshGlows(); this.glowsDirty = false; }
     this.ripeSig = this.list.map((d) => d.id + (this.ripeNow(d, now) ? 1 : 0)).join();
+    this.beauty = beautyScore(this.list);
+  }
+
+  // ---------- the store (bought items put away to place again later, free)
+  get deco() { return this.game.state.deco; }
+  stored(k) { return this.deco?.inv[k] || 0; }
+  storedCount() { return Object.values(this.deco?.inv || {}).reduce((a, n) => a + n, 0); }
+  store(d) {
+    this.list.splice(this.list.indexOf(d), 1);
+    this.deco.inv[d.k] = this.stored(d.k) + 1;
+    this.rebuild();
+    this.game.save(true);
+  }
+  // beauty tiers pay a gift once each; the paid tier only ever goes up
+  checkBeauty() {
+    const g = this.game, st = g.state;
+    if (this.view || !st.deco) return;
+    const tier = beautyTier(this.beauty);
+    st.stats.beauty = Math.max(st.stats.beauty || 0, this.beauty);
+    st.stats.pinkDecor = this.list.filter((d) => DECOR[d.k].cat === 'pink').length;
+    if (tier <= st.deco.tier) return;
+    let money = 0, xp = 0;
+    for (let i = st.deco.tier + 1; i <= tier; i++) { money += BEAUTY_TIERS[i].money; xp += BEAUTY_TIERS[i].xp; }
+    st.deco.tier = tier;
+    st.money += money;
+    g.addXP(xp);
+    g.ui.money();
+    g.audio.play('yay');
+    g.ui.toast(`🌸 Your farm is now ${BEAUTY_TIERS[tier].name}! Beauty ${this.beauty} · +₹${money.toLocaleString('en-IN')} · +${xp} XP`, 4);
+    g.save(true);
   }
 
   ripeNow(d, now = Date.now()) { const f = DECOR[d.k]?.fruit; return !!f && now - d.t >= f.every * 1000; }
@@ -259,23 +495,31 @@ export class Decor {
     for (const a of g.actions.list) { if (a.decorSelf || !a.visible()) continue; const p = typeof a.pos === 'function' ? a.pos() : a; if (!p) continue; if (p.x !== undefined && a.r < 4 && Math.hypot(p.x - x, p.z - z) < a.r * 0.6 + r * 0.3 && !(p === _far)) return 'Too close to something you use'; }
     for (const o of this.list) {
       if (o.id === skipId) continue;
-      const fk = DECOR[o.k], flat = (c) => c === 'path' || c === 'season';
-      const need = (flat(D.cat) || flat(fk.cat)) ? (D.r + fk.r) * 0.42 : (D.r + fk.r) * 0.55;
+      const fk = DECOR[o.k], flat = (F) => F.flat || F.cat === 'path' || F.cat === 'season';
+      const need = (flat(D) || flat(fk)) ? (D.r + fk.r) * 0.42 : (D.r + fk.r) * 0.55;
       if (Math.hypot(o.x - x, o.z - z) < need) return 'Too close to another decoration';
     }
     return '';
   }
 
   // ---------- placing: a ghost stands in front of the farmer, tied to the same Place / Cancel bar the scarecrows use
-  start(k, existing = null) {
-    const g = this.game, D = DECOR[k], st = g.state;
+  buyError(k) {
+    const D = DECOR[k], st = this.game.state;
+    if (!D) return 'Unknown item';
+    if (st.level < D.level) return `Unlocks at level ${D.level}`;
+    if (D.bty && Math.max(this.beauty || 0, st.stats.beauty || 0) < D.bty) return `Needs farm beauty ${D.bty}`;
+    if (D.tokens ? st.garden.tokens < D.tokens : st.money < D.cost) return D.tokens ? 'Not enough Baradari roses' : 'Not enough money';
+    return '';
+  }
+  start(k, existing = null, fromStore = false) {
+    const g = this.game, D = DECOR[k];
     if (!D) return 'Unknown item';
     if (g.visit) return 'Not while visiting';
     if (g.player.vehicle) return 'Get off the vehicle first';
     if (!existing) {
-      if (st.level < D.level) return `Unlocks at level ${D.level}`;
       if (this.list.length >= DECOR_MAX) return `You can place ${DECOR_MAX} items`;
-      if (D.tokens ? st.garden.tokens < D.tokens : st.money < D.cost) return D.tokens ? 'Not enough Baradari roses' : 'Not enough money';
+      if (fromStore) { if (!this.stored(k)) return 'None in the store'; }
+      else { const e = this.buyError(k); if (e) return e; }
     }
     g.scarecrows?.cancel(true);
     this.cancel(true);
@@ -283,9 +527,9 @@ export class Decor {
     const ring = this.ringMesh(0x69db7c, D.r);
     g.scene.add(ghost, ring);
     if (existing) { this.movingId = existing.id; this.rebuild(); }
-    this.placing = { k, existing, ghost, ring, ry: existing ? existing.ry : 0, ok: false };
+    this.placing = { k, existing, fromStore: !existing && fromStore, ghost, ring, ry: existing ? existing.ry : 0, ok: false };
     g.ui.close();
-    $('placeBar').hidden = false; $('placeRot').hidden = false;
+    $('placeBar').hidden = false; $('placeRot').hidden = false; this.snapLabel();
     $('action').hidden = true;
     this.updatePlacing();
     g.ui.toast('Walk to where it should go — green means you can place it', 3);
@@ -303,17 +547,21 @@ export class Decor {
   updatePlacing() {
     const P = this.placing, g = this.game, pl = g.player, D = DECOR[P.k];
     const ahead = 1.5 + D.r * 0.35;
-    const x = pl.pos.x + Math.sin(pl.rot) * ahead, z = pl.pos.z + Math.cos(pl.rot) * ahead;
+    let x = pl.pos.x + Math.sin(pl.rot) * ahead, z = pl.pos.z + Math.cos(pl.rot) * ahead;
+    if (this.snapOn()) { x = Math.round(x / GRID) * GRID; z = Math.round(z / GRID) * GRID; }
     P.x = x; P.z = z;
     P.ghost.position.set(x, 0, z); P.ghost.rotation.y = P.ry; P.ring.position.set(x, 0, z);
     const why = this.placeError(x, z, P.k, P.existing?.id);
     P.ok = !why;
     for (const mt of P.ring.userData.mats) mt.color.set(P.ok ? 0x69db7c : 0xff6b6b);
-    const price = P.existing ? 'free to move' : D.tokens ? `${D.tokens} 🌹` : `₹${D.cost}`;
+    const price = P.existing ? 'free to move' : P.fromStore ? 'from your store' : D.tokens ? `${D.tokens} 🌹` : `₹${D.cost}`;
     $('placeInfo').innerHTML = why ? `⚠️ ${why}` : `${D.icon} ${D.name} · ${price}`;
     $('placeYes').disabled = !P.ok;
   }
-  rotate() { const P = this.placing; if (!P) return; P.ry = (P.ry + Math.PI / 4) % (Math.PI * 2); this.game.audio.play('click'); this.updatePlacing(); }
+  rotate() { const P = this.placing; if (!P) return; P.ry = (P.ry + (this.snapOn() ? Math.PI / 4 : Math.PI / 12)) % (Math.PI * 2); this.game.audio.play('click'); this.updatePlacing(); }
+  snapOn() { return this.deco?.snap !== false; }
+  toggleSnap() { if (!this.deco) return; this.deco.snap = !this.snapOn(); this.snapLabel(); this.game.audio.play('click'); if (this.placing) this.updatePlacing(); this.game.save(); }
+  snapLabel() { const el = $('placeSnap'); if (!el) return; el.hidden = !this.placing; el.textContent = this.snapOn() ? '▦ Grid on' : '✥ Free'; }
   confirm() {
     const P = this.placing, g = this.game, st = g.state;
     if (!P || !P.ok) return;
@@ -323,8 +571,13 @@ export class Decor {
       this.movingId = null;
       g.ui.toast(`${D.icon} Moved`, 1.5);
     } else {
-      if (D.tokens ? st.garden.tokens < D.tokens : st.money < D.cost) { g.ui.toast('Not enough ' + (D.tokens ? 'roses' : 'money')); g.audio.play('error'); return; }
-      if (D.tokens) st.garden.tokens -= D.tokens; else st.money -= D.cost;
+      if (P.fromStore) {
+        if (!this.stored(P.k)) { g.ui.toast('None left in the store'); g.audio.play('error'); return; }
+        if (--this.deco.inv[P.k] <= 0) delete this.deco.inv[P.k];
+      } else {
+        if (D.tokens ? st.garden.tokens < D.tokens : st.money < D.cost) { g.ui.toast('Not enough ' + (D.tokens ? 'roses' : 'money')); g.audio.play('error'); return; }
+        if (D.tokens) st.garden.tokens -= D.tokens; else st.money -= D.cost;
+      }
       const d = { id: makeId(6), k: P.k, x: +P.x.toFixed(2), z: +P.z.toFixed(2), ry: P.ry, t: Date.now() - (D.fruit ? D.fruit.every * 300 : 0) };
       this.list.push(d);
       g.emit('decorPlaced', { key: P.k });
@@ -335,15 +588,16 @@ export class Decor {
     g.fx.sparkle(P.x, 0.6, P.z, 0xffd43b, 10);
     this.rebuild();
     this.clearGhost();
+    this.checkBeauty();
     g.save(true);
-    if (!P.existing && !D.fruit && !D.tokens) this.again = P.k;
+    if (!P.existing && !P.fromStore && !D.fruit && !D.tokens) this.again = P.k;
   }
   clearGhost() {
     const P = this.placing;
     if (!P) return;
     this.game.scene.remove(P.ghost, P.ring);
     this.placing = null;
-    $('placeBar').hidden = true; $('placeRot').hidden = true;
+    $('placeBar').hidden = true; $('placeRot').hidden = true; if ($('placeSnap')) $('placeSnap').hidden = true;
   }
   cancel(quiet = false) {
     const P = this.placing;
@@ -394,7 +648,7 @@ export class Decor {
       for (const d of this.list) {
         const D = DECOR[d.k];
         if (!D.spray || Math.hypot(p.x - d.x, p.z - d.z) > 26) continue;
-        const h = d.k === 'royalfountain' ? 2.7 : 2.3, a = Math.random() * 6.28, r = Math.random() * 0.25;
+        const h = typeof D.spray === 'number' ? D.spray : d.k === 'royalfountain' ? 2.7 : 2.3, a = Math.random() * 6.28, r = Math.random() * 0.25;
         g.fx.puff(d.x + Math.cos(a) * r, h, d.z + Math.sin(a) * r, { color: 0xe6f6ff, size: 0.22, grow: 0.8, life: 0.8, rise: -1.2, drift: 0.6, alpha: 0.6 });
         g.fx.puff(d.x, h - 0.4, d.z, { color: 0xffffff, size: 0.18, grow: 0.6, life: 0.6, rise: 0.9, drift: 0.35, alpha: 0.5 });
       }

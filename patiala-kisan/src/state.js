@@ -61,6 +61,7 @@ export function newState(name = 'Guri', turban = '#e8590c') {
     wardrobe: { gender: 'm', skin: 'classic', fskin: 'f_suit', hair: 'bun', owned: { classic: true, f_suit: true } },
     lvlGift: 1,                       // the highest level that has been paid its gift
     decor: [],                        // placed decorations and trees: { id, k, x, z, ry, t }
+    deco: { inv: {}, snap: true, tier: 0 },   // stored decorations by kind, grid snapping, beauty tier already paid
     garden: { tokens: 0, total: 0, day: '', found: [], bonus: false, wished: '', sat: {}, relax: 0 },
     police: { cases: [], seq: 0, t: 0, last: 0, trust: 0, stats: { thefts: 0, caught: 0, recovered: 0 } },
     aura: { pts: 0, total: 0, laps: 0, best: 0, dist: 0, day: '', today: { laps: 0, distPts: 0, dist: 0, spots: {}, fast: 0, dusk: 0 }, goals: [], spots: {}, miles: {}, owned: {}, paint: '', title: false },
@@ -113,6 +114,7 @@ export function migrate(s) {
   s.scarecrows = s.scarecrows.filter((c) => c && Number.isFinite(c.x) && Number.isFinite(c.z) && SCARECROW_DESIGNS[c.d])
     .slice(0, SCARECROW_MAX).map((c) => ({ ...c, lvl: Math.max(0, Math.min(SCARECROW_LEVELS.length - 1, c.lvl | 0)) }));
   s.decor = cleanDecor(s.decor);
+  s.deco = cleanDeco(s.deco);
   s.wardrobe = cleanWardrobe(s.wardrobe);
   s.police.cases = cleanCases(s.police.cases);
   return s;
@@ -123,6 +125,12 @@ export function cleanDecor(list) {
   const n = (v, lo, hi) => Number.isFinite(+v) ? Math.max(lo, Math.min(hi, +v)) : 0;
   return (Array.isArray(list) ? list : []).filter((d) => d && DECOR[d.k] && Number.isFinite(+d.x) && Number.isFinite(+d.z)).slice(0, DECOR_MAX)
     .map((d) => ({ id: String(d.id || makeId(6)).slice(0, 12), k: d.k, x: n(d.x, -80, 80), z: n(d.z, -100, 80), ry: n(d.ry, -7, 7), t: Math.max(0, +d.t || 0) }));
+}
+// the decoration store: only real kinds, whole counts
+export function cleanDeco(o) {
+  const inv = {};
+  for (const [k, n] of Object.entries(o?.inv || {})) if (DECOR[k] && Number.isFinite(+n) && +n >= 1) inv[k] = Math.min(999, Math.floor(+n));
+  return { inv, snap: o?.snap !== false, tier: Math.max(0, Math.min(99, o?.tier | 0)) };
 }
 // outfits: only real ones are owned, the starting two always are, you can only wear what you own
 export function cleanWardrobe(w) {

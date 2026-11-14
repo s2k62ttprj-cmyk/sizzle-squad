@@ -182,6 +182,14 @@ export class Life {
     this.glows.renderOrder = 5;
     this.game.scene.add(this.glows);
   }
+  // lamps were added or taken away (decorations): rebuild the sprite list
+  refreshGlows() {
+    if (!this.glows) return;
+    const list = this.game.glows || [], g = this.glows.geometry;
+    g.setAttribute('position', new THREE.Float32BufferAttribute(list.flatMap((l) => [l[0], l[1], l[2]]), 3));
+    g.setAttribute('aSize', new THREE.Float32BufferAttribute(list.map((l) => l[3]), 1));
+    g.setDrawRange(0, list.length);
+  }
   resize(h, fov) { if (this.glowMat) this.glowMat.uniforms.uScale.value = h / (2 * Math.tan(fov * Math.PI / 360)); }
 
   // ---------- birds: two small flocks circling over the farm

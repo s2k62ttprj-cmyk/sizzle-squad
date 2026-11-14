@@ -1,6 +1,6 @@
 // Menus for the decoration shop, a placed item, the Mali's stall, the police desk and the
 // weather forecast. Plain functions that take the UI; ui.js calls them from render() and handle().
-import { DECOR, DECOR_CATS, DECOR_MAX, DECOR_REFUND, GARDEN, POLICE, ITEMS, SKINS, RARITY, HAIRSTYLES } from './config.js';
+import { DECOR, DECOR_CATS, DECOR_MAX, DECOR_REFUND, THEMES, BEAUTY_TIERS, beautyTier, beautyOf, GARDEN, POLICE, ITEMS, SKINS, RARITY, HAIRSTYLES } from './config.js';
 import { fmt } from './pads.js';
 import { activeCase, caseValue, caseCount } from './crime.js';
 import { rainLabel } from './weather.js';
@@ -13,18 +13,31 @@ const mins = (ms) => { const s = Math.max(0, Math.ceil(ms / 1000)); return `${Ma
 
 // ---------------------------------------------------------------- the decoration shop (Shop → 🌳 Garden)
 export function decorShopHTML(ui) {
-  const g = ui.game, st = g.state;
-  const cats = DECOR_CATS.filter(([c]) => c !== 'royal');
-  const cat = ui.decorCat && ui.decorCat !== 'royal' ? ui.decorCat : 'tree';
-  let h = `<p class="hint">Decorate your farm: tap <b>Preview &amp; place</b>, walk to a spot (green means it fits) and press Place. You can turn, move or take down anything afterwards. Placed: <b>${g.decor.list.length}/${DECOR_MAX}</b>. 👑 Baradari specials are bought with roses at the Mali's stall.</p>`;
+  const g = ui.game, st = g.state, dec = g.decor;
+  const cats = [...DECOR_CATS.filter(([c]) => c !== 'royal'), ['stored', `📦 Stored (${dec.storedCount()})`]];
+  const cat = ui.decorCat && ui.decorCat !== 'royal' ? ui.decorCat : 'tree', theme = ui.decorTheme || '';
+  const b = dec.beauty || 0, ti = beautyTier(b), next = BEAUTY_TIERS[ti + 1];
+  let h = `<div class="card2 gold"><b class="big">🌸 Beauty ${b}</b><small>${BEAUTY_TIERS[ti].name} farm${next ? ` · ${next.at - b} more for ${next.name} (+${money(next.money)})` : ' · the most beautiful farm in Punjab!'}</small></div>`;
+  h += `<p class="hint">Tap <b>Preview &amp; place</b>, walk to a spot (green fits) and press Place. ▦ Grid snaps things into neat rows; ✥ Free lets you put them anywhere. Tap a placed item to turn, move, store or sell it. Placed <b>${dec.list.length}/${DECOR_MAX}</b>. Varied gardens score the most beauty.</p>`;
   h += `<div class="chips">${cats.map(([c, n]) => `<button class="chip ${c === cat ? 'on' : ''}" data-act="decorCat" data-c="${c}">${n}</button>`).join('')}</div>`;
-  for (const [k, d] of Object.entries(DECOR)) {
-    if (d.cat !== cat) continue;
-    const locked = st.level < d.level, n = g.decor.count(k);
-    const extra = d.fruit ? ` · ${ITEMS[d.fruit.item].icon} ${d.fruit.n} ${ITEMS[d.fruit.item].name} every ${Math.round(d.fruit.every / 60)} min` : d.glow ? ' · glows at dusk' : d.spray ? ' · sprays water' : '';
-    const b = locked ? `<span class="tag">🔒 L${d.level}</span>` : ui.btn(`👁️ Preview &amp; place · ${money(d.cost)}`, 'decorBuy', { k }, g.decor.list.length >= DECOR_MAX);
-    h += ui.row(d.icon, `${d.name}${n ? ` <span class="tag">${n}</span>` : ''}`, `${d.desc}${extra}`, b, locked ? 'locked' : '');
+  if (cat === 'stored') {
+    const inv = Object.entries(st.deco.inv).filter(([k]) => DECOR[k]);
+    if (!inv.length) return h + '<p class="empty">Your store is empty. Tap a placed decoration and choose 📦 Put in store to keep it here.</p>';
+    for (const [k, n] of inv) { const d = DECOR[k]; h += ui.row(d.icon, `${d.name} <span class="tag">×${n}</span>`, d.desc, ui.btn('📍 Place (free)', 'decorPlaceStored', { k }, dec.list.length >= DECOR_MAX)); }
+    return h;
   }
+  h += `<div class="chips"><button class="chip ${theme ? '' : 'on'}" data-act="decorTheme" data-t="">All styles</button>${Object.entries(THEMES).map(([t, T]) => `<button class="chip ${t === theme ? 'on' : ''}" data-act="decorTheme" data-t="${t}">${T.icon} ${T.name}</button>`).join('')}</div>`;
+  let shown = 0;
+  for (const [k, d] of Object.entries(DECOR)) {
+    if (d.cat === 'royal' || (theme ? !d.th?.includes(theme) : d.cat !== cat)) continue;
+    shown++;
+    const locked = st.level < d.level, need = d.bty && Math.max(b, st.stats.beauty || 0) < d.bty, n = dec.count(k);
+    const extra = d.fruit ? ` · ${ITEMS[d.fruit.item].icon} ${d.fruit.n} ${ITEMS[d.fruit.item].name} every ${Math.round(d.fruit.every / 60)} min` : d.glow ? ' · glows at dusk' : d.spray ? ' · sprays water' : '';
+    const tags = (d.th || []).map((t) => THEMES[t].icon).join('');
+    const btn = locked ? `<span class="tag">🔒 L${d.level}</span>` : need ? `<span class="tag">🌸 Beauty ${d.bty}</span>` : ui.btn(`👁️ Preview &amp; place · ${money(d.cost)}`, 'decorBuy', { k }, dec.list.length >= DECOR_MAX);
+    h += ui.row(d.icon, `${d.name}${n ? ` <span class="tag">${n}</span>` : ''}${dec.stored(k) ? ` <span class="tag">📦${dec.stored(k)}</span>` : ''}`, `${d.desc}${extra} · +${beautyOf(k)} beauty ${tags}`, btn, locked || need ? 'locked' : '');
+  }
+  if (!shown) h += '<p class="empty">Nothing in this style here yet.</p>';
   return h;
 }
 
@@ -40,8 +53,9 @@ export function decorItemHTML(ui) {
   }
   h += '</div>';
   h += `<div class="row2"><button class="btn ghost" data-act="decorTurn">⟳ Turn</button><button class="btn ghost" data-act="decorMove">↔️ Move</button></div>`;
+  h += `<div class="row2"><button class="btn ghost" data-act="decorStore">📦 Put in store</button></div>`;
   h += `<div class="row2"><button class="btn ghost danger" data-act="decorRemove">🗑️ Take down · +${D.tokens ? `${back} 🌹` : money(back)}</button></div>`;
-  h += `<p class="hint small">Taking something down gives back ${Math.round(DECOR_REFUND * 100)}% of what it cost.</p>`;
+  h += `<p class="hint small">The store keeps it to place again for free. Taking it down sells it back for ${Math.round(DECOR_REFUND * 100)}% of what it cost.</p>`;
   return h;
 }
 
@@ -172,7 +186,10 @@ export async function handlePanels(ui, act, d) {
       const err = g.wardrobe.buy(d.id); if (err) return fail(err);
       g.wardrobe.wear(d.id); g.audio.play('buy'); ui.toast(`🎉 ${S.name} is yours and you are wearing it!`, 3); return 'render';
     }
-    case 'decorCat': ui.decorCat = d.c; return 'render';
+    case 'decorCat': ui.decorCat = d.c; ui.decorTheme = ''; return 'render';
+    case 'decorTheme': ui.decorTheme = d.t || ''; return 'render';
+    case 'decorPlaceStored': { const err = g.decor.start(d.k, null, true); if (err) return fail(err); return 'done'; }
+    case 'decorStore': { const D = DECOR[ui.decorItem.k]; g.decor.store(ui.decorItem); ui.toast(`📦 ${D.name} put in your store`); g.audio.play('click'); ui.close(); return 'done'; }
     case 'decorBuy': case 'maliBuy': { const err = g.decor.start(d.k); if (err) return fail(err); return 'done'; }
     case 'decorTurn': g.decor.turn(ui.decorItem); g.audio.play('click'); return 'done';
     case 'decorMove': { const err = g.decor.start(ui.decorItem.k, ui.decorItem); if (err) return fail(err); return 'done'; }

@@ -7,7 +7,7 @@ export const SAVE_KEY = 'patiala-kisan-save';
 export const SOUND_PACK = false;
 export const SAVE_VERSION = 2;
 // The release number: each release keeps one copy of the farm exactly as the release before left it
-export const RELEASE = 8;
+export const RELEASE = 9;
 export const DAY_SECONDS = 360;          // one in-game day (salaries, weather)
 export const PLOT = 2;                   // plot pitch in metres
 export const START_MONEY = 40;
@@ -394,6 +394,9 @@ export const ACHIEVEMENTS = [
   { id: 'caught1', text: 'Get your goods back from a thief', stat: 'caught', n: 1 },
   { id: 'outfits5', text: 'Own 5 outfits', stat: 'outfits', n: 5 },
   { id: 'outfitsAll', text: 'Own every outfit in the wardrobe', stat: 'outfits', n: 18 },
+  { id: 'beauty700', text: 'Make your farm Beautiful (beauty 700)', stat: 'beauty', n: 700 },
+  { id: 'beauty2000', text: 'Make your farm Royal (beauty 2000)', stat: 'beauty', n: 2000 },
+  { id: 'themePink', text: 'Place 10 Pink Paradise pieces', stat: 'pinkDecor', n: 10 },
 ];
 
 export const CUSTOMER_LINES = [
@@ -628,7 +631,7 @@ export function lookFor(w, turban) {
 // r: room it needs (m); solid: collision radius (0 = walk through); tokens: costs Baradari
 // roses instead of rupees; fruit: a tree that ripens (every s seconds, n pieces) and is picked by hand;
 // glow: [height, size] lamp glow at dusk; spray: a fountain that sprays.
-export const DECOR_MAX = 120;
+export const DECOR_MAX = 160;
 export const DECOR_REFUND = 0.5;
 export const DECOR_CATS = [['tree', '🌳 Trees'], ['flower', '🌼 Flowers'], ['light', '💡 Lights'], ['water', '⛲ Water'], ['seat', '🪑 Seating'], ['path', '🟫 Paths'], ['fence', '🚧 Fences & gates'], ['statue', '🗿 Statues'], ['orn', '🏺 Ornaments'], ['season', '🪔 Seasonal'], ['royal', '👑 Baradari specials']];
 export const DECOR = {
@@ -687,7 +690,72 @@ export const DECOR = {
   peacock:   { name: 'Peacock statue', icon: '🦚', cat: 'royal', tokens: 45, level: 5, r: 1.3, solid: 0.5, desc: 'A proud mor with a jewelled tail' },
   royalpond: { name: 'Royal lotus pond', icon: '🪷', cat: 'royal', tokens: 50, level: 5, r: 2.6, solid: 1.6, desc: 'Marble-edged pond full of lotuses' },
   minibaradari: { name: 'Mini baradari', icon: '🏛️', cat: 'royal', tokens: 120, level: 5, r: 3.2, solid: 1.5, desc: 'A small arched pavilion of your own' },
+  // added in the decoration-mode update (append only: friend visits send these by position)
+  waterfall: { name: 'Rock waterfall', icon: '🏞️', cat: 'water', cost: 7000, level: 16, r: 2.4, solid: 1.3, spray: 1.9, desc: 'Water tumbles over rocks into a pool' },
+  pool:      { name: 'Swimming pool', icon: '🏊', cat: 'water', cost: 12000, level: 20, r: 3.4, solid: 2.3, bty: 300, desc: 'Blue tiles, a ladder and clear water' },
+  sofa:      { name: 'Garden sofa', icon: '🛋️', cat: 'furn', cost: 1500, level: 10, r: 1.3, desc: 'A cushioned cane sofa' },
+  dining:    { name: 'Dining set', icon: '🍽️', cat: 'furn', cost: 2500, level: 12, r: 1.7, solid: 0.8, desc: 'Round table, four chairs and a parasol' },
+  swingchair: { name: 'Swing chair', icon: '🪺', cat: 'furn', cost: 3000, level: 14, r: 1.2, solid: 0.4, desc: 'A hanging basket seat on a stand' },
+  coffeetable: { name: 'Coffee table', icon: '☕', cat: 'furn', cost: 800, level: 8, r: 0.9, solid: 0.4, desc: 'A low table with chai cups' },
+  lounger:   { name: 'Sun lounger', icon: '🏖️', cat: 'furn', cost: 1200, level: 11, r: 1.3, desc: 'Lie back by the pool' },
+  streetlight: { name: 'Street light', icon: '🛣️', cat: 'light', cost: 900, level: 9, r: 0.6, solid: 0.12, glow: [3.6, 2.1], desc: 'A tall modern lamp for drives and paths' },
+  fairylights: { name: 'Fairy lights', icon: '✨', cat: 'light', cost: 1100, level: 10, r: 1.7, glow: [2.0, 1.7], desc: 'Strings of tiny bulbs between two posts' },
+  colorlights: { name: 'Coloured lights', icon: '🌈', cat: 'light', cost: 1300, level: 12, r: 0.6, solid: 0.1, glow: [2.2, 1.5], desc: 'A pole of red, green and blue bulbs' },
+  hanglantern: { name: 'Hanging lanterns', icon: '🏮', cat: 'light', cost: 700, level: 8, r: 0.7, solid: 0.1, glow: [1.8, 1.3], desc: 'Paper lanterns on a hooked post' },
+  gazebo:    { name: 'Gazebo', icon: '🛖', cat: 'prem', cost: 15000, level: 22, r: 3.0, bty: 400, desc: 'A white eight-sided pavilion to stand in' },
+  pergola:   { name: 'Pergola', icon: '🪵', cat: 'prem', cost: 6000, level: 16, r: 2.4, desc: 'Wooden beams with climbing vines' },
+  bridge:    { name: 'Garden bridge', icon: '🌉', cat: 'prem', cost: 4000, level: 14, r: 2.3, desc: 'An arched wooden bridge with rails' },
+  birdhouse: { name: 'Birdhouse', icon: '🐦', cat: 'prem', cost: 500, level: 6, r: 0.6, solid: 0.12, desc: 'A little house on a pole for chidiyan' },
+  rug:       { name: 'Outdoor rug', icon: '🟥', cat: 'prem', cost: 400, level: 6, r: 1.2, flat: true, desc: 'A woven durrie for the courtyard' },
+  welcome:   { name: 'Welcome sign', icon: '🪧', cat: 'prem', cost: 600, level: 5, r: 1.2, solid: 0.15, desc: 'Jee Aayan Nu on a carved board' },
+  elephant:  { name: 'Elephant statue', icon: '🐘', cat: 'statue', cost: 12000, level: 24, r: 1.9, solid: 0.9, bty: 500, desc: 'A decorated haathi in stone' },
+  deer:      { name: 'Deer statue', icon: '🦌', cat: 'statue', cost: 4000, level: 15, r: 1.2, solid: 0.4, desc: 'A graceful hiran on the lawn' },
+  windmill:  { name: 'Farm windmill', icon: '🌬️', cat: 'prem', cost: 8000, level: 18, r: 1.5, solid: 0.5, desc: 'A western windpump on a steel tower' },
+  pinktree:  { name: 'Cherry blossom', icon: '🌸', cat: 'pink', cost: 1500, level: 10, r: 1.7, solid: 0.4, desc: 'A tree covered in pink blossom' },
+  pinkbench: { name: 'Pink bench', icon: '🩷', cat: 'pink', cost: 900, level: 8, r: 1.1, desc: 'A sweet pink bench with heart backs' },
+  heartarch: { name: 'Heart arch', icon: '💗', cat: 'pink', cost: 2500, level: 12, r: 1.6, desc: 'A heart-shaped arch of pink roses' },
+  pinklamp:  { name: 'Heart lamp', icon: '💕', cat: 'pink', cost: 800, level: 9, r: 0.6, solid: 0.12, glow: [2.4, 1.5], desc: 'A rose-gold lamp with a heart light' },
+  flamingo:  { name: 'Flamingo pair', icon: '🦩', cat: 'pink', cost: 2000, level: 12, r: 1.1, solid: 0.3, desc: 'Two pink flamingos on one leg' },
+  pinkfountain: { name: 'Pink fountain', icon: '⛲', cat: 'pink', cost: 9000, level: 18, r: 2.6, solid: 1.35, spray: 2.3, bty: 250, desc: 'Rose marble tiers and a sparkling spray' },
+  pinkswing: { name: 'Flower swing', icon: '🌷', cat: 'pink', cost: 3500, level: 15, r: 1.6, solid: 0.3, desc: 'A swing wrapped in pink flowers' },
+  pinkgazebo: { name: 'Pink pavilion', icon: '🎀', cat: 'pink', cost: 18000, level: 25, r: 3.0, bty: 700, desc: 'A rose-pink pavilion with a golden top' },
+  pinkrug:   { name: 'Pink rug', icon: '🌺', cat: 'pink', cost: 500, level: 7, r: 1.2, flat: true, desc: 'A soft pink rug with flower print' },
 };
+// added in the decoration-mode update: new shop sections, before the Baradari specials
+DECOR_CATS.splice(DECOR_CATS.length - 1, 0, ['furn', '🛋️ Furniture'], ['prem', '🏛️ Premium'], ['pink', '💗 Pink Paradise']);
+
+// decoration themes: every item belongs to one or more; the shop can show one theme at a time
+export const THEMES = {
+  royal:   { name: 'Royal Garden', icon: '👑', keys: 'fountain marble ironfence horse lion maharaja lantern royalfountain marblebench rosearch goldlamp peacock royalpond minibaradari gazebo elephant hedge ashoka' },
+  modern:  { name: 'Modern Luxury', icon: '🏙️', keys: 'lamp slab pool sofa dining swingchair coffeetable lounger streetlight colorlights fairylights hedge pot' },
+  indian:  { name: 'Traditional Indian', icon: '🪔', keys: 'neem peepal banyan tulsi marigold mogra lotus diya matkas charkha cart charpai jhoola rangoli bonfire diyaring flags arch brick hanglantern elephant peacock welcome' },
+  pink:    { name: 'Pink Paradise', icon: '💗', keys: 'rose lotus rosearch pinktree pinkbench heartarch pinklamp flamingo pinkfountain pinkswing pinkgazebo pinkrug fairylights mogra' },
+  western: { name: 'Western Farmhouse', icon: '🤠', keys: 'fence gate picnic bench cart birdhouse windmill welcome sunflowers pergola rug lamp' },
+  natural: { name: 'Natural Countryside', icon: '🌿', keys: 'neem ashoka peepal mango guava ber gulmohar orange palm jamun bamboo banyan pot hedge sunflowers birdbath pond stoneseats slab fence waterfall bridge deer birdhouse pergola' },
+};
+for (const [t, th] of Object.entries(THEMES)) for (const k of th.keys.split(' ')) if (DECOR[k]) (DECOR[k].th ||= []).push(t);
+
+// ---------------------------------------------------------------- beauty score
+// Every placed item adds beauty (bigger, dearer pieces add more); more copies of one kind add less
+// and less, and each different kind adds a little extra, so a varied garden scores best. Reaching
+// a tier pays a one-time gift; some items (bty) need a beauty score before they can be bought.
+export const BEAUTY_TIERS = [
+  { at: 0, name: 'Plain', money: 0, xp: 0 }, { at: 50, name: 'Tidy', money: 500, xp: 40 }, { at: 150, name: 'Pretty', money: 1500, xp: 80 },
+  { at: 350, name: 'Charming', money: 4000, xp: 150 }, { at: 700, name: 'Beautiful', money: 10000, xp: 250 }, { at: 1200, name: 'Gorgeous', money: 25000, xp: 400 },
+  { at: 2000, name: 'Royal', money: 60000, xp: 600 }, { at: 3200, name: 'Legendary', money: 120000, xp: 900 },
+];
+export const beautyOf = (k) => { const D = DECOR[k]; return D ? Math.max(1, Math.round(Math.sqrt(D.tokens ? D.tokens * 150 : D.cost) / 2)) : 0; };
+export function beautyScore(list) {
+  const seen = {};
+  let sum = 0;
+  for (const d of list || []) {
+    if (!DECOR[d.k]) continue;
+    const n = seen[d.k] = (seen[d.k] || 0) + 1;
+    sum += beautyOf(d.k) * Math.max(0.25, Math.pow(0.85, n - 1));
+  }
+  return Math.round(sum + Object.keys(seen).length * 2);
+}
+export const beautyTier = (score) => BEAUTY_TIERS.reduce((t, b, i) => (score >= b.at ? i : t), 0);
 
 // ---------------------------------------------------------------- Baradari Gardens
 export const GARDEN = {
