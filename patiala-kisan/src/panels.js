@@ -1,6 +1,6 @@
 // Menus for the decoration shop, a placed item, the Mali's stall, the police desk and the
 // weather forecast. Plain functions that take the UI; ui.js calls them from render() and handle().
-import { DECOR, DECOR_CATS, DECOR_MAX, DECOR_REFUND, GARDEN, POLICE, ITEMS } from './config.js';
+import { DECOR, DECOR_CATS, DECOR_MAX, DECOR_REFUND, GARDEN, POLICE, ITEMS, SKINS, RARITY, HAIRSTYLES } from './config.js';
 import { fmt } from './pads.js';
 import { activeCase, caseValue, caseCount } from './crime.js';
 import { rainLabel } from './weather.js';
@@ -131,12 +131,47 @@ export function weatherModal(ui) {
     <ul class="unl">${tips.map((t) => `<li>${t}</li>`).join('')}</ul>`, 'OK');
 }
 
+// ---------------------------------------------------------------- the wardrobe (Shop → 👕 Wardrobe)
+export function wardrobeHTML(ui) {
+  const g = ui.game, st = g.state, W = g.wardrobe, w = st.wardrobe;
+  const sel = ui.wardSel && SKINS[ui.wardSel] ? ui.wardSel : W.current(), S = SKINS[sel], R = RARITY[S.rarity];
+  const owned = !!w.owned[sel], wearing = W.current() === sel && w.gender === S.gender, err = W.buyError(sel);
+  const btn = wearing ? '<span class="tag ok">✔ Wearing</span>' : owned ? `<button class="btn" data-act="wardWear" data-id="${sel}">👕 Wear</button>`
+    : `<button class="btn" data-act="wardBuy" data-id="${sel}" ${err ? 'disabled' : ''}>Buy · ${money(S.price)}</button>${err ? `<small class="warn">${esc(err)}</small>` : ''}`;
+  let h = `<div class="wardtop"><canvas id="wardCanvas" width="300" height="380"></canvas>
+    <div class="wardinfo"><span class="rar" style="--c:${R.color}">${R.name}</span><b>${esc(S.name)}</b><small>${esc(S.desc)}</small>
+      <small>${owned ? '🟢 Yours' : `🔒 Level ${S.level} · ${money(S.price)}`}</small>${btn}<small class="hint">Drag the model to turn it round</small></div></div>`;
+  h += `<div class="seg wardg"><button data-act="wardGender" data-g="m" class="${w.gender === 'm' ? 'on' : ''}">👳 Sardar ji</button><button data-act="wardGender" data-g="f" class="${w.gender === 'f' ? 'on' : ''}">👩 Sardarni ji</button></div>`;
+  if (w.gender === 'f' && SKINS[W.current()]?.look.female) h += `<div class="chips">${HAIRSTYLES.map(([k, n]) => `<button class="chip ${w.hair === k ? 'on' : ''}" data-act="wardHair" data-h="${k}">💇 ${n}</button>`).join('')}</div>`;
+  h += '<div class="wardgrid">';
+  for (const [id, s] of Object.entries(SKINS)) {
+    if (s.gender !== w.gender) continue;
+    const r = RARITY[s.rarity], mine = !!w.owned[id], on = W.current() === id;
+    const sw = '#' + (s.look.shirt ?? 0xf7f3e8).toString(16).padStart(6, '0'), sw2 = '#' + (s.look.pants ?? s.look.shirt ?? 0xf2eee2).toString(16).padStart(6, '0');
+    h += `<button class="wtile ${id === sel ? 'sel' : ''} ${mine ? 'own' : ''}" data-act="wardPick" data-id="${id}" style="--r:${r.color}">
+      <i style="background:linear-gradient(135deg, ${sw} 0 55%, ${sw2} 55%)"></i><b>${esc(s.name)}</b><small>${on ? '✔ Wearing' : mine ? 'Yours' : st.level < s.level ? `🔒 L${s.level}` : money(s.price)}</small><em>${r.name}</em></button>`;
+  }
+  h += '</div><p class="hint small">Outfits are for looks only: they never change prices, speed or harvests. Bought once, yours for good.</p>';
+  return h;
+}
+
 // ---------------------------------------------------------------- buttons
 // returns 'done' (handled, nothing to redraw), 'render' (handled, redraw the menu) or null (not mine)
 export async function handlePanels(ui, act, d) {
   const g = ui.game;
   const fail = (m) => { ui.toast(m); g.audio.play('error'); return 'done'; };
   switch (act) {
+    case 'wardPick': ui.wardSel = d.id; g.wardrobe.show(d.id); g.audio.play('click'); return 'render';
+    case 'wardGender': g.wardrobe.setGender(d.g); ui.wardSel = g.wardrobe.current(); return 'render';
+    case 'wardHair': g.wardrobe.setHair(d.h); return 'render';
+    case 'wardWear': { const e = g.wardrobe.wear(d.id); if (e) return fail(e); ui.toast(`👕 Now wearing ${SKINS[d.id].name}`); g.audio.play('yay'); return 'render'; }
+    case 'wardBuy': {
+      const S = SKINS[d.id], e = g.wardrobe.buyError(d.id);
+      if (e) return fail(e);
+      if (!await ui.confirm(`<div class="big">👕</div><h2>Buy ${esc(S.name)}?</h2><p>${money(S.price)} · ${RARITY[S.rarity].name}. It's yours for good and only changes how you look.</p>`, `Buy ${money(S.price)}`)) return 'done';
+      const err = g.wardrobe.buy(d.id); if (err) return fail(err);
+      g.wardrobe.wear(d.id); g.audio.play('buy'); ui.toast(`🎉 ${S.name} is yours and you are wearing it!`, 3); return 'render';
+    }
     case 'decorCat': ui.decorCat = d.c; return 'render';
     case 'decorBuy': case 'maliBuy': { const err = g.decor.start(d.k); if (err) return fail(err); return 'done'; }
     case 'decorTurn': g.decor.turn(ui.decorItem); g.audio.play('click'); return 'done';

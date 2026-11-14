@@ -10,7 +10,7 @@
 // Everything is limited and filtered (config SOCIAL, moderation.js), and the database rules in
 // database.rules.json only let friends gift and chat, and only owners change their own data.
 import * as THREE from 'three';
-import { ONLINE, SOCIAL, ITEMS } from './config.js';
+import { ONLINE, SOCIAL, ITEMS, lookFor } from './config.js';
 import { have, take, receive, roomFor, itemCount, todayKey, redeemOnce } from './state.js';
 import { clean } from './moderation.js';
 import { encode, snapshot } from './friends.js';
@@ -307,6 +307,8 @@ export class Social {
     if (!this.hostMutual) return '🟢 Online · add each other as friends to meet';
     return this.others[this.host] ? '🟢 Here with you · walk up to say hi' : '🟢 Online · waiting for them to appear…';
   }
+  // the outfit friends see: on a friend's farm, the visitor's own wardrobe
+  myLook() { const w = this.game.visit ? this.game.me?.wardrobe : this.st.wardrobe; return w ? { gender: w.gender, skin: w.skin, fskin: w.fskin, hair: w.hair } : null; }
   talk(id) {
     const g = this.game;
     if (!id || !this.friends[id]?.mutual) return;
@@ -328,7 +330,7 @@ export class Social {
     if (this.presT <= 0 && (sending || this.wasSending)) {
       this.presT = 0.3;
       let data = null;
-      if (visiting || (hosting && !riding)) data = { m: 'walk', x: +p.x.toFixed(2), z: +p.z.toFixed(2), r: +g.player.rot.toFixed(2), s: +(g.player.speed || 0).toFixed(1), at: now, n: this.st.name, t: this.st.turban, v: visiting ? this.host : null, f: visiting ? null : this.uid };
+      if (visiting || (hosting && !riding)) data = { m: 'walk', x: +p.x.toFixed(2), z: +p.z.toFixed(2), r: +g.player.rot.toFixed(2), s: +(g.player.speed || 0).toFixed(1), at: now, n: (g.visit ? g.me?.name : this.st.name) || 'Friend', t: (g.visit ? g.me?.turban : this.st.turban) || '#e8590c', w: this.myLook(), v: visiting ? this.host : null, f: visiting ? null : this.uid };
       else if (riding) data = { x: +p.x.toFixed(2), z: +p.z.toFixed(2), r: +v.rot.toFixed(2), s: +v.speed.toFixed(1), at: now, paint: this.st.aura.paint || '', f: hosting ? this.uid : null };
       this.D.set(this.ref(`presence/${this.uid}`), data).catch(() => {});
       this.wasSending = sending;
@@ -354,7 +356,7 @@ export class Social {
     const g = this.game;
     let o = this.others[id];
     if (!o) {
-      const h = makeHuman({ turban: new THREE.Color(r.t || f.turban || '#e8590c').getHex(), shirt: 0xf7f3e8, pants: 0xf2eee2, vest: 0x2f5d8a });
+      const h = makeHuman(lookFor(r.w, r.t || f.turban || '#e8590c'));
       h.group.traverse((m) => { if (m.isMesh && m !== h.blob) m.castShadow = true; });
       g.scene.add(h.group);
       o = this.others[id] = { h, pos: h.group.position, x: r.x, z: r.z, rot: r.r, t: Math.random() * 9, spd: 0 };

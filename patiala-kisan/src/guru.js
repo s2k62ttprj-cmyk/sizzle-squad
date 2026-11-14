@@ -127,6 +127,7 @@ export class Guru {
     this.barefoot = bare;
     this.model = h;
     h.setBarefoot?.(bare);
+    h.setCovered?.(bare);
     this.pair.visible = bare;
     if (quiet) return;
     const token = 10 + (g.state.name.length * 7 + g.state.level * 3) % 89;

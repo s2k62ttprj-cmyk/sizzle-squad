@@ -320,3 +320,21 @@ textarea.paste { width: 100%; min-height: 96px; font: inherit; font-size: 16px; 
 .placebar .row2 .btn { flex: 1 1 0; min-width: 0; margin: 0; padding-left: 6px; padding-right: 6px; white-space: nowrap; font-size: 15px; }
 .placebar .row2 #placeYes { flex: 1.7 1 0; }
 .placebar .row2 .btn[hidden] { display: none; }
+/* wardrobe */
+.wardtop { display: flex; gap: 10px; align-items: stretch; }
+#wardCanvas { width: 150px; height: 190px; flex: none; border-radius: 16px; background: radial-gradient(circle at 50% 40%, #fff9ec, #f1e3c4); touch-action: none; }
+.wardinfo { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.wardinfo b { font-size: 18px; line-height: 1.1; }
+.wardinfo small { font-size: 12px; opacity: .85; }
+.wardinfo .btn { margin-top: 4px; }
+.rar { align-self: flex-start; padding: 1px 8px; border-radius: 10px; background: var(--c); color: #fff; font-weight: 800; font-size: 11px; }
+.wardg { margin: 10px 0 6px; display: flex; }
+.wardg button { flex: 1; }
+.wardgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 8px; }
+.wtile { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 8px 10px 6px 50px; min-height: 58px; border-radius: 14px; background: var(--paper); box-shadow: 0 2px 0 var(--line); text-align: left; }
+.wtile i { position: absolute; left: 8px; top: 9px; width: 34px; height: 40px; border-radius: 10px; box-shadow: inset 0 0 0 2px rgba(0,0,0,.12); }
+.wtile b { font-size: 13px; line-height: 1.15; }
+.wtile small { font-size: 11px; opacity: .8; }
+.wtile em { font-style: normal; font-size: 10px; font-weight: 800; color: var(--r); }
+.wtile.sel { box-shadow: 0 2px 0 var(--r), inset 0 0 0 2px var(--r); }
+.wtile.own { background: #f3fbef; }

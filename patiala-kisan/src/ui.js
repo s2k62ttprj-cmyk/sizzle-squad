@@ -16,7 +16,7 @@ import { isOnline } from './net.js';
 import { clean } from './moderation.js';
 import { fmtT } from './gerhi.js';
 import { RADIO } from './audio.js';
-import { decorShopHTML, decorItemHTML, maliHTML, policeHTML, weatherModal, handlePanels } from './panels.js';
+import { decorShopHTML, decorItemHTML, maliHTML, policeHTML, weatherModal, handlePanels, wardrobeHTML } from './panels.js';
 
 const $ = (id) => document.getElementById(id);
 const _v = new THREE.Vector3();
@@ -282,7 +282,7 @@ export class UI {
     switch (this.view) {
       case 'shop':
         title = '🛒 Shop';
-        tabs = [['seeds', '🌱 Seeds'], ['tools', '🧰 Upgrades'], ['land', '🟫 Land'], ['build', '🏭 Build'], ['vehicles', '🚜 Vehicles'], ['garden', '🌳 Garden']];
+        tabs = [['seeds', '🌱 Seeds'], ['tools', '🧰 Upgrades'], ['land', '🟫 Land'], ['build', '🏭 Build'], ['vehicles', '🚜 Vehicles'], ['garden', '🌳 Garden'], ['wardrobe', '👕 Wardrobe']];
         html = this.shopHTML();
         break;
       case 'seeds': title = '🌱 Choose seeds'; html = this.seedsHTML(true); break;
@@ -313,6 +313,7 @@ export class UI {
       case 'staff': title = '👔 Managers'; html = this.staffHTML(); this.live = true; break;
       case 'pen': title = `🐾 ${PENS[this.penId].name}`; html = this.penHTML(); this.live = true; break;
       case 'decor': title = `${DECOR[this.decorItem?.k]?.icon || '🪴'} ${DECOR[this.decorItem?.k]?.name || 'Decoration'}`; html = decorItemHTML(this); this.live = !!DECOR[this.decorItem?.k]?.fruit; break;
+      case 'wardrobe': title = '👕 Wardrobe'; tabs = []; html = wardrobeHTML(this); setTimeout(() => this.game.wardrobe.start(this.wardSel), 0); break;
       case 'mali': title = '🌹 Mali\'s stall'; html = maliHTML(this); break;
       case 'police': title = '🚓 Police Station'; html = policeHTML(this); this.live = ['status', 'filed', 'greet'].includes(this.pStep); break;
       case 'workshop': title =`🏭 ${BUILDINGS[this.shopId].name}`; html = this.workshopHTML(); this.live = true; break;
@@ -369,6 +370,7 @@ export class UI {
         + this.upgradeRow('🏚️', 'Storage', STORAGE, 'storage', (c, n) => `Stores ${c.cap}${n ? ` → ${n.cap}` : ''}`)
         + this.upgradeRow('🧺', 'Mandi', STALL, 'stall', (c, n) => `Shelf ${c.shelf}, customer every ${c.every}s${n ? ` → ${n.shelf}, ${n.every}s` : ''}`);
       case 'garden': return decorShopHTML(this);
+      case 'wardrobe': setTimeout(() => this.open('wardrobe'), 0); return '';
       case 'land': return '<p class="hint">Buy here, or stand on the white pad in the field to pay.</p>' + FIELDS.map((f) => {
         const o = st.fields[f.id].owned;
         const b = o ? '<span class="tag ok">Owned</span>' : st.level < f.level ? `<span class="tag">🔒 L${f.level}</span>` : this.btn(`Buy ${money(f.cost - st.fields[f.id].paid)}`, 'buyField', { id: f.id }, st.money < f.cost - st.fields[f.id].paid);

@@ -33,6 +33,7 @@ import { Weather } from './weather.js';
 import { Decor } from './decor.js';
 import { Baradari, buildBaradari } from './baradari.js';
 import { Police } from './police.js';
+import { Wardrobe } from './wardrobe.js';
 
 const $ = (id) => document.getElementById(id);
 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
@@ -141,6 +142,7 @@ class Game {
     this.staff = new Staff(this);
     this.baradari = new Baradari(this);
     this.police = new Police(this);
+    this.wardrobe = new Wardrobe(this);
     this.guru = new Guru(this);
     this.progression = new Progression(this);
     this.setupFieldPads();
@@ -501,7 +503,7 @@ async function boot() {
     $('loadmsg').textContent = visit ? `Walking over to ${visit.fn}'s farm…` : 'Building your farm…';
     setTimeout(() => {
       try {
-        new Game(state, { visit, me: visit && saved ? { name: saved.name, turban: saved.turban } : null });
+        new Game(state, { visit, me: visit && saved ? { name: saved.name, turban: saved.turban, wardrobe: saved.wardrobe } : null });
         $('loading').hidden = true;
       } catch (e) {
         console.error(e);

@@ -6,6 +6,8 @@ export const SAVE_KEY = 'patiala-kisan-save';
 // every animal voice is synthesised
 export const SOUND_PACK = false;
 export const SAVE_VERSION = 2;
+// The release number: each release keeps one copy of the farm exactly as the release before left it
+export const RELEASE = 8;
 export const DAY_SECONDS = 360;          // one in-game day (salaries, weather)
 export const PLOT = 2;                   // plot pitch in metres
 export const START_MONEY = 40;
@@ -390,6 +392,8 @@ export const ACHIEVEMENTS = [
   { id: 'roses50', text: 'Collect 50 Baradari roses', stat: 'roses', n: 50 },
   { id: 'decor25', text: 'Place 25 decorations', stat: 'decor', n: 25 },
   { id: 'caught1', text: 'Get your goods back from a thief', stat: 'caught', n: 1 },
+  { id: 'outfits5', text: 'Own 5 outfits', stat: 'outfits', n: 5 },
+  { id: 'outfitsAll', text: 'Own every outfit in the wardrobe', stat: 'outfits', n: 18 },
 ];
 
 export const CUSTOMER_LINES = [
@@ -585,6 +589,40 @@ export const levelGift = (level) => ({
   tokens: level >= 10 && level % 5 === 0 ? 2 + Math.floor((level - 10) / 5) : 0,
 });
 
+// ---------------------------------------------------------------- wardrobe: outfits for your farmer
+// Cosmetic only. look: makeHuman options; pagg: true wears your own pagg colour. The two starting
+// looks are free; the rest are bought once and kept for good. New outfits are only ever appended.
+export const RARITY = { free: { name: 'Starter', color: '#868e96' }, common: { name: 'Common', color: '#2b8a3e' }, rare: { name: 'Rare', color: '#1c7ed6' }, epic: { name: 'Epic', color: '#7b2cbf' }, legendary: { name: 'Legendary', color: '#e8590c' } };
+export const HAIRSTYLES = [['bun', 'Juda (bun)'], ['pony', 'Ponytail'], ['open', 'Open hair'], ['bob', 'Short bob']];
+export const SKINS = {
+  classic:    { name: 'Classic Kisan', gender: 'm', rarity: 'free', price: 0, level: 1, pagg: true, desc: 'Kurta, sadri and jutti: how you started', look: { shirt: 0xf7f3e8, pants: 0xf2eee2, vest: 0x2f5d8a } },
+  f_suit:     { name: 'Formal Suit', gender: 'f', rarity: 'free', price: 0, level: 1, desc: 'A tailored navy suit, silk blouse and heels', look: { female: true, top: 'blazer', shirt: 0x1f3a5f, inner: 0xfdf6ec, legs: 'trousers', pants: 0x1f3a5f, feet: 'heels', watch: 0xf2c94c, earrings: 0xf2c94c, necklace: 0xf2c94c } },
+  kurta:      { name: 'Embroidered Kurta', gender: 'm', rarity: 'common', price: 25000, level: 5, pagg: true, desc: 'A cream kurta with maroon threadwork, white pajama, gold jutti', look: { shirt: 0xf3e6cf, pants: 0xfbf8f1, trim: 0x8a1c2b, shoes: 0x9a5a1c, scarf: 0x8a1c2b } },
+  f_salwar:   { name: 'Phulkari Salwar Suit', gender: 'f', rarity: 'common', price: 30000, level: 5, desc: 'A pink kameez with a phulkari dupatta', look: { shirt: 0xe64980, pants: 0xffe3ec, dupatta: 0xff922b, shoes: 0xc92a2a } },
+  farmer:     { name: 'Luxury Farmer', gender: 'm', rarity: 'rare', price: 90000, level: 10, desc: 'Checked shirt, waistcoat, straw hat and leather boots', look: { top: 'shirt', shirt: 0x8f2d2d, vest: 0x5a3a22, legs: 'jeans', pants: 0x2f4f7f, feet: 'boots', hat: 'straw', scarf: 0xe9c25a, watch: true } },
+  cowboy:     { name: 'Western Cowboy', gender: 'm', rarity: 'rare', price: 120000, level: 12, desc: 'Leather jacket, jeans, big buckle, boots and a cowboy hat', look: { top: 'jacket', shirt: 0x6b3d1f, legs: 'jeans', pants: 0x2b4a7a, feet: 'boots', hat: 'cowboy', belt: 0x3a2414, beltBuckle: 0xd9b45a, scarf: 0xc92a2a } },
+  f_skirt:    { name: 'Business Skirt Suit', gender: 'f', rarity: 'rare', price: 120000, level: 12, desc: 'A grey blazer, pencil skirt and heels', look: { female: true, top: 'blazer', shirt: 0x6c757d, inner: 0xffffff, legs: 'skirt', pants: 0x495057, tights: 0x8a5a3a, feet: 'heels', handbag: 0x7a1c2b, earrings: 0xe9ecef } },
+  street:     { name: 'Streetwear', gender: 'm', rarity: 'rare', price: 150000, level: 14, desc: 'Oversized hoodie, cargo pants, cap and fresh sneakers', look: { top: 'hoodie', shirt: 0x2b2d42, trim: 0xff922b, legs: 'cargo', pants: 0x6b705c, feet: 'sneakers', shoes: 0xe03131, hat: 'cap', hatColor: 0xe03131, watch: 0x111111 } },
+  f_street:   { name: 'Street Style', gender: 'f', rarity: 'rare', price: 150000, level: 14, desc: 'A lilac hoodie, jeans and sneakers', look: { female: true, top: 'hoodie', shirt: 0xb197fc, trim: 0xffffff, legs: 'jeans', pants: 0x2f4f7f, feet: 'sneakers', shoes: 0xffffff, earrings: 0xffffff } },
+  gentleman:  { name: 'Modern Gentleman', gender: 'm', rarity: 'epic', price: 350000, level: 18, pagg: true, desc: 'A charcoal suit, silk tie, polished shoes and a watch', look: { top: 'suit', shirt: 0x343a40, inner: 0xffffff, tie: 0x9c1c2b, legs: 'trousers', pants: 0x343a40, feet: 'formal', watch: 0xf2c94c } },
+  winter:     { name: 'Winter Explorer', gender: 'm', rarity: 'epic', price: 420000, level: 20, desc: 'Puffer jacket, beanie, wool scarf, gloves and snow boots', look: { top: 'puffer', shirt: 0x1c7ed6, legs: 'cargo', pants: 0x343a40, feet: 'boots', hat: 'beanie', hatColor: 0xe8590c, scarf: 0xf2c94c, gloves: 0x2a2a2a } },
+  f_winter:   { name: 'Winter Chic', gender: 'f', rarity: 'epic', price: 420000, level: 20, desc: 'A white puffer, cream scarf, gloves and boots', look: { female: true, top: 'puffer', shirt: 0xf1f3f5, legs: 'jeans', pants: 0x343a40, feet: 'boots', shoes: 0x5a3a22, scarf: 0xd6336c, gloves: 0xd6336c } },
+  military:   { name: 'Fauji Commando', gender: 'm', rarity: 'epic', price: 500000, level: 22, desc: 'A camouflage uniform, tactical vest, helmet, gloves and boots', look: { top: 'tactical', shirt: 0x5c6b3a, legs: 'cargo', pants: 0x5c6b3a, camo: true, feet: 'boots', shoes: 0x2a2418, hat: 'helmet', gloves: 0x3a3a2a, belt: 0x3a3a2a } },
+  adventure:  { name: 'Premium Adventurer', gender: 'm', rarity: 'epic', price: 650000, level: 25, desc: 'Outdoor shirt, cargo trousers, a backpack, cap and trail boots', look: { top: 'shirt', shirt: 0x2f9e6e, legs: 'cargo', pants: 0xb5a27a, feet: 'boots', shoes: 0x6b4a2b, hat: 'cap', hatColor: 0xe9c25a, backpack: 0xe8590c, watch: true, belt: 0x5a3a22 } },
+  f_adventure: { name: 'Trail Explorer', gender: 'f', rarity: 'epic', price: 650000, level: 25, desc: 'An outdoor shirt, cargo trousers, backpack and boots', look: { female: true, top: 'shirt', shirt: 0x20c997, legs: 'cargo', pants: 0x6b705c, feet: 'boots', backpack: 0x1c7ed6, watch: true } },
+  sherwani:   { name: 'Royal Sherwani', gender: 'm', rarity: 'legendary', price: 1200000, level: 28, pagg: true, desc: 'An ivory sherwani with gold zari, a pagg with a kalgi, a pearl string', look: { top: 'sherwani', shirt: 0xf3ead6, trim: 0xd4a017, pants: 0xf3ead6, shoes: 0xc9a227, kalgi: true, necklace: 0xfff8f0, scarf: 0x9c1c2b } },
+  f_rani:     { name: 'Rani Sahiba', gender: 'f', rarity: 'legendary', price: 1500000, level: 30, desc: 'A royal maroon suit, gold dupatta and kundan jewellery', look: { shirt: 0x7a1424, pants: 0xd4a017, dupatta: 0xf2c94c, shoes: 0xd4a017, necklace: 0xf2c94c } },
+  maharaja:   { name: 'Maharaja of Patiala', gender: 'm', rarity: 'legendary', price: 2500000, level: 35, pagg: true, desc: 'A brocade achkan, ropes of pearls, a sash and a jewelled kalgi', look: { top: 'achkan', shirt: 0x1f3a5f, trim: 0xf2c94c, pants: 0xf8f4ea, shoes: 0xd4a017, kalgi: true, sash: 0x9c1c2b } },
+};
+// What makeHuman needs to draw a wardrobe choice (the default is exactly the farmer of before)
+export function lookFor(w, turban) {
+  const id = w?.gender === 'f' ? w.fskin : w?.skin;
+  const s = SKINS[id] || SKINS[w?.gender === 'f' ? 'f_suit' : 'classic'];
+  const look = { ...s.look };
+  if (s.gender === 'm') look.turban = look.hat ? null : (typeof turban === 'string' ? parseInt(turban.slice(1), 16) : turban ?? 0xe8590c);
+  if (look.female) look.hairStyle = w?.hair || 'bun';
+  return look;
+}
 // ---------------------------------------------------------------- farm decoration shop
 // cat: tree | flower | light | water | seat | path | fence | gate | statue | orn | season | royal
 // r: room it needs (m); solid: collision radius (0 = walk through); tokens: costs Baradari

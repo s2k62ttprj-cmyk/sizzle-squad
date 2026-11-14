@@ -115,7 +115,7 @@ export class Progression {
     const g = this.game, st = g.state;
     st.stats.soul = st.soul;
     st.stats.streak = Math.max(st.stats.streak || 0, st.guru.streak);
-    st.stats.roses = st.garden.total; st.stats.decor = st.decor.length; st.stats.caught = st.police.stats.caught;
+    st.stats.roses = st.garden.total; st.stats.decor = st.decor.length; st.stats.caught = st.police.stats.caught; st.stats.outfits = Object.keys(st.wardrobe.owned).length;
     for (const a of ACHIEVEMENTS) {
       if (st.ach[a.id]) continue;
       if ((st.stats[a.stat] || 0) >= a.n) {

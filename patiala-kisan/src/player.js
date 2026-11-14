@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { makeHuman, animateHuman, poseRide, poseBow } from './models.js';
 import { StackView } from './cargo.js';
 import { collide } from './world.js';
-import { CROPS, CANS, BAGS, BOOSTS } from './config.js';
+import { CROPS, CANS, BAGS, BOOSTS, lookFor } from './config.js';
 import { carryCap, addStorage } from './state.js';
 
 const WALK = 6.2;
@@ -14,7 +14,7 @@ export class Player {
   constructor(game) {
     this.game = game;
     const st = game.state;
-    this.h = makeHuman({ turban: new THREE.Color(st.turban).getHex(), shirt: 0xf7f3e8, pants: 0xf2eee2, vest: 0x2f5d8a, tools: true });
+    this.h = makeHuman({ ...this.look(), tools: true });
     this.group = this.h.group;
     this.pos = this.group.position;
     this.pos.set(st.player.x, 0, st.player.z);
@@ -41,21 +41,27 @@ export class Player {
     this.syncStack();
   }
 
-  setTurban(hex) {
-    // rebuild the model with a new turban colour (from settings)
-    const parent = this.group.parent;
-    const pos = this.pos.clone();
+  // what the farmer wears: your wardrobe (on a friend's farm, your own clothes, not theirs)
+  look() {
+    const g = this.game, me = g.visit ? g.me : null;
+    return lookFor(me ? me.wardrobe : g.state.wardrobe, me ? me.turban : g.state.turban);
+  }
+  setTurban(hex) { this.game.state.turban = hex; this.setLook(); }
+  // rebuild the model in a new outfit (the carried stack moves across to the new chest bone)
+  setLook() {
+    const parent = this.group.parent, pos = this.pos.clone();
     parent.remove(this.group);
-    this.game.state.turban = hex;
-    const h = makeHuman({ turban: new THREE.Color(hex).getHex(), shirt: 0xf7f3e8, pants: 0xf2eee2, vest: 0x2f5d8a, tools: true });
+    const h = makeHuman({ ...this.look(), tools: true });
     h.bones.chest.add(this.back);
     this.h = h;
     this.group = h.group;
     this.pos = this.group.position;
     this.pos.copy(pos);
+    this.group.rotation.y = this.rot;
+    this.group.traverse((m) => { if (m.isMesh && m !== h.blob) m.castShadow = true; });
     parent.add(this.group);
+    this.tool = undefined;
   }
-
   syncStack() {
     const cap = carryCap(this.game.state);
     this.stack.cols = cap > 35 ? 3 : cap > 14 ? 2 : 1;

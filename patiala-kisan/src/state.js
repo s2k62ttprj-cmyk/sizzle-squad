@@ -1,6 +1,6 @@
 // Save data: creation, versioned load/migrate, autosave and inventory helpers.
 // Pure module (no three.js) so it can be unit tested in tests/index.html.
-import { SAVE_KEY, SAVE_VERSION, START_MONEY, FIELDS, PENS, BUILDINGS, VEHICLES, BAGS, STORAGE, TANKER_CAP, MANAGERS, ITEMS, TRADE, SCARECROW_DESIGNS, SCARECROW_LEVELS, SCARECROW_MAX, AURA, CROPS, DECOR, DECOR_MAX } from './config.js';
+import { RELEASE, SAVE_KEY, SAVE_VERSION, START_MONEY, FIELDS, PENS, BUILDINGS, VEHICLES, BAGS, STORAGE, TANKER_CAP, MANAGERS, ITEMS, TRADE, SCARECROW_DESIGNS, SCARECROW_LEVELS, SCARECROW_MAX, AURA, CROPS, DECOR, DECOR_MAX, SKINS } from './config.js';
 import { pack, unpack } from './codec.js';
 
 export function todayKey(d = new Date()) {
@@ -58,6 +58,7 @@ export function newState(name = 'Guri', turban = '#e8590c') {
     scarecrows: [],
     social: { code: '', blocked: {}, history: [], giftDay: '', giftsToday: 0, posted: {} },
     // added in the Baradari / police / weather / decoration update
+    wardrobe: { gender: 'm', skin: 'classic', fskin: 'f_suit', hair: 'bun', owned: { classic: true, f_suit: true } },
     lvlGift: 1,                       // the highest level that has been paid its gift
     decor: [],                        // placed decorations and trees: { id, k, x, z, ry, t }
     garden: { tokens: 0, total: 0, day: '', found: [], bonus: false, wished: '', sat: {}, relax: 0 },
@@ -112,6 +113,7 @@ export function migrate(s) {
   s.scarecrows = s.scarecrows.filter((c) => c && Number.isFinite(c.x) && Number.isFinite(c.z) && SCARECROW_DESIGNS[c.d])
     .slice(0, SCARECROW_MAX).map((c) => ({ ...c, lvl: Math.max(0, Math.min(SCARECROW_LEVELS.length - 1, c.lvl | 0)) }));
   s.decor = cleanDecor(s.decor);
+  s.wardrobe = cleanWardrobe(s.wardrobe);
   s.police.cases = cleanCases(s.police.cases);
   return s;
 }
@@ -122,9 +124,27 @@ export function cleanDecor(list) {
   return (Array.isArray(list) ? list : []).filter((d) => d && DECOR[d.k] && Number.isFinite(+d.x) && Number.isFinite(+d.z)).slice(0, DECOR_MAX)
     .map((d) => ({ id: String(d.id || makeId(6)).slice(0, 12), k: d.k, x: n(d.x, -80, 80), z: n(d.z, -100, 80), ry: n(d.ry, -7, 7), t: Math.max(0, +d.t || 0) }));
 }
+// outfits: only real ones are owned, the starting two always are, you can only wear what you own
+export function cleanWardrobe(w) {
+  const owned = { classic: true, f_suit: true };
+  for (const k of Object.keys(w?.owned || {})) if (SKINS[k]) owned[k] = true;
+  const pick = (id, g, d) => (SKINS[id]?.gender === g && owned[id] ? id : d);
+  return { gender: w?.gender === 'f' ? 'f' : 'm', skin: pick(w?.skin, 'm', 'classic'), fskin: pick(w?.fskin, 'f', 'f_suit'), hair: ['bun', 'pony', 'open', 'bob'].includes(w?.hair) ? w.hair : 'bun', owned };
+}
 export function cleanCases(list) {
   return (Array.isArray(list) ? list : []).filter((c) => c && c.items && typeof c.items === 'object' && ['open', 'reported', 'caught', 'closed'].includes(c.status)).slice(-12)
     .map((c) => ({ ...c, items: Object.fromEntries(Object.entries(c.items).filter(([k, q]) => ITEMS[k] && Number.isInteger(q) && q > 0)) }));
+}
+
+// One copy of the farm as the previous release left it, taken the first time a new release
+// opens it (the two newest copies are kept). A rescue line if an update ever went wrong.
+export const releaseKey = (n = RELEASE) => `${SAVE_KEY}-before-v${n}`;
+function keepReleaseCopy(raw) {
+  try {
+    if (localStorage.getItem(releaseKey())) return;
+    localStorage.setItem(releaseKey(), raw);
+    for (let n = RELEASE - 2; n > 0; n--) localStorage.removeItem(releaseKey(n));
+  } catch { /* storage full: not essential */ }
 }
 
 export function parseSave(text) {
@@ -142,6 +162,7 @@ export function loadSave() {
       const s = parseSave(raw);
       if (s) {
         try { if (!localStorage.getItem(PRE_UPDATE) && !JSON.parse(raw).pid) localStorage.setItem(PRE_UPDATE, raw); } catch { /* storage full: not essential */ }
+        if (key === SAVE_KEY) keepReleaseCopy(raw);
         return s;
       }
     } catch (e) {
