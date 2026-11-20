@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { makeTractor, makeAttachment, makeTrolley, makeCombine, makeBike } from './models.js';
 import { StackView } from './cargo.js';
 import { collide, POS } from './world.js';
-import { VEHICLES, ATTACHMENTS, TRACTOR_HP, COMBINE_RADIUS, TANKER_CAP, CROPS, BIKE_ENGINES, AURA } from './config.js';
+import { VEHICLES, ATTACHMENTS, TRACTOR_HP, COMBINE_RADIUS, TANKER_CAP, CROPS, ITEMS, BIKE_ENGINES, AURA } from './config.js';
 import { addStorage } from './state.js';
 import { onRing } from './ring.js';
 import { Ride, Airplane, FLEET } from './fleet.js';
@@ -74,6 +74,24 @@ class Vehicle {
 
   syncCargo() {
     if (this.cargoView) this.cargoView.set(this.cargo);
+    // a heap of crop piles up in the trolley / grain tank instead of crates
+    if (this.kind === 'tractor' || this.kind === 'combine') {
+      if (!this.heap) {
+        this.heap = new THREE.Mesh(new THREE.SphereGeometry(0.5, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0xdcb04c }));
+        this.heap.castShadow = true;
+        if (this.kind === 'tractor') { this.trolley.bed.add(this.heap); this.heap.position.set(0, 0, 0); } else { this.group.add(this.heap); this.heap.position.set(0, 3.3, -1.2); }
+        this.cargoView.crate.visible = false; if (this.cargoView.top) this.cargoView.top.visible = false;
+      }
+      const n = this.cargo.length, k = Math.min(1, n / this.cargoCap);
+      this.heap.visible = n > 0;
+      if (n) {
+        const count = {}; let best = this.cargo[0];
+        for (const c of this.cargo) { count[c] = (count[c] || 0) + 1; if (count[c] > count[best]) best = c; }
+        this.heap.material.color.set(CROPS[best]?.ripe ?? ITEMS[best]?.color ?? 0xdcb04c);
+        const big = this.kind === 'tractor' ? [1.5, 2.3] : [1.3, 1.4];
+        this.heap.scale.set(big[0] * (0.6 + 0.4 * k), 0.25 + 1.1 * k, big[1] * (0.6 + 0.4 * k));
+      }
+    }
     if (this.kind === 'tractor') this.trolley.group.visible = this.data.att === 'reaper' || this.cargo.length > 0;
   }
 
@@ -285,9 +303,12 @@ class Vehicle {
         if (ok) { this.data.tank--; g.fx.water(p.x, p.z); }
       } else if (action === 'harvest') {
         if (this.cargo.length >= this.cargoCap) { this.warn('Trolley full — unload at the Mandi, Arhtiya or Godown'); break; }
-        const n = farm.harvest(p);
-        if (n) {
+        const n0 = farm.harvest(p);
+        if (n0) {
           const crop = farm.lastHarvest.crop;
+          // machines bring in more: the reaper saves 30% more of the crop, the combine 60% more
+          const bonus = this.kind === 'combine' ? 0.6 : 0.3, n = n0 + Math.floor(n0 * bonus + Math.random());
+          g.fx.emit(p.x, 0.5, p.z, { n: 7, color: CROPS[crop].ripe, speed: 2.6, up: 3.2, life: 0.8, size: 1.3 });
           const k = Math.min(n, this.cargoCap - this.cargo.length);
           for (let i = 0; i < k; i++) this.cargo.push(crop);
           if (n > k) addStorage(st, crop, n - k);

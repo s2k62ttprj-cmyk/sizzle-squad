@@ -264,7 +264,7 @@ export class Farm {
     if (d.s < 2) return d.s;
     if (!d.w) return 'seed';
     const pr = this.progress(d, now);
-    return pr >= 1 ? 'ripe' : pr < 0.2 ? 'seed' : pr < 0.45 ? 'sprout' : pr < 0.75 ? 'g1' : 'g2';
+    return pr >= 1 ? 'ripe' : pr < 0.12 ? 'seed' : pr < 0.3 ? 'sprout' : 'g' + Math.min(9, Math.floor((pr - 0.3) / 0.7 * 10));     // grows a little every few seconds
   }
 
   redraw() {
@@ -290,7 +290,7 @@ export class Farm {
       if (vk === 'seed') key = 'seed';
       else if (vk === 'sprout') key = 'sprout';
       else if (vk === 'ripe') key = d.c + ':ripe';
-      else { key = d.c + ':grow'; sy = vk === 'g1' ? 0.5 : 0.82; sxz = vk === 'g1' ? 0.75 : 0.92; }
+      else { const k = (+vk.slice(1) + 0.5) / 10; key = d.c + ':grow'; sy = 0.3 + 0.62 * k; sxz = 0.6 + 0.35 * k; }
       const mesh = this.cropMeshes[key];
       const r = (p.g * 0.7) % 1;
       _q.setFromAxisAngle(_up, Math.floor(r * 4) * Math.PI / 2);

@@ -43,6 +43,7 @@ export function newState(name = 'Guri', turban = '#e8590c') {
     ach: {},
     daily: { date: '', goals: [] },
     weekly: { week: '', goals: [] },
+    ledger: { day: '', inc: 0, exp: 0, days: [] },     // money in and out, today and the last 7 days
     guru: { last: '', streak: 0, langarDate: '', langarSoul: 0, blessDate: '' },
     day: { n: 1, t: 0, weather: 'sunny', rain: 0, next: '', rainI: 0.5 },
     player: { x: 2.5, z: 6, rot: Math.PI, ride: null },

@@ -94,8 +94,15 @@ export class Market {
   stock() { return Object.values(this.game.state.stall).reduce((a, b) => a + b, 0); }
   priceMul() { return 1 + this.game.perks.price + (this.game.state.boosts.price > 0 ? BOOSTS.price : 0); }
   // crops in season (Rabi / Kharif) sell a little dearer
+  // Mandi bhaav: every item's rate drifts through the day (±30%), the same for everyone at the
+  // same moment, sliding smoothly from one half-hour to the next
+  mandiMul(id, t = Date.now()) {
+    const slot = t / 1800000, i = Math.floor(slot), f = slot - i, s = f * f * (3 - 2 * f);
+    const h = (n) => { let x = 2166136261 ^ n; for (const ch of id) x = Math.imul(x ^ ch.charCodeAt(0), 16777619); x = Math.imul(x ^ (x >>> 13), 1274126177); return ((x ^ (x >>> 16)) >>> 0) / 4294967296; };
+    return 0.7 + 0.6 * (h(i) * (1 - s) + h(i + 1) * s);
+  }
   seasonMul(id) { return seasonOf(this.game.state.day.n).crops.includes(id) ? 1 + SEASON_BONUS : 1; }
-  price(id) { return Math.max(1, Math.round(ITEMS[id].price * this.priceMul() * this.seasonMul(id))); }
+  price(id) { return Math.max(1, Math.round(ITEMS[id].price * this.priceMul() * this.seasonMul(id) * this.mandiMul(id))); }
 
   refreshShelf() {
     const list = [];

@@ -7,12 +7,12 @@ export const SAVE_KEY = 'patiala-kisan-save';
 export const SOUND_PACK = false;
 export const SAVE_VERSION = 2;
 // The release number: each release keeps one copy of the farm exactly as the release before left it
-export const RELEASE = 11;
+export const RELEASE = 12;
 export const DAY_SECONDS = 360;          // one in-game day (salaries, weather)
 export const PLOT = 2;                   // plot pitch in metres
 export const START_MONEY = 40;
 
-export const xpNeed = (level) => Math.round(25 + 18 * Math.pow(level, 1.55));
+export const xpNeed = (level) => Math.round((25 + 18 * Math.pow(level, 1.55)) * 2.5);     // ×2.5 in release 12: levels take much longer
 
 // shape drives the procedural plant model in crops.js
 export const CROPS = {
@@ -371,13 +371,18 @@ export const MANAGER_RANKS = [
   { name: 'Numberdar', speed: 3.2, costMul: 26 },
   { name: 'Zaildar', speed: 3.7, costMul: 45 },
   { name: 'Maharaja', speed: 4.3, costMul: 75 },
+  // added in release 12: four more levels, very dear
+  { name: 'Sarpanch', speed: 4.8, costMul: 130 },
+  { name: 'Jathedar', speed: 5.3, costMul: 220 },
+  { name: 'Nawab', speed: 5.8, costMul: 360 },
+  { name: 'Badshah', speed: 6.4, costMul: 600 },
 ];
 export const WALK_MAX = 3;            // fast ranks work quicker but never walk faster than ×3
 export const wage = (base, rank) => Math.round(base * (1 + rank * 0.3));
 export const MUNSHI_KEEP = 15;
 export const MUNSHI_RATE = 0.9;
 export const DUKAANDAR_KEEP = 5;      // the Dukaandar leaves this many of each item in the godown
-export const OFFLINE_HOURS = 3;       // managers keep working this long while the game is closed
+export const OFFLINE_HOURS = 2;       // managers keep working this long while the game is closed
 
 // Gurdwara Dukh Niwaran Sahib
 export const GURU = {
@@ -475,7 +480,7 @@ export const ACHIEVEMENTS = [
   { id: 'decor25', text: 'Place 25 decorations', stat: 'decor', n: 25 },
   { id: 'caught1', text: 'Get your goods back from a thief', stat: 'caught', n: 1 },
   { id: 'outfits5', text: 'Own 5 outfits', stat: 'outfits', n: 5 },
-  { id: 'outfitsAll', text: 'Own every outfit in the wardrobe', stat: 'outfits', n: 30 },
+  { id: 'outfitsAll', text: 'Own every outfit in the wardrobe', stat: 'outfits', n: 36 },
   { id: 'beauty700', text: 'Make your farm Beautiful (beauty 700)', stat: 'beauty', n: 700 },
   { id: 'beauty2000', text: 'Make your farm Royal (beauty 2000)', stat: 'beauty', n: 2000 },
   { id: 'themePink', text: 'Place 10 Pink Paradise pieces', stat: 'pinkDecor', n: 10 },
@@ -678,7 +683,7 @@ export const SOCIAL = {
 // Every level from the update on pays a gift (older levels were passed before it existed).
 // Levels carry on without end; the content (crops, decorations, statues) runs up to level 60.
 export const levelGift = (level) => ({
-  money: Math.round(30 * Math.pow(level, 1.4) / 10) * 10,
+  money: Math.round(12 * Math.pow(level, 1.4) / 10) * 10,
   tokens: level >= 10 && level % 5 === 0 ? 2 + Math.floor((level - 10) / 5) : 0,
 });
 
@@ -718,6 +723,13 @@ export const SKINS = {
   f_phulkari: { name: 'Patiala Shahi Phulkari', gender: 'f', rarity: 'rare', price: 160000, level: 15, desc: 'A white kameez, pink Patiala salwar and an orange phulkari', look: { shirt: 0xf8f9fa, pants: 0xe64980, dupatta: 0xf76707, shoes: 0xd4a017, earrings: 0xf2c94c } },
   f_pilot:    { name: 'Sky Pilot', gender: 'f', rarity: 'rare', price: 180000, level: 16, desc: 'A flight jacket, white scarf, gloves and boots', look: { female: true, top: 'jacket', shirt: 0x6b3d1f, scarf: 0xffffff, legs: 'cargo', pants: 0x495057, feet: 'boots', shoes: 0x3a2414, gloves: 0x3a2414, watch: true } },
   f_anarkali: { name: 'Anarkali Gown', gender: 'f', rarity: 'epic', price: 450000, level: 21, desc: 'A long purple anarkali with gold work and jewellery', look: { female: true, top: 'achkan', shirt: 0x7048e8, trim: 0xf2c94c, legs: 'skirt', pants: 0x7048e8, feet: 'heels', earrings: 0xf2c94c, necklace: 0xf2c94c } },
+  // release 12: premium outfits for the long road to level 60
+  nawab:      { name: 'Nawab of Patiala', gender: 'm', rarity: 'legendary', price: 6000000, level: 40, pagg: true, desc: 'A royal-blue achkan with gold zari, ropes of pearls, a sash and a kalgi', look: { top: 'achkan', shirt: 0x1c3f94, trim: 0xf2c94c, pants: 0xfbf8f1, shoes: 0xd4a017, kalgi: true, necklace: 0xfff8f0, sash: 0xf2c94c, watch: 0xf2c94c } },
+  tycoon:     { name: 'Patiala Tycoon', gender: 'm', rarity: 'legendary', price: 8000000, level: 45, pagg: true, desc: 'An ivory three-piece suit, gold tie, gold watch and polished shoes', look: { top: 'suit', shirt: 0xf3ead6, inner: 0xffffff, tie: 0xd4a017, vest: 0xe9dcc0, legs: 'trousers', pants: 0xf3ead6, feet: 'formal', shoes: 0x5a3a22, watch: 0xf2c94c, belt: 0x5a3a22, beltBuckle: 0xf2c94c } },
+  nihang:     { name: 'Khalsa Warrior', gender: 'm', rarity: 'legendary', price: 12000000, level: 55, pagg: true, desc: 'A saffron chola, deep-blue sash, steel kara and a tall kalgi', look: { top: 'achkan', shirt: 0xf08c00, trim: 0x1c3f94, pants: 0x1c3f94, shoes: 0x5a3a22, kalgi: true, sash: 0x1c3f94, watch: 0xd8dde3 } },
+  f_maharani: { name: 'Maharani Sahiba', gender: 'f', rarity: 'legendary', price: 7000000, level: 42, desc: 'An emerald suit, a gold dupatta and a kundan necklace', look: { shirt: 0x0b7a5a, pants: 0xd4a017, dupatta: 0xf2c94c, shoes: 0xd4a017, necklace: 0xf2c94c, earrings: 0xf2c94c } },
+  f_tycoon:   { name: 'Boss Lady', gender: 'f', rarity: 'legendary', price: 8000000, level: 45, desc: 'An ivory power suit, gold jewellery, heels and a designer bag', look: { female: true, top: 'blazer', shirt: 0xf3ead6, inner: 0xd4a017, legs: 'trousers', pants: 0xf3ead6, feet: 'heels', handbag: 0x5a3a22, watch: 0xf2c94c, earrings: 0xf2c94c, necklace: 0xf2c94c } },
+  f_starlight: { name: 'Starlight Gown', gender: 'f', rarity: 'legendary', price: 12000000, level: 55, desc: 'A midnight-blue anarkali with silver work and diamonds', look: { female: true, top: 'achkan', shirt: 0x1b1f4a, trim: 0xdee2e6, legs: 'skirt', pants: 0x1b1f4a, feet: 'heels', earrings: 0xffffff, necklace: 0xffffff, handbag: 0xdee2e6 } },
   f_lehenga:  { name: 'Bridal Lehenga', gender: 'f', rarity: 'legendary', price: 2000000, level: 33, desc: 'A red bridal lehenga, gold dupatta and kundan set', look: { shirt: 0xc92a2a, pants: 0xc92a2a, dupatta: 0xf2c94c, shoes: 0xd4a017, necklace: 0xf2c94c, earrings: 0xf2c94c } },
 };
 // What makeHuman needs to draw a wardrobe choice (the default is exactly the farmer of before)
@@ -944,4 +956,34 @@ export const PRICE_MUL = 2;
   for (const s of Object.values(SKINS)) dbl(s, 'price');
   for (const p of Object.values(PETS)) dbl(p);
   dbl(ORCHARD); dbl(PADDOCK);
+}
+
+// ---------------------------------------------------------------- slower farm (release 12)
+// Players were making crores far too quickly. Selling pays less, crops take longer, everything
+// you buy costs more (dearer the higher its level: early things stay cheap enough to start),
+// managers are very dear, rewards are smaller, and levels need more XP (see xpNeed).
+export const ECON = { sell: 0.45, reward: 0.4, staff: 8, wage: 2 };
+export const buyMul = (level) => 1 + 2 * Math.min(1, (level || 1) / 15);     // ×1 at level 1 up to ×3 from level 15
+export const growMul12 = () => 3;                                            // every crop takes 3× as long to grow
+{
+  const mul = (o, k, m) => { if (o && typeof o[k] === 'number') o[k] = Math.round(o[k] * m); };
+  for (const it of Object.values(ITEMS)) it.price = Math.max(1, Math.round(it.price * ECON.sell));
+  for (const [id, c] of Object.entries(CROPS)) {
+    c.sell = ITEMS[id].price;
+    c.seed = Math.max(1, Math.min(c.seed, Math.floor(c.sell / 2), Math.floor(c.sell * c.yield / 3)));   // a plant still earns at least twice its seed
+    c.grow = Math.round(c.grow * growMul12(c.level));
+  }
+  for (const f of FIELDS) mul(f, 'cost', buyMul(f.level));
+  for (const L of [BAGS, CANS, STORAGE, STALL, TRACTOR_HP, BIKE_ENGINES, PLANE_ENGINES, SCARECROW_LEVELS]) for (const x of L) mul(x, 'cost', buyMul(x.level));
+  for (const L of [VEHICLES, ATTACHMENTS, BUILDINGS]) for (const x of Object.values(L)) mul(x, 'cost', buyMul(x.level));
+  for (const p of Object.values(PENS)) { const m = buyMul(p.level); mul(p, 'cost', m); mul(p, 'animalCost', m); p.capCosts = p.capCosts.map((c) => Math.round(c * m)); }
+  for (const m of [...Object.values(MANAGERS), SEERI]) { mul(m, 'hire', ECON.staff); mul(m, 'salary', ECON.wage); }
+  for (const d of Object.values(DECOR)) mul(d, 'cost', buyMul(d.level));
+  for (const s of Object.values(SKINS)) mul(s, 'price', 3);
+  for (const k of ['dog', 'cat']) mul(PETS[k], 'cost', 3);
+  mul(ORCHARD, 'cost', 3); mul(PADDOCK, 'cost', 3);
+  for (const t of BEAUTY_TIERS) mul(t, 'money', ECON.reward);
+  for (const k of ['racePay', 'harvestPay', 'matkaPay', 'matkaBonus', 'visitorTip', 'visitorTipTier']) mul(MELA, k, ECON.reward);
+  for (const k of ['ringPay', 'kitePay', 'fuelPrice']) mul(PLANE, k, k === 'fuelPrice' ? 3 : ECON.reward);
+  for (const c of PLANE.cargo) mul(c, 'pay', ECON.reward);
 }

@@ -11,7 +11,7 @@ import { POS } from './world.js';
 import { fmt } from './pads.js';
 
 const _l = new THREE.Vector3(), _v = new THREE.Vector3();
-const stars = (rank) => '★'.repeat(rank + 1) + '<i>' + '★'.repeat(MANAGER_RANKS.length - 1 - rank) + '</i>';
+const stars = (rank) => `Lv ${rank + 1}`;
 
 class Seeri {
   constructor(staff, f) {

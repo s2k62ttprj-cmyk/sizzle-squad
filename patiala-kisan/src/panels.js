@@ -243,6 +243,7 @@ export async function handlePanels(ui, act, d) {
     case 'melaRace': { const e = g.extras.mela.startRace(); if (e) return fail(e); ui.close(); return 'done'; }
     case 'melaHarvest': { const e = g.extras.mela.startHarvest(); if (e) return fail(e); ui.close(); return 'done'; }
     case 'pet': { const had = g.state.pets.owned[d.k], e = g.extras.buyPet(d.k); if (e) return fail(e); if (!had) ui.toast(`${PETS[d.k].icon} ${PETS[d.k].name} is part of the family!`, 3); return 'render'; }
+    case 'voice': g.state.settings.voice = g.state.settings.voice === false; if (g.state.settings.voice) g.voice?.say('hello'); g.save(); return 'render';
     case 'skyTour': { const e = g.airfield.startTour(); if (e) return fail(e); ui.close(); return 'done'; }
     case 'cargoRun': { const e = g.airfield.startCargo(+d.i); if (e) return fail(e); ui.close(); return 'done'; }
     case 'decorTheme': ui.decorTheme = d.t || ''; return 'render';

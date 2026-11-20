@@ -36,7 +36,7 @@ export class Wardrobe {
     const { scene } = this.rig;
     if (this.model) { scene.remove(this.model.group); this.model.group.traverse((o) => o.geometry?.dispose()); }
     const s = SKINS[id], w = { ...this.w, gender: s.gender, skin: s.gender === 'm' ? id : this.w.skin, fskin: s.gender === 'f' ? id : this.w.fskin };
-    this.model = makeHuman(lookFor(w, this.game.state.turban));
+    this.model = makeHuman({ ...lookFor(w, this.game.state.turban), hq: true });
     this.model.blob.visible = false;
     scene.add(this.model.group);
     this.preview = id;

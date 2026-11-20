@@ -1,5 +1,5 @@
 // Missions (story chain), daily goals and achievements, all driven by game events.
-import { QUESTS, ACHIEVEMENTS, FIELDS } from './config.js';
+import { QUESTS, ACHIEVEMENTS, FIELDS, ECON } from './config.js';
 import { todayKey } from './state.js';
 
 const EVENT_FOR = {
@@ -114,7 +114,7 @@ export class Progression {
     const l = st.level, pool = WEEKLY_POOL.filter((d) => !d.need || d.need(st)), picks = [];
     let seed = wk.split('-').reduce((a, b) => a * 37 + +b, 11);
     while (picks.length < 3 && pool.length) { seed = (seed * 9301 + 49297) % 233280; picks.push(pool.splice(seed % pool.length, 1)[0]); }
-    st.weekly = { week: wk, goals: picks.map((d) => { const n = d.n(l); return { type: d.type, text: d.text(n), n, prog: 0, done: false, money: 400 + l * l * 12, xp: 80 + l * 8 }; }) };
+    st.weekly = { week: wk, goals: picks.map((d) => { const n = d.n(l); return { type: d.type, text: d.text(n), n, prog: 0, done: false, money: Math.round((400 + l * l * 12) * ECON.reward), xp: 80 + l * 8 }; }) };
   }
 
   ensureDaily() {
@@ -131,8 +131,8 @@ export class Progression {
     }
     st.daily = {
       date: today,
-      goals: [{ type: 'bow', text: 'Darshan at Gurdwara Dukh Niwaran Sahib', n: 1, prog: st.guru.last === today ? 1 : 0, done: st.guru.last === today, money: 20 + l * 10, xp: 10 + l * 2 },
-        ...picks.map((d) => { const n = d.n(l); return { type: d.type, text: d.text(n), n, prog: 0, done: false, money: 30 + l * 15, xp: 10 + l * 3 }; })],
+      goals: [{ type: 'bow', text: 'Darshan at Gurdwara Dukh Niwaran Sahib', n: 1, prog: st.guru.last === today ? 1 : 0, done: st.guru.last === today, money: Math.round((20 + l * 10) * ECON.reward), xp: 10 + l * 2 },
+        ...picks.map((d) => { const n = d.n(l); return { type: d.type, text: d.text(n), n, prog: 0, done: false, money: Math.round((30 + l * 15) * ECON.reward), xp: 10 + l * 3 }; })],
     };
   }
 

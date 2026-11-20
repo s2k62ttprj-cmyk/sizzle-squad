@@ -356,7 +356,7 @@ export class Social {
     const g = this.game;
     let o = this.others[id];
     if (!o) {
-      const h = makeHuman(lookFor(r.w, r.t || f.turban || '#e8590c'));
+      const h = makeHuman({ ...lookFor(r.w, r.t || f.turban || '#e8590c'), hq: true });
       h.group.traverse((m) => { if (m.isMesh && m !== h.blob) m.castShadow = true; });
       g.scene.add(h.group);
       o = this.others[id] = { h, pos: h.group.position, x: r.x, z: r.z, rot: r.r, t: Math.random() * 9, spd: 0 };

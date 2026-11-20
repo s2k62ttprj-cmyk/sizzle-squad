@@ -35,6 +35,7 @@ import { EastLand } from './eastland.js';
 import { Airfield } from './fleet.js';
 import { Tubewells } from './tubewell.js';
 import { Extras } from './extras.js';
+import { Voice } from './voice.js';
 import { Baradari, buildBaradari } from './baradari.js';
 import { Police } from './police.js';
 import { Wardrobe } from './wardrobe.js';
@@ -135,6 +136,7 @@ class Game {
     this.airfield = new Airfield(this);
     this.tubewells = new Tubewells(this);
     this.extras = new Extras(this);
+    this.voice = new Voice(this);
     buildBaradari(this);
     this.player = new Player(this);
     this.input = new Input(this);
@@ -212,6 +214,14 @@ class Game {
     st.money += out.money; st.garden.tokens += out.tokens; st.garden.total += out.tokens;
     this.ui?.money();
     return out;
+  }
+  // hisaab: compare money each frame; ups are income, downs are expenses, kept per day
+  trackMoney() {
+    const st = this.state, L = st.ledger, m = st.money, day = new Date().toISOString().slice(0, 10);
+    if (this.visit || !L) return;
+    if (L.day !== day) { if (L.day) { L.days.push({ d: L.day, inc: Math.round(L.inc), exp: Math.round(L.exp) }); L.days = L.days.slice(-7); } L.day = day; L.inc = 0; L.exp = 0; }
+    if (this.lastMoney !== undefined) { const d = m - this.lastMoney; if (d > 0) L.inc += d; else if (d < 0) L.exp -= d; }
+    this.lastMoney = m;
   }
   refreshPerks() { this.perks = computePerks(this.state); this.ui?.blessBadge(); this.farm.dirty = true; }
   activeCargo() {
@@ -383,6 +393,7 @@ class Game {
       this.airfield.update(dt, t);
       this.tubewells.update(dt, t);
       this.extras.update(dt, t);
+      this.trackMoney();
       this.baradari.update(dt, t);
       this.police.update(dt, t);
       this.market.update(dt);

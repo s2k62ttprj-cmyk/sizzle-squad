@@ -311,7 +311,7 @@ export class UI {
       case 'trade': title = this.tr.mode === 'gift' ? '🎁 Send a gift' : '🔁 Make a trade'; html = this.tradeHTML(); break;
       case 'missions': title = '📜 Goals'; tabs = [['mission', 'Mission'], ['daily', 'Daily & weekly'], ['gerhi', '🏍️ Gerhi'], ['ach', 'Achievements']]; html = this.missionsHTML(); this.live = this.tab !== 'gerhi'; break;
       case 'radio': title = '📻 Radio'; html = this.radioHTML(); break;
-      case 'bag': title = '🎒 Bag & Godown'; tabs = [['carry', '🧺 Carrying'], ['storage', '🏚️ Godown'], ['seedbag', '🌱 Seeds']]; html = this.bagHTML(); break;
+      case 'bag': title = '🎒 Bag & Godown'; tabs = [['carry', '🧺 Carrying'], ['storage', '🏚️ Godown'], ['seedbag', '🌱 Seeds'], ['tools', '🧰 Tools'], ['rates', '📈 Mandi'], ['hisaab', '💰 Hisaab']]; this.live = this.tab === 'rates' || this.tab === 'hisaab'; html = this.bagHTML(); break;
       case 'map': title = '🗺️ Map'; html = this.mapHTML(); break;
       case 'settings': title = '⚙️ Settings'; html = this.settingsHTML(); break;
       case 'orders': title = '📋 Customer orders'; html = this.ordersHTML(); this.live = true; break;
@@ -545,16 +545,57 @@ export class UI {
 
   bagHTML() {
     const g = this.game, st = g.state;
+    // group items: crops, fruit, animal goods, workshop goods
+    const groups = (counts, rowFn) => {
+      const cat = (id) => (CROPS[id] ? 'crop' : ['mango', 'guava', 'ber', 'orange', 'jamun'].includes(id) ? 'fruit' : ['egg', 'milk', 'wool'].includes(id) ? 'animal' : 'goods');
+      const names = { crop: '🌾 Crops', fruit: '🍎 Fruit', animal: '🥚 Animal produce', goods: '🏭 Workshop goods' };
+      let h = '';
+      for (const c of ['crop', 'fruit', 'animal', 'goods']) {
+        const rows = Object.entries(counts).filter(([id, n]) => n > 0 && ITEMS[id] && cat(id) === c).map(([id, n]) => rowFn(id, n));
+        if (rows.length) h += `<h3>${names[c]}</h3>` + rows.join('');
+      }
+      return h;
+    };
     if (this.tab === 'carry') {
       const counts = {};
       for (const id of st.carry) counts[id] = (counts[id] || 0) + 1;
-      const rows = Object.entries(counts).map(([id, n]) => this.row(ITEMS[id].icon, `${ITEMS[id].name} × ${n}`, `Worth ${money(ITEMS[id].price * n)} at the mandi`));
-      return `<p class="hint">${BAGS[st.up.bag].name}: ${st.carry.length}/${carryCap(st)} · 💧 ${st.water}/${CANS[st.up.can].cap}</p>` + (rows.join('') || '<p class="empty">Nothing in your bag. Harvest crops or collect goods.</p>');
+      const h = groups(counts, (id, n) => this.row(ITEMS[id].icon, `${ITEMS[id].name} × ${n}`, `Worth ${money(g.market.price(id) * n)} at today's mandi rate`));
+      return `<p class="hint">${BAGS[st.up.bag].name}: ${st.carry.length}/${carryCap(st)} · 💧 ${st.water}/${CANS[st.up.can].cap}</p>` + (h || '<p class="empty">Nothing in your bag. Harvest crops or collect goods.</p>');
     }
     if (this.tab === 'storage') {
-      const rows = Object.entries(st.storage).filter(([, n]) => n > 0).map(([id, n]) => this.row(ITEMS[id].icon, `${ITEMS[id].name} × ${n}`, `${money(ITEMS[id].price)} each`,
+      const h = groups(st.storage, (id, n) => this.row(ITEMS[id].icon, `${ITEMS[id].name} × ${n}`, `${money(g.market.price(id))} each today`,
         this.btn('Take 1', 'takeOut', { id, n: 1 }, st.carry.length >= carryCap(st)) + this.btn('Take all', 'takeOut', { id, n: 999 }, st.carry.length >= carryCap(st))));
-      return `<p class="hint">${STORAGE[st.up.storage].name}: ${storageUsed(st)}/${storageCap(st)}. Drop goods on the blue pad at the godown. Workshops and orders can use godown stock.</p>` + (rows.join('') || '<p class="empty">The godown is empty.</p>');
+      return `<p class="hint">${STORAGE[st.up.storage].name}: ${storageUsed(st)}/${storageCap(st)}. Drop goods on the blue pad at the godown. Workshops and orders can use godown stock.</p>` + (h || '<p class="empty">The godown is empty.</p>');
+    }
+    if (this.tab === 'tools') {
+      let h = '<h3>🧰 Your tools</h3>';
+      h += this.row('🎒', BAGS[st.up.bag].name, `Carries ${carryCap(st)} goods`, '');
+      h += this.row('💧', CANS[st.up.can].name, `Holds ${CANS[st.up.can].cap} water · ${st.water} in it now`, '');
+      h += this.row('🏚️', STORAGE[st.up.storage].name, `Stores ${storageCap(st)} goods`, '');
+      const tr = st.vehicles.tractor;
+      if (tr?.owned) h += this.row('🚜', `Tractor ${TRACTOR_HP[tr.hp].name}`, `Attachments: ${Object.keys(tr.atts).filter((k) => tr.atts[k]).map((k) => ATTACHMENTS[k].name).join(', ')}`, '');
+      const veh = Object.entries(st.vehicles).filter(([k, v]) => v.owned && k !== 'tractor').map(([k]) => VEHICLES[k].name);
+      if (veh.length) h += this.row('🚗', 'Vehicles', veh.join(', '), '');
+      if (st.scarecrows?.length) h += this.row('🧍', 'Scarecrows', `${st.scarecrows.length} standing guard`, '');
+      return h + '<p class="hint">Better tools and machines are in the Shop.</p>';
+    }
+    if (this.tab === 'rates') {
+      const now = Date.now();
+      let h = '<p class="hint">Mandi bhaav: rates move through the day, up to 30% either way, and crops in season sell dearer. Sell when the arrow is green!</p>';
+      const ids = Object.keys(ITEMS).filter((id) => CROPS[id] ? st.level >= CROPS[id].level : (st.storage[id] || st.carry.includes(id)));
+      for (const id of ids) {
+        const p = g.market.price(id), m = g.market.mandiMul(id, now), m0 = g.market.mandiMul(id, now - 3600000);
+        const arrow = m > m0 + 0.02 ? '<b style="color:#2b8a3e">▲</b>' : m < m0 - 0.02 ? '<b style="color:#c92a2a">▼</b>' : '<b style="color:#868e96">▬</b>';
+        h += this.row(ITEMS[id].icon, `${ITEMS[id].name} ${arrow}`, `${money(p)} each · ${Math.round(m * 100)}% of the usual rate`, '');
+      }
+      return h;
+    }
+    if (this.tab === 'hisaab') {
+      const L = st.ledger, days = [...(L.days || [])].reverse();
+      let h = `<div class="card2 gold"><b class="big">Today: ${money(L.inc)} in · ${money(L.exp)} out</b><small>${L.inc - L.exp >= 0 ? '📈 Profit' : '📉 Loss'} ${money(Math.abs(L.inc - L.exp))} so far today</small></div>`;
+      h += '<p class="hint">Hisaab-kitaab: every rupee that comes in (sales, rewards) and goes out (seeds, buying, wages).</p>';
+      for (const d of days) h += this.row(d.inc - d.exp >= 0 ? '📈' : '📉', d.d, `In ${money(d.inc)} · out ${money(d.exp)}`, `<span class="tag ${d.inc - d.exp >= 0 ? 'ok' : ''}">${d.inc - d.exp >= 0 ? '+' : '−'}${money(Math.abs(d.inc - d.exp))}</span>`);
+      return h;
     }
     return this.seedsHTML(true);
   }
@@ -591,6 +632,7 @@ export class UI {
       <div class="set">🖼️ Graphics <div class="seg">${['auto', 'low', 'medium', 'high'].map((q) => `<button data-act="quality" data-q="${q}" class="${s.quality === q ? 'on' : ''}">${q}</button>`).join('')}</div></div>
       <div class="set">👳 Pagg colour <div class="swatches">${TURBAN_COLORS.map((c) => `<button data-act="turban" data-c="${c}" style="background:${c}" class="${st.turban === c ? 'on' : ''}"></button>`).join('')}</div></div>
       <label class="set">✏️ Name <input type="text" maxlength="14" value="${esc(st.name)}" data-set="name"></label>
+      <div class="set">🗣️ Punjabi voice <div class="seg"><button data-act="voice" class="${s.voice !== false ? 'on' : ''}">${s.voice !== false ? 'On' : 'Off'}</button></div></div>
       <div class="set">🎧 My own music <div class="seg"><button data-act="ownMusic" class="${s.ownMusic ? 'on' : ''}">${s.ownMusic ? 'On — game music off' : 'Off'}</button></div></div>
       <button class="btn wide" data-act="share">📤 Share the game</button>
       <p class="hint">💾 Progress saves automatically on this device (last saved ${saved}).${saveWorks() ? '' : ' ⚠️ Saving is blocked in this browser mode (private browsing?).'} Saves stay in this browser — they do not sync between devices. Tip: Safari → Share → Add to Home Screen keeps your farm safest.</p>
@@ -666,7 +708,7 @@ export class UI {
     const r = MANAGER_RANKS[rank], next = MANAGER_RANKS[rank + 1];
     const hired = role === 'seeri' ? Object.values(st.fields).some((f) => f.owned && f.seeri) : data.on;
     const locked = st.level < cfg.level;
-    const starsHtml = MANAGER_RANKS.map((_, i) => `<span class="${i <= rank ? 'on' : ''}">★</span>`).join('');
+    const starsHtml = `<span class="on lvlnum">Level ${rank + 1} of ${MANAGER_RANKS.length}</span>`;
     let ctrl = '';
     if (locked) ctrl = `<span class="tag">🔒 Level ${cfg.level}</span>`;
     else if (role !== 'seeri' && !data.on) ctrl = this.btn(`Hire ${money(cfg.hire - (data.paid || 0))}`, 'hire', { role }, st.money < cfg.hire - (data.paid || 0), 'go') + this.btn('📍 Desk', 'guide', { t: role }, false, 'ghost');

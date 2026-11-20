@@ -340,3 +340,7 @@ textarea.paste { width: 100%; min-height: 96px; font: inherit; font-size: 16px; 
 .wtile.own { background: #f3fbef; }/* the airplane's climb / descend buttons */
 #flyBtns { gap: 14px; }
 #flyBtns .round.big { width: 62px; height: 62px; font-size: 28px; touch-action: none; user-select: none; -webkit-user-select: none; }
+
+/* release 12: placement arrows and manager level numbers */
+.nudge .btn { min-width: 48px; font-size: 18px; }
+.lvlnum { font-weight: 800; color: #b8860b; }

@@ -401,6 +401,12 @@ export class Decor {
     $('placeNo')?.addEventListener('click', (e) => { e.stopPropagation(); this.cancel(); });
     $('placeRot')?.addEventListener('click', (e) => { e.stopPropagation(); this.rotate(); });
     $('placeSnap')?.addEventListener('pointerdown', (e) => e.stopPropagation());
+    // arrows move the ghost a step at a time (north is up on screen), no need to walk
+    for (const [id, dx, dz] of [['nudgeL', -1, 0], ['nudgeR', 1, 0], ['nudgeU', 0, -1], ['nudgeD', 0, 1]]) {
+      const el = $(id); if (!el) continue;
+      el.addEventListener('pointerdown', (e) => e.stopPropagation());
+      el.addEventListener('click', (e) => { e.stopPropagation(); const P = this.placing; if (!P) return; const s = this.snapOn() ? GRID : 0.25; P.ox = Math.max(-6, Math.min(6, P.ox + dx * s)); P.oz = Math.max(-6, Math.min(6, P.oz + dz * s)); this.game.audio.play('click'); this.updatePlacing(); });
+    }
     $('placeSnap')?.addEventListener('click', (e) => { e.stopPropagation(); this.toggleSnap(); });
     setTimeout(() => this.checkBeauty(), 1500);
     // the new fields moved next to the farm: say where any decorations that stood there went
@@ -559,7 +565,9 @@ export class Decor {
     const ring = this.ringMesh(0x69db7c, D.r);
     g.scene.add(ghost, ring);
     if (existing) { this.movingId = existing.id; this.rebuild(); }
-    this.placing = { k, existing, fromStore: !existing && fromStore, ghost, ring, ry: existing ? existing.ry : 0, ok: false };
+    this.placing = { k, existing, fromStore: !existing && fromStore, ghost, ring, ry: existing ? existing.ry : 0, ok: false, ox: 0, oz: 0 };
+    if (!this.grid) { this.grid = new THREE.GridHelper(8, 10, 0xffffff, 0xffffff); this.grid.material.transparent = true; this.grid.material.opacity = 0.35; this.grid.material.depthWrite = false; g.scene.add(this.grid); }
+    if ($('nudge')) $('nudge').hidden = false;
     g.ui.close();
     $('placeBar').hidden = false; $('placeRot').hidden = false; this.snapLabel();
     $('action').hidden = true;
@@ -580,7 +588,9 @@ export class Decor {
     const P = this.placing, g = this.game, pl = g.player, D = DECOR[P.k];
     const ahead = 1.5 + D.r * 0.35;
     let x = pl.pos.x + Math.sin(pl.rot) * ahead, z = pl.pos.z + Math.cos(pl.rot) * ahead;
+    x += P.ox; z += P.oz;
     if (this.snapOn()) { x = Math.round(x / GRID) * GRID; z = Math.round(z / GRID) * GRID; }
+    if (this.grid) { this.grid.visible = this.snapOn(); this.grid.position.set(Math.round(x / GRID) * GRID, 0.08, Math.round(z / GRID) * GRID); }
     P.x = x; P.z = z;
     P.ghost.position.set(x, 0, z); P.ghost.rotation.y = P.ry; P.ring.position.set(x, 0, z);
     const why = this.placeError(x, z, P.k, P.existing?.id);
@@ -629,7 +639,7 @@ export class Decor {
     if (!P) return;
     this.game.scene.remove(P.ghost, P.ring);
     this.placing = null;
-    $('placeBar').hidden = true; $('placeRot').hidden = true; if ($('placeSnap')) $('placeSnap').hidden = true;
+    $('placeBar').hidden = true; $('placeRot').hidden = true; if ($('placeSnap')) $('placeSnap').hidden = true; if ($('nudge')) $('nudge').hidden = true; if (this.grid) this.grid.visible = false;
   }
   cancel(quiet = false) {
     const P = this.placing;

@@ -14,7 +14,7 @@ export class Player {
   constructor(game) {
     this.game = game;
     const st = game.state;
-    this.h = makeHuman({ ...this.look(), tools: true });
+    this.h = makeHuman({ ...this.look(), tools: true, hq: true });
     this.group = this.h.group;
     this.pos = this.group.position;
     this.pos.set(st.player.x, 0, st.player.z);
@@ -51,7 +51,7 @@ export class Player {
   setLook() {
     const parent = this.group.parent, pos = this.pos.clone();
     parent.remove(this.group);
-    const h = makeHuman({ ...this.look(), tools: true });
+    const h = makeHuman({ ...this.look(), tools: true, hq: true });
     h.bones.chest.add(this.back);
     this.h = h;
     this.group = h.group;

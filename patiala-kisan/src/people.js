@@ -41,7 +41,17 @@ const REST = BONES.map((b) => new THREE.Vector3(b[2], b[3], b[4]));
 // Parts added to the Builder are tagged with a bone, or with a function giving each vertex a
 // blend of two bones (for joints); build() turns it all into one skinned geometry.
 class Rig {
-  constructor() { this.b = new Builder(0.012, { ao: 0.1, aoH: 0.5 }); this.tags = []; this.mark = 0; }
+  constructor(hq = false) {
+    this.b = new Builder(hq ? 0 : 0.012, { ao: 0.1, aoH: 0.5 }); this.tags = []; this.mark = 0;
+    if (!hq) return;
+    // high quality: rounder limbs, heads and clothes (more segments) and no colour speckle
+    const b = this.b, k = 1.8, up = (n) => Math.max(n, Math.round(n * k));
+    const cyl = b.cyl.bind(b), cap = b.capsule.bind(b), sph = b.sph.bind(b), tor = b.torus.bind(b);
+    b.cyl = (c, t, rt, rb, seg = 12, open) => cyl(c, t, rt, rb, up(seg), open);
+    b.capsule = (c, t, r, len, seg = 10) => cap(c, t, r, len, up(seg));
+    b.sph = (c, t, w = 12, h = 8, a, bb) => sph(c, t, up(w), up(h), a, bb);
+    b.torus = (c, t, r, tube, rs = 6, ts = 18, arc) => tor(c, t, r, tube, up(rs), up(ts), arc);
+  }
   tag(w) { for (let i = this.mark; i < this.b.parts.length; i++) this.tags[i] = w; this.mark = this.b.parts.length; }
   // the last part's colours get soft vertical folds (kurtas, salwar, dupatta)
   folds(n = 7, amt = 0.1) {
@@ -150,7 +160,7 @@ function dressTop(R, b, o, top, c, bw, longCoat) {
 //    necklace, belt, watch, earrings, handbag, camo
 export function makeHuman(o = {}) {
   const skin = o.skin ?? 0xc68a5a, shirt = o.shirt ?? 0xf5f0e1, pants = o.pants ?? 0xf0ece0, hair = o.hair ?? 0x1b1410;
-  const woman = !!o.dupatta, fem = woman || !!o.female, R = new Rig(), b = R.b;
+  const woman = !!o.dupatta, fem = woman || !!o.female, R = new Rig(!!o.hq), b = R.b;
   const top = o.top || 'kurta', legs = o.legs || 'pajama', feet = o.feet || 'jutti';
   const shortTop = ['suit', 'blazer', 'jacket', 'hoodie', 'puffer', 'tactical', 'shirt'].includes(top), longCoat = top === 'sherwani' || top === 'achkan';
   const lip = o.female ? 0xb04a5c : shade(skin, -0.16), skinL = shade(skin, 0.05);

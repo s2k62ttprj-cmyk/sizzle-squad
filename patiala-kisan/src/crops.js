@@ -43,9 +43,9 @@ function plant(b, shape, c, ripe) {
   const lf = c.leaf, fruit = c.ripe;
   switch (shape) {
     case 'grain': {
-      const h = c.paddy ? 0.75 : 0.9;
+      const h = c.paddy ? 0.8 : 1.05;
       const stalk = ripe ? (c.paddy ? 0xc9b25a : 0xdcb04c) : lf;
-      for (const [x, z] of spots(3)) {
+      for (const [x, z] of spots(4)) {
         tuft(b, x, z, h, stalk, 8, 0.3, 0.07);
         if (ripe) for (let k = 0; k < 4; k++) {
           const a = k * 1.57 + x, lx = x + Math.cos(a) * 0.12, lz = z + Math.sin(a) * 0.12, tilt = 0.35 + rnd(k + x) * 0.25;
@@ -88,7 +88,7 @@ function plant(b, shape, c, ripe) {
       }
       break;
     case 'tall':
-      for (const [x, z] of spots(2)) {
+      for (const [x, z] of spots(3)) {
         b.cyl(0x7fb547, { x, y: 0.85, z, sy: 1.7 }, 0.035, 0.055, 6);
         for (let k = 0; k < 7; k++) {
           const a = k * 2.1 + x, y = 0.3 + k * 0.2;
@@ -126,7 +126,7 @@ function plant(b, shape, c, ripe) {
       }
       break;
     case 'cane':
-      for (const [x, z] of spots(2)) {
+      for (const [x, z] of spots(3)) {
         for (let k = 0; k < 4; k++) {
           const dx = x + (k % 2 - 0.5) * 0.16, dz = z + (k > 1 ? 0.08 : -0.08);
           b.cyl(ripe ? fruit : 0x8cc152, { x: dx, y: 1.05, z: dz, sy: 2.1, rz: (k - 1.5) * 0.04 }, 0.045, 0.05, 6);
