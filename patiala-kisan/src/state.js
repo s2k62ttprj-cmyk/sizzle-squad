@@ -43,7 +43,8 @@ export function newState(name = 'Guri', turban = '#e8590c') {
     ach: {},
     daily: { date: '', goals: [] },
     weekly: { week: '', goals: [] },
-    ledger: { day: '', inc: 0, exp: 0, days: [] },     // money in and out, today and the last 7 days
+    ledger: { day: '', inc: 0, exp: 0, days: [] },
+    moneyCut: 1,                      // new farms start after the release-13 money cut     // money in and out, today and the last 7 days
     guru: { last: '', streak: 0, langarDate: '', langarSoul: 0, blessDate: '' },
     day: { n: 1, t: 0, weather: 'sunny', rain: 0, next: '', rainI: 0.5 },
     player: { x: 2.5, z: 6, rot: Math.PI, ride: null },
@@ -109,6 +110,7 @@ export function migrate(s) {
   }
   const hadGift = 'lvlGift' in s;
   const pumpFix = !s.pump?.fix;                 // read before the defaults fill it in
+  const cutMoney = !s.moneyCut;                 // release 13: existing farms keep one third of their money, once
   const fresh = newState(s.name, s.turban);
   fillDefaults(s, fresh);
   if (!hadGift) s.lvlGift = Math.max(1, s.level | 0);       // levels passed before the update get no gift
@@ -125,6 +127,7 @@ export function migrate(s) {
   s.decor = cleanDecor(s.decor);
   s.deco = cleanDeco(s.deco);
   // release 11: the tube wells run by default (water you can see) and the khaal comes free
+  if (cutMoney) { const before = Math.max(0, +s.money || 0); s.money = Math.floor(before / 3); s.moneyCut = 1; if (before >= 300) s.moneyCutNote = Math.round(before); }
   s.pump = { on: pumpFix ? [true, true] : [!!s.pump?.on?.[0], !!s.pump?.on?.[1]], khaal: true, fix: 1 };
   // release 11 moved the new fields next to the old farm: decorations standing there go to the store
   const inField = (d) => FIELDS.some((f) => d.x > f.x0 - 0.6 && d.x < f.x0 + f.cols * PLOT + 0.6 && d.z > f.z0 - 0.6 && d.z < f.z0 + f.rows * PLOT + 0.6);

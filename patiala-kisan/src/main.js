@@ -137,6 +137,8 @@ class Game {
     this.tubewells = new Tubewells(this);
     this.extras = new Extras(this);
     this.voice = new Voice(this);
+    // release 13: tell the player once that their savings were cut to a third
+    if (this.state.moneyCutNote && !this.visit) setTimeout(() => { const b = this.state.moneyCutNote; delete this.state.moneyCutNote; this.ui.toast(`🏦 Mandi reform: every farm keeps one third of its savings. ₹${b.toLocaleString('en-IN')} → ₹${Math.floor(b / 3).toLocaleString('en-IN')}`, 7); this.save(true); }, 3000);
     buildBaradari(this);
     this.player = new Player(this);
     this.input = new Input(this);

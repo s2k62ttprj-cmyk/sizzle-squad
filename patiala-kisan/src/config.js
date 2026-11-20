@@ -7,7 +7,7 @@ export const SAVE_KEY = 'patiala-kisan-save';
 export const SOUND_PACK = false;
 export const SAVE_VERSION = 2;
 // The release number: each release keeps one copy of the farm exactly as the release before left it
-export const RELEASE = 12;
+export const RELEASE = 13;
 export const DAY_SECONDS = 360;          // one in-game day (salaries, weather)
 export const PLOT = 2;                   // plot pitch in metres
 export const START_MONEY = 40;
